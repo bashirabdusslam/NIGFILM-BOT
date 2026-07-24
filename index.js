@@ -744,7 +744,9 @@ app.post("/webhooks/billstack", async (req, res) => {
     console.error("❌ Webhook Error:", error);
   }
 });
-
+app.get("/", (req, res) => {
+  res.send("✅ NIGFILM BOT API yana aiki!");
+});
 app.listen(PORT, () => {
   console.log(`🌐 Webhook server yana aiki a port ${PORT}`);
 });

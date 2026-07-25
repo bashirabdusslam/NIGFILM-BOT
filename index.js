@@ -744,17 +744,60 @@ app.post("/webhooks/billstack", async (req, res) => {
     console.error("❌ Webhook Error:", error);
   }
 });
+// ===============================
+// TELEGRAM WEBHOOK
+// ===============================
+
+app.use(express.json());
+
+const TELEGRAM_WEBHOOK_URL =
+  "https://nigfilm-bot.onrender.com/telegram-webhook";
+
+app.post("/telegram-webhook", async (req, res) => {
+  try {
+    await bot.handleUpdate(req.body);
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("❌ Telegram Webhook Error:", error);
+    res.sendStatus(500);
+  }
+});
+
+// ===============================
+// HEALTH CHECK
+// ===============================
+
 app.get("/", (req, res) => {
   res.send("✅ NIGFILM BOT API yana aiki!");
 });
-app.listen(PORT, () => {
-  console.log(`🌐 Webhook server yana aiki a port ${PORT}`);
-});
-bot.launch();
 
-console.log(
-  "🤖 NIGIFILM BOT yana aiki..."
-);
+// ===============================
+// START SERVER
+// ===============================
+
+app.listen(PORT, async () => {
+  console.log(`🌐 Webhook server yana aiki a port ${PORT}`);
+
+  try {
+    await bot.telegram.setWebhook(TELEGRAM_WEBHOOK_URL);
+
+    console.log(
+      "✅ Telegram Webhook an saita:",
+      TELEGRAM_WEBHOOK_URL
+    );
+  } catch (error) {
+    console.error(
+      "❌ Telegram Webhook Error:",
+      error
+    );
+  }
+});
+
+console.log("🤖 NIGFILM BOT yana aiki...");
+
+// ===============================
+// GRACEFUL SHUTDOWN
+// ===============================
 
 process.once(
   "SIGINT",

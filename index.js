@@ -441,13 +441,12 @@ bot.action("admin_publish_film", async (ctx) => {
 
   const film = result[0].values[0];
 
-  const filmId = film[0];
   const title = film[1];
   const description = film[2];
   const category = film[3];
   const price = film[4];
   const posterFileId = film[5];
-
+  const videoFileId = film[6];
   const caption =
     "🎬 " +
     title +
@@ -753,12 +752,9 @@ app.post("/webhooks/billstack", async (req, res) => {
       return;
     }
 
-    const filmId = film[0];
+    const film = filmResult[0].values[0];
+
 const title = film[1];
-const description = film[2];
-const category = film[3];
-const price = film[4];
-const posterFileId = film[5];
 const videoFileId = film[6];
 
     saveDatabase();

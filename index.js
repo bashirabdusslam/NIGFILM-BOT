@@ -80,7 +80,7 @@ bot.start(async (ctx) => {
         [
           Markup.button.callback(
             "💳 BUY NOW",
-            `buy_${id}`
+            `buy_now_${id}`
           )
         ]
       ])
@@ -753,10 +753,13 @@ app.post("/webhooks/billstack", async (req, res) => {
       return;
     }
 
-    const film = filmResult[0].values[0];
-
-    const title = film[1];
-    const videoFileId = film[6];
+    const filmId = film[0];
+const title = film[1];
+const description = film[2];
+const category = film[3];
+const price = film[4];
+const posterFileId = film[5];
+const videoFileId = film[6];
 
     saveDatabase();
 

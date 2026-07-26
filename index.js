@@ -47,10 +47,49 @@ const adminMenu = Markup.inlineKeyboard([
 // =================================
 // START
 // =================================
-
 bot.start(async (ctx) => {
+  const payload = ctx.startPayload;
+
+  // Mutum ya zo daga Channel ta hanyar BUY NOW
+  if (payload && payload.startsWith("film_")) {
+    const filmId = Number(payload.replace("film_", ""));
+
+    const db = getDatabase();
+
+    const result = db.exec(
+      `SELECT * FROM films WHERE id = ${filmId}`
+    );
+
+    if (!result.length || !result[0].values.length) {
+      return ctx.reply(
+        "❌ Ba a samu wannan film ɗin ba."
+      );
+    }
+
+    const film = result[0].values[0];
+
+    const id = film[0];
+    const title = film[1];
+    const price = film[2];
+
+    return ctx.reply(
+      `🎬 Film: ${title}\n\n` +
+      `💰 Farashi: ₦${price}\n\n` +
+      `👇 Danna ƙasa domin ci gaba da siya:`,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "💳 BUY NOW",
+            `buy_${id}`
+          )
+        ]
+      ])
+    );
+  }
+
+  // Normal /start
   await ctx.reply(
-    "🎬 Barka da zuwa NIGIFILM BOT!\n\n" +
+    "🎬 Barka da zuwa NIGFILM BOT!\n\n" +
     "🎥 Siyan fina-finai\n" +
     "💳 Biyan kuɗi cikin sauƙi\n" +
     "📥 Sauke fim bayan biyan kuɗi"
@@ -424,25 +463,22 @@ bot.action("admin_publish_film", async (ctx) => {
     "\n\n" +
     "👇 Zaɓi abin da kake so:";
 
-  await bot.telegram.sendPhoto(
-    CHANNEL_ID,
-    posterFileId,
-    {
-      caption: caption,
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "🛒 Add to Cart",
-            "add_cart_" + filmId
-          ),
-          Markup.button.callback(
-            "💳 Buy Now",
-            "buy_now_" + filmId
-          ),
-        ],
-      ]),
-    }
-  );
+  await bot.telegram.sendVideo(
+  CHANNEL_ID,
+  videoFileId,
+  {
+    caption: caption,
+
+    ...Markup.inlineKeyboard([
+      [
+        Markup.button.url(
+          "💳 BUY NOW",
+          `https://t.me/NIGFILM_BOT?start=film_${filmId}`
+        )
+      ]
+    ])
+  }
+);
 
   await ctx.reply(
     "✅ An tura " +

@@ -805,7 +805,22 @@ app.post("/telegram-webhook", async (req, res) => {
 app.get("/", (req, res) => {
   res.send("✅ NIGFILM BOT API yana aiki!");
 });
+bot.command("getchannelid", async (ctx) => {
+  try {
+    const chat = await ctx.telegram.getChat("@Nigfilm_channel");
 
+    console.log("CHANNEL ID:", chat.id);
+
+    await ctx.reply(
+      `✅ Channel ID:\n\n${chat.id}`
+    );
+  } catch (error) {
+    console.error("❌ Get Channel ID Error:", error);
+    await ctx.reply(
+      "❌ An samu matsala. Ka tabbatar bot ɗin Admin ne a channel."
+    );
+  }
+});
 // ===============================
 // START SERVER
 // ===============================

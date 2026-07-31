@@ -267,40 +267,32 @@ if (step === "price") {
 // =================================
 // POSTER HANDLER
 // =================================
-
 bot.on("photo", async (ctx) => {
   const telegramId = String(ctx.from.id).trim();
 
-  if (telegramId !== String(ADMIN_ID)) {
-    return;
-  }
+  if (telegramId !== String(ADMIN_ID)) return;
 
   const session = await prisma.adminSession.findUnique({
-    where: {
-      telegramId,
-    },
+    where: { telegramId },
   });
 
-  if (!session) {
-    return;
-  }
+  if (!session) return;
 
-  if (session.step !== "poster") {
-    return;
-  }
+  if (session.step !== "poster") return;
 
   let filmData = {};
 
-try {
-  filmData = JSON.parse(session.filmData || "{}");
-} catch {
-  filmData = {};
-}
+  try {
+    filmData = JSON.parse(session.filmData || "{}");
+  } catch {
+    filmData = {};
+  }
 
   const photos = ctx.message.photo;
   const poster = photos[photos.length - 1];
 
-  videoFileId: filmData.videoFileId,
+  // ✅ Wannan shine ake nema
+  filmData.posterFileId = poster.file_id;
 
   await prisma.adminSession.update({
     where: {
@@ -318,7 +310,6 @@ try {
     "🎥 Yanzu aika VIDEO ɗin film ɗin."
   );
 });
-
 // =================================
 // VIDEO HANDLER
 // =================================
@@ -347,13 +338,14 @@ bot.on("video", async (ctx) => {
   const filmData = JSON.parse(session.filmData || "{}");
 
   filmData.videoFileId = ctx.message.video.file_id;
+  console.log(filmData);
 const film = await prisma.film.create({
   data: {
     title: filmData.title,
     description: filmData.description,
     category: filmData.category,
     price: Number(filmData.price),
-    posterFileId: filmData.posterFileId,
+    posterFileId: filmData.posterFileId || "",
     videoFileId: filmData.videoFileId,
   },
 });

@@ -125,7 +125,7 @@ bot.action("admin_add_film", async (ctx) => {
     return ctx.answerCbQuery("⛔ Ba ka da izini.");
   }
 
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery().catch(() => {});
 await prisma.adminSession.upsert({
   where: {
     telegramId: String(ctx.from.id),
@@ -537,15 +537,16 @@ const paymentLink = result.data.authorization_url;
     disable_web_page_preview: true,
   }
 );
-  } catch (error) {
-    console.error("Buy Now Error:", error);
+} catch (error) {
+  console.error("========== BUY NOW ERROR ==========");
+  console.error(error);
 
-    await ctx.reply(
-      "❌ An samu matsala. Da fatan sake gwadawa."
-    );
-  }
+  await ctx.reply(
+    "❌ ERROR:\n\n" +
+    (error.message || JSON.stringify(error))
+  );
+}
 });
-
 // ===============================
 // TELEGRAM WEBHOOK
 // ===============================

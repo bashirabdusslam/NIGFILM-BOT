@@ -819,7 +819,7 @@ app.post("/paystack/webhook", async (req, res) => {
     console.error("❌ Paystack Webhook Error:", error);
     return res.sendStatus(500);
   }
-});s
+});
 // ===============================
 // START SERVER
 // ===============================

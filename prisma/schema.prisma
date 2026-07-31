@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  firstName  String?
+  lastName   String?
+  username   String?
+  createdAt  DateTime @default(now())
+
+  orders    Order[]
+  purchases Purchase[]
+}
+
+model Film {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  category     String
+  price        Int
+  posterFileId String
+  videoFileId  String
+  createdAt    DateTime @default(now())
+
+  orders    Order[]
+  purchases Purchase[]
+}
+
+model Order {
+  id               Int    @id @default(autoincrement())
+  telegramId       String
+  filmId           Int
+  amount           Int
+  status           String
+  paymentReference String @unique
+
+  virtualAccountReference String?
+  accountNumber           String?
+  accountName             String?
+  bankName                String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [telegramId], references: [telegramId])
+  film Film @relation(fields: [filmId], references: [id])
+
+  purchases Purchase[]
+
+  @@index([telegramId])
+}
+
+model Purchase {
+  id         Int      @id @default(autoincrement())
+  telegramId String
+  filmId     Int
+  orderId    Int
+  createdAt  DateTime @default(now())
+
+  user  User  @relation(fields: [telegramId], references: [telegramId])
+  film  Film  @relation(fields: [filmId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([telegramId])
+}
+
+model AdminSession {
+  id         Int    @id @default(autoincrement())
+  telegramId String @unique
+  step       String
+  filmData   String
+}

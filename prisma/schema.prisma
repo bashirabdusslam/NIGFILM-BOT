@@ -25,8 +25,13 @@ model Film {
   description  String
   category     String
   price        Int
-  posterFileId String
+
+  // OPTIONAL
+  posterFileId String?
+
+  // REQUIRED
   videoFileId  String
+
   createdAt    DateTime @default(now())
 
   orders    Order[]
@@ -34,12 +39,12 @@ model Film {
 }
 
 model Order {
-  id               Int    @id @default(autoincrement())
+  id               Int      @id @default(autoincrement())
   telegramId       String
   filmId           Int
   amount           Int
   status           String
-  paymentReference String @unique
+  paymentReference String   @unique
 
   virtualAccountReference String?
   accountNumber           String?

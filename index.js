@@ -432,7 +432,7 @@ bot.action(/^admin_publish_film_(\d+)$/, async (ctx) => {
         [
           Markup.button.url(
             "💳 BUY NOW",
-            `https://t.me/NIGFILM_BOT?start=film_${film.id}`
+            `https://t.me/El_bash_movie_bot?start=film_${film.id}`
           ),
         ],
       ]),

@@ -45,23 +45,26 @@ const adminMenu = Markup.inlineKeyboard([
 // =================================
 bot.start(async (ctx) => {
   const payload = ctx.startPayload;
-await prisma.user.upsert({
-  where: {
-    telegramId: String(ctx.from.id),
-  },
-  update: {
-    firstName: ctx.from.first_name || "",
-    lastName: ctx.from.last_name || "",
-    username: ctx.from.username || "",
-  },
-  create: {
-    telegramId: String(ctx.from.id),
-    firstName: ctx.from.first_name || "",
-    lastName: ctx.from.last_name || "",
-    username: ctx.from.username || "",
-  },
-});
-  // Mutum ya zo daga Channel ta hanyar BUY NOW
+
+  // Adana ko sabunta user
+  await prisma.user.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      firstName: ctx.from.first_name || "",
+      lastName: ctx.from.last_name || "",
+      username: ctx.from.username || "",
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      firstName: ctx.from.first_name || "",
+      lastName: ctx.from.last_name || "",
+      username: ctx.from.username || "",
+    },
+  });
+
+  // Idan ya fito daga Channel ta BUY NOW
   if (payload && payload.startsWith("film_")) {
     const filmId = Number(payload.replace("film_", ""));
 
@@ -76,30 +79,42 @@ await prisma.user.upsert({
     }
 
     return ctx.reply(
-      `🎬 Film: ${film.title}\n\n` +
-      `💰 Farashi: ₦${film.price}\n\n` +
-      `👇 Danna ƙasa domin ci gaba da siya:`,
-
-      Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "💳 BUY NOW",
-            `buy_now_${film.id}`
-          ),
-        ],
-      ])
+      `🎬 *${film.title}*\n\n` +
+      `📝 ${film.description}\n\n` +
+      `💰 Farashi: ₦${Number(film.price).toLocaleString()}\n\n` +
+      `👇 Danna BUY NOW domin ci gaba da siya.`,
+      {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "💳 BUY NOW",
+              `buy_now_${film.id}`
+            ),
+          ],
+        ]),
+      }
     );
   }
 
-  // Normal /start
-  await ctx.reply(
-    "🎬 Barka da zuwa NIGFILM BOT!\n\n" +
-    "🎥 Siyan fina-finai\n" +
-    "💳 Biyan kuɗi cikin sauƙi\n" +
-    "📥 Sauke fim bayan biyan kuɗi"
+  // Normal Start
+  return ctx.reply(
+    "🎬 *Barka da zuwa NIGFILM BOT!*\n\n" +
+    "🎥 Sayi fina-finai cikin sauƙi.\n\n" +
+    "👇 Zaɓi abin da kake son yi:",
+    {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "🎬 My Purchases",
+            "my_purchases"
+          ),
+        ],
+      ]),
+    }
   );
 });
-
 // =================================
 // ADMIN PANEL
 // =================================
@@ -390,62 +405,69 @@ bot.on("video", async (ctx) => {
 // =================================
 
 bot.action(/^admin_publish_film_(\d+)$/, async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.answerCbQuery("⛔ Ba ka da izini.");
-  }
-
-  await ctx.answerCbQuery().catch(() => {});
-
-  const filmId = Number(ctx.match[1]);
-
-  const film = await prisma.film.findUnique({
-    where: {
-      id: filmId,
-    },
-  });
-
-  if (!film) {
-    return ctx.reply("❌ Ba a samu wannan film ba.");
-  }
-
-  const caption =
-    "🎬 " +
-    film.title +
-    "\n\n" +
-    "📝 " +
-    film.description +
-    "\n\n" +
-    "📂 Category: " +
-    film.category +
-    "\n" +
-    "💰 Price: ₦" +
-    film.price +
-    "\n\n" +
-    "👇 Zaɓi abin da kake so:";
-
-  await bot.telegram.sendPhoto(
-    CHANNEL_ID,
-    film.posterFileId,
-    {
-      caption,
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.url(
-            "💳 BUY NOW",
-            `https://t.me/Nigfilm_bot?start=film_${film.id}`
-          ),
-        ],
-      ]),
+  try {
+    if (String(ctx.from.id) !== String(ADMIN_ID)) {
+      return ctx.answerCbQuery("⛔ Ba ka da izini.");
     }
-  );
 
-  await ctx.reply(
-    `✅ An tura "${film.title}" zuwa Channel cikin nasara! 🎬`
-  );
+    await ctx.answerCbQuery().catch(() => {});
+
+    const filmId = Number(ctx.match[1]);
+
+    const film = await prisma.film.findUnique({
+      where: {
+        id: filmId,
+      },
+    });
+
+    if (!film) {
+      return ctx.reply("❌ Ba a samu wannan film ba.");
+    }
+
+    const caption =
+`🎬 *${film.title}*
+
+📝 ${film.description}
+
+📂 Category: ${film.category}
+💰 Price: ₦${Number(film.price).toLocaleString()}
+
+━━━━━━━━━━━━━━━
+🔥 Kalli wannan fim cikin inganci.
+
+👇 Danna BUY NOW domin siya.`;
+
+    await bot.telegram.sendPhoto(
+      CHANNEL_ID,
+      film.posterFileId,
+      {
+        caption,
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.url(
+              "💳 BUY NOW",
+              `https://t.me/Nigfilm_bot?start=film_${film.id}`
+            ),
+          ],
+        ]),
+      }
+    );
+
+    await ctx.reply(
+      `✅ An publish "${film.title}" zuwa channel cikin nasara.`
+    );
+
+  } catch (error) {
+    console.error("Publish Error:", error);
+
+    await ctx.reply(
+      "❌ An samu kuskure wajen publish film."
+    );
+  }
 });
-
 // ===============================
-// BUY NOW - BILLSTACK
+// BUY NOW - PAYSTACK
 // ===============================
 
 bot.action(/^buy_now_(\d+)$/, async (ctx) => {
@@ -474,7 +496,8 @@ const price = Number(film.price);
     const username = ctx.from.username || "";
 
     // Temporary email
-    const email = `${telegramId}@nigifilm.com`;
+    const email =
+  `${telegramId}@telegram.nigfilm.com`;
 
     // Create unique order reference
     const orderReference =
@@ -503,6 +526,12 @@ const response = await fetch(
       amount: price * 100,
       reference: orderReference,
       callback_url: "https://nigfilm-bot.onrender.com/payment-success",
+     channels: [
+  "card",
+  "bank",
+  "bank_transfer",
+  "ussd"
+],
       metadata: {
         telegramId,
         filmId,
@@ -546,6 +575,106 @@ const paymentLink = result.data.authorization_url;
     (error.message || JSON.stringify(error))
   );
 }
+});
+// =================================
+// MY PURCHASES
+// =================================
+
+bot.action("my_purchases", async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+
+    const telegramId = String(ctx.from.id);
+
+    const purchases = await prisma.purchase.findMany({
+      where: {
+        telegramId,
+      },
+      include: {
+        film: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (purchases.length === 0) {
+      return ctx.reply(
+        "📭 Har yanzu ba ka sayi wani film ba."
+      );
+    }
+
+    for (const purchase of purchases) {
+      const film = purchase.film;
+
+      await ctx.reply(
+        `🎬 *${film.title}*\n\n` +
+        `📂 ${film.category}\n` +
+        `💰 ₦${Number(film.price).toLocaleString()}`,
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "📥 Download",
+                `download_${film.id}`
+              ),
+            ],
+          ]),
+        }
+      );
+    }
+
+  } catch (error) {
+    console.error("MY PURCHASES ERROR:", error);
+
+    await ctx.reply(
+      "❌ An samu kuskure wajen ɗauko fina-finanka."
+    );
+  }
+});
+// =================================
+// DOWNLOAD PURCHASED FILM
+// =================================
+
+bot.action(/^download_(\d+)$/, async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+
+    const telegramId = String(ctx.from.id);
+    const filmId = Number(ctx.match[1]);
+
+    const purchase = await prisma.purchase.findFirst({
+      where: {
+        telegramId,
+        filmId,
+      },
+      include: {
+        film: true,
+      },
+    });
+
+    if (!purchase) {
+      return ctx.reply(
+        "❌ Ba ka mallaki wannan film ba."
+      );
+    }
+
+    await bot.telegram.sendVideo(
+      ctx.chat.id,
+      purchase.film.videoFileId,
+      {
+        caption: `🎬 ${purchase.film.title}`,
+      }
+    );
+
+  } catch (error) {
+    console.error("DOWNLOAD ERROR:", error);
+
+    await ctx.reply(
+      "❌ An samu kuskure wajen tura film."
+    );
+  }
 });
 // ===============================
 // TELEGRAM WEBHOOK
@@ -592,33 +721,26 @@ bot.command("getchannelid", async (ctx) => {
 // ===============================
 // PAYSTACK WEBHOOK
 // ===============================
-
 app.post("/paystack/webhook", async (req, res) => {
-  const hash = crypto
-  .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
-  .update(req.rawBody)
-  .digest("hex");
-
-if (hash !== req.headers["x-paystack-signature"]) {
-  return res.sendStatus(401);
-}
   try {
+    // Verify Paystack Signature
     const hash = crypto
-  .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
-  .update(req.rawBody)
-  .digest("hex");
+      .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+      .update(req.rawBody)
+      .digest("hex");
 
-if (hash !== req.headers["x-paystack-signature"]) {
-  console.log("❌ Invalid Paystack Signature");
-  return res.sendStatus(401);
-}
+    if (hash !== req.headers["x-paystack-signature"]) {
+      console.log("❌ Invalid Paystack Signature");
+      return res.sendStatus(401);
+    }
 
     const event = req.body;
 
+    // Payment Successful
     if (event.event === "charge.success") {
       const reference = event.data.reference;
 
-      // Nemo order
+      // Nemo Order
       const order = await prisma.order.findUnique({
         where: {
           paymentReference: reference,
@@ -626,6 +748,7 @@ if (hash !== req.headers["x-paystack-signature"]) {
       });
 
       if (!order) {
+        console.log("❌ Order not found");
         return res.sendStatus(200);
       }
 
@@ -634,7 +757,7 @@ if (hash !== req.headers["x-paystack-signature"]) {
         return res.sendStatus(200);
       }
 
-      // Update order
+      // Update Order
       await prisma.order.update({
         where: {
           id: order.id,
@@ -644,7 +767,7 @@ if (hash !== req.headers["x-paystack-signature"]) {
         },
       });
 
-      // Nemo film
+      // Nemo Film
       const film = await prisma.film.findUnique({
         where: {
           id: order.filmId,
@@ -652,9 +775,9 @@ if (hash !== req.headers["x-paystack-signature"]) {
       });
 
       if (film) {
-        // Tura video ga customer
+        // Tura Film ga Customer
         await bot.telegram.sendVideo(
-  Number(order.telegramId),
+          Number(order.telegramId),
           film.videoFileId,
           {
             caption:
@@ -664,24 +787,39 @@ if (hash !== req.headers["x-paystack-signature"]) {
           }
         );
 
-        // Adana purchase
-        await prisma.purchase.create({
-          data: {
+        // Saƙon Godiya
+        await bot.telegram.sendMessage(
+          Number(order.telegramId),
+          "🙏 Na gode da siyan fim a NIGFILM BOT.\n\n🎉 Muna fatan za ka ji daɗin kallon."
+        );
+
+        // Duba ko Purchase ya riga ya wanzu
+        const existingPurchase = await prisma.purchase.findFirst({
+          where: {
             telegramId: order.telegramId,
             filmId: film.id,
-            orderId: order.id,
           },
         });
+
+        if (!existingPurchase) {
+          await prisma.purchase.create({
+            data: {
+              telegramId: order.telegramId,
+              filmId: film.id,
+              orderId: order.id,
+            },
+          });
+        }
       }
     }
 
-    res.sendStatus(200);
+    return res.sendStatus(200);
 
   } catch (error) {
-    console.error("Paystack Webhook Error:", error);
-    res.sendStatus(500);
+    console.error("❌ Paystack Webhook Error:", error);
+    return res.sendStatus(500);
   }
-});
+});s
 // ===============================
 // START SERVER
 // ===============================

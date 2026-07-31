@@ -64,7 +64,7 @@ bot.start(async (ctx) => {
     },
   });
 
-  // Idan ya fito daga Channel ta BUY NOW
+  // Idan user ya fito daga Channel
   if (payload && payload.startsWith("film_")) {
     const filmId = Number(payload.replace("film_", ""));
 
@@ -78,26 +78,28 @@ bot.start(async (ctx) => {
       return ctx.reply("❌ Ba a samu wannan film ɗin ba.");
     }
 
-    return ctx.reply(
-      `🎬 *${film.title}*\n\n` +
-      `📝 ${film.description}\n\n` +
-      `💰 Farashi: ₦${Number(film.price).toLocaleString()}\n\n` +
-      `👇 Danna BUY NOW domin ci gaba da siya.`,
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [
-            Markup.button.callback(
-              "💳 BUY NOW",
-              `buy_now_${film.id}`
-            ),
-          ],
-        ]),
-      }
-    );
+    return ctx.replyWithPhoto(film.posterFileId, {
+      caption:
+        `🎬 *${film.title}*\n\n` +
+        `📝 ${film.description}\n\n` +
+        `📂 Category: ${film.category}\n` +
+        `💰 Farashi: ₦${Number(film.price).toLocaleString()}\n\n` +
+        `👇 Danna BUY NOW domin ci gaba da siya.`,
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "💳 BUY NOW",
+            `buy_now_${film.id}`
+          ),
+        ],
+      ]),
+    });
   }
 
-  // Normal Start
+  // =================================
+  // NORMAL START
+  // =================================
   return ctx.reply(
     "🎬 *Barka da zuwa NIGFILM BOT!*\n\n" +
     "🎥 Sayi fina-finai cikin sauƙi.\n\n" +

@@ -589,7 +589,99 @@ bot.command("getchannelid", async (ctx) => {
     );
   }
 });
+// ===============================
+// PAYSTACK WEBHOOK
+// ===============================
 
+app.post("/paystack/webhook", async (req, res) => {
+  const hash = crypto
+  .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+  .update(req.rawBody)
+  .digest("hex");
+
+if (hash !== req.headers["x-paystack-signature"]) {
+  return res.sendStatus(401);
+}
+  try {
+    const hash = crypto
+  .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+  .update(req.rawBody)
+  .digest("hex");
+
+if (hash !== req.headers["x-paystack-signature"]) {
+  console.log("❌ Invalid Paystack Signature");
+  return res.sendStatus(401);
+}
+
+    const event = req.body;
+
+    if (event.event === "charge.success") {
+      const reference = event.data.reference;
+
+      // Nemo order
+      const order = await prisma.order.findUnique({
+        where: {
+          paymentReference: reference,
+        },
+      });
+
+      if (!order) {
+        return res.sendStatus(200);
+      }
+
+      // Idan an riga an biya
+      if (order.status === "paid") {
+        return res.sendStatus(200);
+      }
+
+      // Update order
+      await prisma.order.update({
+        where: {
+          id: order.id,
+        },
+        data: {
+          status: "paid",
+        },
+      });
+
+      // Nemo film
+      const film = await prisma.film.findUnique({
+        where: {
+          id: order.filmId,
+        },
+      });
+
+      if (film) {
+        // Tura video ga customer
+        await bot.telegram.sendVideo(
+  Number(order.telegramId),
+          film.videoFileId,
+          {
+            caption:
+              `✅ An tabbatar da biyan kuɗinka.\n\n` +
+              `🎬 ${film.title}\n\n` +
+              `Ga fim ɗinka.`
+          }
+        );
+
+        // Adana purchase
+        await prisma.purchase.create({
+          data: {
+            telegramId: order.telegramId,
+            filmId: film.id,
+            orderId: order.id,
+          },
+        });
+      }
+    }
+
+    res.sendStatus(200);
+
+  } catch (error) {
+    console.error("Paystack Webhook Error:", error);
+    res.sendStatus(500);
+  }
+});
 // ===============================
 // START SERVER
 // ===============================

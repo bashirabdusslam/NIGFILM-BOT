@@ -41,12 +41,243 @@ const adminMenu = Markup.inlineKeyboard([
   ],
 ]);
 // =================================
+// MANAGE FILMS
+// =================================
+
+bot.action("admin_manage_films", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const films = await prisma.film.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (films.length === 0) {
+    return ctx.reply("❌ Babu wani film a database.");
+  }
+
+  for (const film of films) {
+    await ctx.replyWithPhoto(film.posterFileId, {
+      caption:
+        `🎬 *${film.title}*\n\n` +
+        `📂 ${film.category}\n` +
+        `💰 ₦${Number(film.price).toLocaleString()}`,
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback(
+  "💰 Price",
+  `price_film_${film.id}`
+),
+Markup.button.callback(
+  "🗑 Delete",
+  `delete_film_${film.id}`
+),
+
+[
+  Markup.button.callback(
+    "✏️ Edit",
+    `edit_film_${film.id}`
+  )
+]
+        ],
+      ]),
+    });
+  }
+});
+// =================================
+// DELETE FILM
+// =================================
+
+bot.action(/^delete_film_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Ba a samu wannan film ba.");
+  }
+
+  await prisma.purchase.deleteMany({
+    where: {
+      filmId,
+    },
+  });
+
+  await prisma.order.deleteMany({
+    where: {
+      filmId,
+    },
+  });
+
+  await prisma.film.delete({
+    where: {
+      id: filmId,
+    },
+  });
+
+  await ctx.editMessageCaption(
+    `🗑 An goge "${film.title}" daga database cikin nasara.`
+  );
+});
+// =================================
+// CHANGE PRICE
+// =================================
+
+bot.action(/^price_film_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "change_price",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "change_price",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  await ctx.reply(
+    "💰 Aika sabon farashin wannan film.\n\nMisali: 1000"
+  );
+});
+// =================================
+// ADMIN SALES
+// =================================
+
+bot.action("admin_sales", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const totalUsers = await prisma.user.count();
+
+  const totalMovies = await prisma.film.count();
+
+  const totalOrders = await prisma.order.count({
+    where: {
+      status: "paid",
+    },
+  });
+
+  const revenue = await prisma.order.aggregate({
+    where: {
+      status: "paid",
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  await ctx.reply(
+    `📊 *NIGFILM SALES DASHBOARD*
+
+💰 Total Revenue:
+₦${Number(revenue._sum.amount || 0).toLocaleString()}
+
+🛒 Total Sales:
+${totalOrders}
+
+👥 Total Users:
+${totalUsers}
+
+🎬 Total Movies:
+${totalMovies}`,
+    {
+      parse_mode: "Markdown",
+    }
+  );
+});
+// =================================
+// ADMIN USERS
+// =================================
+
+bot.action("admin_users", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  // Total Users
+  const totalUsers = await prisma.user.count();
+
+  // Sabbin Users na yau
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const todayUsers = await prisma.user.count({
+    where: {
+      createdAt: {
+        gte: today,
+      },
+    },
+  });
+
+  // User na ƙarshe
+  const latestUsers = await prisma.user.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 10,
+  });
+
+  let message =
+    `👥 *USERS DASHBOARD*\n\n` +
+    `👤 Total Users: ${totalUsers}\n` +
+    `🆕 New Users Today: ${todayUsers}\n\n` +
+    `📋 Last 10 Users:\n\n`;
+
+  latestUsers.forEach((user, index) => {
+    message +=
+      `${index + 1}. ${user.firstName || "No Name"} ` +
+      `${user.lastName || ""}\n` +
+      `🆔 ${user.telegramId}\n\n`;
+  });
+
+  await ctx.reply(message, {
+    parse_mode: "Markdown",
+  });
+});
+// =================================
 // START
 // =================================
+
 bot.start(async (ctx) => {
   const payload = ctx.startPayload;
 
-  // Adana ko sabunta user
+  // Save ko Update User
   await prisma.user.upsert({
     where: {
       telegramId: String(ctx.from.id),
@@ -100,39 +331,100 @@ bot.start(async (ctx) => {
   // =================================
   // NORMAL START
   // =================================
+
   return ctx.reply(
     "🎬 *Barka da zuwa NIGFILM BOT!*\n\n" +
-    "🎥 Sayi fina-finai cikin sauƙi.\n\n" +
-    "👇 Zaɓi abin da kake son yi:",
+      "🎥 Sayi fina-finai cikin sauƙi.\n\n" +
+      "👇 Zaɓi abin da kake son yi:",
     {
       parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "🎬 My Purchases",
-            "my_purchases"
-          ),
-        ],
-      ]),
+      ...Markup.keyboard([
+        ["🎥 Browse Movies", "🎬 My Movies"],
+        ["📞 Support"],
+      ]).resize(),
     }
   );
 });
 // =================================
-// ADMIN PANEL
+// MY MOVIES
 // =================================
 
-bot.command("admin", async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.reply("⛔ Ba ka da izinin shiga Admin Panel.");
+async function showMyMovies(ctx) {
+  const telegramId = String(ctx.from.id);
+
+  const purchases = await prisma.purchase.findMany({
+    where: {
+      telegramId,
+    },
+    include: {
+      film: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (purchases.length === 0) {
+    return ctx.reply(
+      "📂 Har yanzu ba ka sayi wani fim ba."
+    );
   }
 
-  await ctx.reply(
-    "👨‍💼 ADMIN PANEL\n\n" +
-    "Zaɓi abin da kake son yi:",
-    adminMenu
-  );
-});
+  const buttons = purchases.map((purchase) => [
+    Markup.button.callback(
+      `🎬 ${purchase.film.title}`,
+      `watch_${purchase.film.id}`
+    ),
+  ]);
 
+  return ctx.reply(
+    "🎬 *MY MOVIES*\n\nZaɓi fim ɗin da kake son sake saukewa.",
+    {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard(buttons),
+    }
+  );
+}
+
+bot.command("mymovies", showMyMovies);
+
+bot.hears("🎬 My Movies", showMyMovies);
+// =================================
+// BROWSE MOVIES
+// =================================
+
+bot.hears("🎥 Browse Movies", async (ctx) => {
+  const films = await prisma.film.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (films.length === 0) {
+    return ctx.reply(
+      "❌ Har yanzu babu fim da aka ɗora."
+    );
+  }
+
+  for (const film of films) {
+    await ctx.replyWithPhoto(film.posterFileId, {
+      caption:
+        `🎬 *${film.title}*\n\n` +
+        `📝 ${film.description}\n\n` +
+        `📂 ${film.category}\n` +
+        `💰 ₦${Number(film.price).toLocaleString()}`,
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "💳 BUY NOW",
+            `buy_now_${film.id}`
+          ),
+        ],
+      ]),
+    });
+  }
+});
 // =================================
 // ADD FILM
 // =================================
@@ -193,7 +485,38 @@ try {
 } catch {
   filmData = {};
 }
+// =================================
+// UPDATE FILM PRICE
+// =================================
 
+if (step === "change_price") {
+  const newPrice = Number(ctx.message.text);
+
+  if (!Number.isFinite(newPrice) || newPrice <= 0) {
+    return ctx.reply(
+      "❌ Farashin ba daidai ba ne.\n\nAika number kawai.\nMisali: 1000"
+    );
+  }
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      price: newPrice,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    `✅ An canza farashin film zuwa ₦${newPrice.toLocaleString()} cikin nasara.`
+  );
+}
   if (step === "title") {
     filmData.title = ctx.message.text;
 await prisma.adminSession.update({
@@ -280,6 +603,101 @@ if (step === "price") {
       "🖼️ Yanzu aika POSTER ɗin film ɗin."
     );
   }
+});
+// =================================
+// EDIT FILM MENU
+// =================================
+
+bot.action(/^edit_film_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Film ba a samu ba.");
+  }
+
+  return ctx.reply(
+    `✏️ EDIT FILM
+
+🎬 ${film.title}
+
+Zaɓi abin da kake son gyarawa:`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "📝 Title",
+          `edit_title_${film.id}`
+        ),
+        Markup.button.callback(
+          "📄 Description",
+          `edit_description_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "📂 Category",
+          `edit_category_${film.id}`
+        ),
+        Markup.button.callback(
+          "🖼 Poster",
+          `edit_poster_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "🎥 Video",
+          `edit_video_${film.id}`
+        ),
+      ],
+    ])
+  );
+});
+// =================================
+// EDIT TITLE
+// =================================
+
+bot.action(/^edit_title_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "edit_title",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "edit_title",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "📝 Aika sabon sunan film."
+  );
 });
 // =================================
 // POSTER HANDLER
@@ -724,7 +1142,6 @@ bot.command("getchannelid", async (ctx) => {
 // ===============================
 // PAYSTACK WEBHOOK
 // ===============================
-
 app.post("/paystack/webhook", async (req, res) => {
   try {
     const signature = req.headers["x-paystack-signature"];
@@ -859,7 +1276,39 @@ process.once("SIGINT", async () => {
   await prisma.$disconnect();
   bot.stop("SIGINT");
 });
+// =================================
+// WATCH PURCHASED MOVIE
+// =================================
 
+bot.action(/^watch_(\d+)$/, async (ctx) => {
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+  const telegramId = String(ctx.from.id);
+
+  const purchase = await prisma.purchase.findFirst({
+    where: {
+      telegramId,
+      filmId,
+    },
+    include: {
+      film: true,
+    },
+  });
+
+  if (!purchase) {
+    return ctx.reply("❌ Ba ka mallaki wannan fim ba.");
+  }
+
+  await ctx.replyWithVideo(
+    purchase.film.videoFileId,
+    {
+      caption:
+        `🎬 ${purchase.film.title}\n\n` +
+        `✅ Ga fim ɗinka. Ka ji daɗin kallo.`
+    }
+  );
+});
 process.once("SIGTERM", async () => {
   await prisma.$disconnect();
   bot.stop("SIGTERM");

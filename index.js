@@ -720,105 +720,110 @@ bot.command("getchannelid", async (ctx) => {
     );
   }
 });
+
 // ===============================
 // PAYSTACK WEBHOOK
 // ===============================
+
 app.post("/paystack/webhook", async (req, res) => {
   try {
-    // Verify Paystack Signature
+    const signature = req.headers["x-paystack-signature"];
+
     const hash = crypto
       .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
       .update(req.rawBody)
       .digest("hex");
 
-    if (hash !== req.headers["x-paystack-signature"]) {
+    if (hash !== signature) {
       console.log("❌ Invalid Paystack Signature");
       return res.sendStatus(401);
     }
 
     const event = req.body;
 
-    // Payment Successful
-    if (event.event === "charge.success") {
-      const reference = event.data.reference;
-
-      // Nemo Order
-      const order = await prisma.order.findUnique({
-        where: {
-          paymentReference: reference,
-        },
-      });
-
-      if (!order) {
-        console.log("❌ Order not found");
-        return res.sendStatus(200);
-      }
-
-      // Idan an riga an biya
-      if (order.status === "paid") {
-        return res.sendStatus(200);
-      }
-
-      // Update Order
-      await prisma.order.update({
-        where: {
-          id: order.id,
-        },
-        data: {
-          status: "paid",
-        },
-      });
-
-      // Nemo Film
-      const film = await prisma.film.findUnique({
-        where: {
-          id: order.filmId,
-        },
-      });
-
-      if (film) {
-        // Tura Film ga Customer
-        await bot.telegram.sendVideo(
-          Number(order.telegramId),
-          film.videoFileId,
-          {
-            caption:
-              `✅ An tabbatar da biyan kuɗinka.\n\n` +
-              `🎬 ${film.title}\n\n` +
-              `Ga fim ɗinka.`
-          }
-        );
-
-        // Saƙon Godiya
-        await bot.telegram.sendMessage(
-          Number(order.telegramId),
-          "🙏 Na gode da siyan fim a NIGFILM BOT.\n\n🎉 Muna fatan za ka ji daɗin kallon."
-        );
-
-        // Duba ko Purchase ya riga ya wanzu
-        const existingPurchase = await prisma.purchase.findFirst({
-          where: {
-            telegramId: order.telegramId,
-            filmId: film.id,
-          },
-        });
-
-        if (!existingPurchase) {
-          await prisma.purchase.create({
-            data: {
-              telegramId: order.telegramId,
-              filmId: film.id,
-              orderId: order.id,
-            },
-          });
-        }
-      }
+    if (event.event !== "charge.success") {
+      return res.sendStatus(200);
     }
+
+    const reference = event.data.reference;
+
+    console.log("✅ Payment:", reference);
+
+    const order = await prisma.order.findUnique({
+      where: {
+        paymentReference: reference,
+      },
+    });
+
+    if (!order) {
+      console.log("❌ Order not found:", reference);
+      return res.sendStatus(200);
+    }
+
+    if (order.status === "paid") {
+      return res.sendStatus(200);
+    }
+
+    await prisma.order.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: "paid",
+      },
+    });
+
+    const film = await prisma.film.findUnique({
+      where: {
+        id: order.filmId,
+      },
+    });
+
+    if (!film) {
+      console.log("❌ Film not found");
+      return res.sendStatus(200);
+    }
+
+    const purchase = await prisma.purchase.findFirst({
+      where: {
+        telegramId: order.telegramId,
+        filmId: film.id,
+      },
+    });
+
+    if (!purchase) {
+      await prisma.purchase.create({
+        data: {
+          telegramId: order.telegramId,
+          filmId: film.id,
+          orderId: order.id,
+        },
+      });
+    }
+
+    await bot.telegram.sendVideo(
+      Number(order.telegramId),
+      film.videoFileId,
+      {
+        caption:
+          `🎉 PAYMENT CONFIRMED\n\n` +
+          `🎬 ${film.title}\n\n` +
+          `Na gode da siyan fim.\n` +
+          `Ga fim ɗinka, ka ji daɗin kallo.`
+      }
+    );
+
+    await bot.telegram.sendMessage(
+      Number(order.telegramId),
+      "✅ An gama komai cikin nasara."
+    );
+
+    console.log("✅ Film delivered");
 
     return res.sendStatus(200);
 
-  } catch (error) {
-    console.error("❌ Paystack Webhook Error:", error);
+  } catch (err) {
+    console.error("WEBHOOK ERROR:", err);
     return res.sendStatus(500);
   }
 });

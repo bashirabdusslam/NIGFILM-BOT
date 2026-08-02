@@ -62,6 +62,9 @@ bot.action("admin_manage_films", async (ctx) => {
   }
 
   for (const film of films) {
+    if (!film.posterFileId) {
+  continue;
+}
     await ctx.replyWithPhoto(film.posterFileId, {
       caption:
         `🎬 *${film.title}*\n\n` +
@@ -106,6 +109,55 @@ bot.action("admin_manage_films", async (ctx) => {
       ]),
     });
   }
+});
+// =================================
+// FILM DETAILS
+// =================================
+
+bot.action(/^film_details_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Ba a samu wannan film ba.");
+  }
+
+  return ctx.replyWithPhoto(film.posterFileId, {
+    caption:
+      `🎬 *${film.title}*\n\n` +
+      `📝 ${film.description}\n\n` +
+      `📂 Category: ${film.category}\n` +
+      `💰 Price: ₦${Number(film.price).toLocaleString()}\n\n` +
+      `🆔 Film ID: ${film.id}`,
+
+    parse_mode: "Markdown",
+
+    ...Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "✏️ Edit Film",
+          `edit_film_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "🗑 Delete Film",
+          `delete_film_${film.id}`
+        ),
+      ],
+    ]),
+  });
 });
 // =================================
 // DELETE FILM
@@ -444,9 +496,14 @@ bot.hears("🎥 Browse Movies", async (ctx) => {
   await ctx.reply(
     `🎬 An samu fina-finai ${films.length}.\n\nZaɓi fim daga ƙasa.`
   );
+for (const film of films) {
 
-  for (const film of films) {
-    await ctx.replyWithPhoto(film.posterFileId, {
+  if (!film.posterFileId) {
+    console.log(`Film ${film.id} bashi da poster`);
+    continue;
+  }
+
+  await ctx.replyWithPhoto(film.posterFileId, {
       caption:
         `🎬 *${film.title}*\n\n` +
         `📝 ${film.description}\n\n` +
@@ -1240,13 +1297,13 @@ bot.action(/^delete_film_(\d+)$/, async (ctx) => {
     Markup.inlineKeyboard([
       [
         Markup.button.callback(
-          "✅ Eh, Goge",
-          `confirm_delete_${film.id}`
-        ),
+  "🖼 Poster",
+  `change_poster_${film.id}`
+),
         Markup.button.callback(
-          "❌ Cancel",
-          "cancel_delete"
-        ),
+  "🎥 Video",
+  `change_video_${film.id}`
+),
       ],
     ])
   );

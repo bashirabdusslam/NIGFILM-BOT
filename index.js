@@ -271,6 +271,22 @@ bot.action("admin_users", async (ctx) => {
   });
 });
 // =================================
+// ADMIN COMMAND
+// =================================
+
+bot.command("admin", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.reply("⛔ Ba ka da izinin shiga Admin Panel.");
+  }
+
+  console.log("ADMIN COMMAND WORKING");
+
+  return ctx.reply(
+    "👨‍💼 ADMIN PANEL\n\nZaɓi abin da kake son yi:",
+    adminMenu
+  );
+});
+// =================================
 // START
 // =================================
 
@@ -345,6 +361,7 @@ bot.start(async (ctx) => {
     }
   );
 });
+
 // =================================
 // MY MOVIES
 // =================================
@@ -406,22 +423,26 @@ bot.hears("🎥 Browse Movies", async (ctx) => {
     );
   }
 
+  await ctx.reply(
+    `🎬 An samu fina-finai ${films.length}.\n\nZaɓi fim daga ƙasa.`
+  );
+
   for (const film of films) {
     await ctx.replyWithPhoto(film.posterFileId, {
       caption:
         `🎬 *${film.title}*\n\n` +
         `📝 ${film.description}\n\n` +
-        `📂 ${film.category}\n` +
-        `💰 ₦${Number(film.price).toLocaleString()}`,
+        `📂 Category: ${film.category}\n` +
+        `💰 Price: ₦${Number(film.price).toLocaleString()}`,
       parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
+      reply_markup: Markup.inlineKeyboard([
         [
           Markup.button.callback(
             "💳 BUY NOW",
             `buy_now_${film.id}`
           ),
         ],
-      ]),
+      ]).reply_markup,
     });
   }
 });
@@ -456,7 +477,183 @@ await prisma.adminSession.upsert({
     "📝 Aika sunan film ɗin:"
   );
 });
+// =================================
+// FILM DETAILS
+// =================================
 
+bot.action(/^film_manage_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Film bai samu ba.");
+  }
+
+  await ctx.replyWithPhoto(film.posterFileId, {
+    caption:
+      `🎬 *${film.title}*\n\n` +
+      `📝 ${film.description}\n\n` +
+      `📂 Category: ${film.category}\n` +
+      `💰 Price: ₦${Number(film.price).toLocaleString()}`,
+    parse_mode: "Markdown",
+    ...Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "✏ Edit Title",
+          `edit_title_${film.id}`
+        ),
+        Markup.button.callback(
+          "💰 Edit Price",
+          `edit_price_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "📝 Edit Description",
+          `edit_description_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "📂 Edit Category",
+          `edit_category_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "🖼 Change Poster",
+          `change_poster_${film.id}`
+        ),
+        Markup.button.callback(
+          "🎥 Change Video",
+          `change_video_${film.id}`
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "🗑 Delete Film",
+          `delete_film_${film.id}`
+        ),
+      ],
+    ]),
+  });
+});
+// =================================
+// EDIT PRICE
+// =================================
+
+bot.action(/^edit_price_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "edit_price",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "edit_price",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "💰 Aika sabon farashin film.\n\nMisali:\n500"
+  );
+});
+// =================================
+// EDIT TITLE
+// =================================
+
+bot.action(/^edit_title_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "edit_title",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "edit_title",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "📝 Aika sabon sunan film."
+  );
+});
+// =================================
+// MANAGE FILMS
+// =================================
+
+bot.action("admin_manage_films", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const films = await prisma.film.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (films.length === 0) {
+    return ctx.reply("❌ Babu wani film.");
+  }
+
+  const buttons = films.map((film) => [
+    Markup.button.callback(
+      `🎬 ${film.title}`,
+      `film_manage_${film.id}`
+    ),
+  ]);
+
+  await ctx.reply(
+    "🎞️ MANAGE FILMS\n\nZaɓi film ɗaya:",
+    Markup.inlineKeyboard(buttons)
+  );
+});
 // =================================
 // TEXT HANDLER
 // =================================
@@ -484,6 +681,134 @@ try {
   filmData = JSON.parse(session.filmData || "{}");
 } catch {
   filmData = {};
+}
+// =================================
+// SAVE NEW TITLE
+// =================================
+
+if (step === "edit_title") {
+  const newTitle = ctx.message.text.trim();
+
+  if (!newTitle) {
+    return ctx.reply(
+      "❌ Aika sabon sunan film."
+    );
+  }
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      title: newTitle,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    `✅ An canza sunan film zuwa:\n\n🎬 ${newTitle}`
+  );
+}
+// =================================
+// SAVE NEW DESCRIPTION
+// =================================
+
+if (step === "edit_description") {
+  const newDescription = ctx.message.text.trim();
+
+  if (!newDescription) {
+    return ctx.reply(
+      "❌ Aika sabon description na film."
+    );
+  }
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      description: newDescription,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    "✅ An canza description na film cikin nasara."
+  );
+}
+// =================================
+// SAVE NEW CATEGORY
+// =================================
+
+if (step === "edit_category") {
+  const newCategory = ctx.message.text.trim();
+
+  if (!newCategory) {
+    return ctx.reply(
+      "❌ Aika sabon category."
+    );
+  }
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      category: newCategory,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    `✅ An canza category zuwa:\n\n📂 ${newCategory}`
+  );
+}
+// =================================
+// SAVE NEW PRICE
+// =================================
+
+if (step === "edit_price") {
+  const newPrice = Number(ctx.message.text);
+
+  if (!Number.isFinite(newPrice) || newPrice < 0) {
+    return ctx.reply(
+      "❌ Farashi ba daidai ba ne.\n\nAika number kawai."
+    );
+  }
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      price: newPrice,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    `✅ An canza farashin film zuwa ₦${newPrice.toLocaleString()}`
+  );
 }
 // =================================
 // UPDATE FILM PRICE
@@ -515,6 +840,31 @@ if (step === "change_price") {
 
   return ctx.reply(
     `✅ An canza farashin film zuwa ₦${newPrice.toLocaleString()} cikin nasara.`
+  );
+}
+// =================================
+// SAVE NEW TITLE
+// =================================
+
+if (step === "edit_title") {
+
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      title: ctx.message.text,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    "✅ Sunan film ya canza cikin nasara."
   );
 }
   if (step === "title") {
@@ -663,6 +1013,7 @@ Zaɓi abin da kake son gyarawa:`,
     ])
   );
 });
+
 // =================================
 // EDIT TITLE
 // =================================
@@ -700,6 +1051,233 @@ bot.action(/^edit_title_(\d+)$/, async (ctx) => {
   );
 });
 // =================================
+// EDIT DESCRIPTION
+// =================================
+
+bot.action(/^edit_description_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "edit_description",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "edit_description",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "📝 Aika sabon description na film."
+  );
+});
+// =================================
+// EDIT CATEGORY
+// =================================
+
+bot.action(/^edit_category_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "edit_category",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "edit_category",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "📂 Aika sabon category na film."
+  );
+});
+// =================================
+// CHANGE POSTER
+// =================================
+
+bot.action(/^change_poster_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "change_poster",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "change_poster",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "🖼️ Yanzu aika sabon POSTER na film."
+  );
+});
+// =================================
+// CHANGE VIDEO
+// =================================
+
+bot.action(/^change_video_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  await prisma.adminSession.upsert({
+    where: {
+      telegramId: String(ctx.from.id),
+    },
+    update: {
+      step: "change_video",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+    create: {
+      telegramId: String(ctx.from.id),
+      step: "change_video",
+      filmData: JSON.stringify({
+        filmId,
+      }),
+    },
+  });
+
+  return ctx.reply(
+    "🎥 Yanzu aika sabon VIDEO na film."
+  );
+});
+// =================================
+// DELETE FILM
+// =================================
+
+bot.action(/^delete_film_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Ba a samu film ba.");
+  }
+
+  await ctx.reply(
+    `⚠️ Kana tabbatar kana son goge:\n\n🎬 ${film.title}?`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "✅ Eh, Goge",
+          `confirm_delete_${film.id}`
+        ),
+        Markup.button.callback(
+          "❌ Cancel",
+          "cancel_delete"
+        ),
+      ],
+    ])
+  );
+});
+// =================================
+// CONFIRM DELETE FILM
+// =================================
+
+bot.action(/^confirm_delete_(\d+)$/, async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const filmId = Number(ctx.match[1]);
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply("❌ Ba a samu wannan film ba.");
+  }
+
+  await prisma.film.delete({
+    where: {
+      id: filmId,
+    },
+  });
+
+  return ctx.reply(
+    `✅ Film "${film.title}" an goge cikin nasara.`
+  );
+});
+// =================================
+// CANCEL DELETE
+// =================================
+
+bot.action("cancel_delete", async (ctx) => {
+  await ctx.answerCbQuery();
+
+  return ctx.reply(
+    "✅ An soke goge film."
+  );
+});
+// =================================
 // POSTER HANDLER
 // =================================
 bot.on("photo", async (ctx) => {
@@ -711,9 +1289,14 @@ bot.on("photo", async (ctx) => {
     where: { telegramId },
   });
 
-  if (!session) return;
+if (!session) {
+  return;
+}
 
-  if (session.step !== "poster") return;
+  if (session.step !== "poster" && session.step !== "change_poster") {
+  return;
+}
+  
 
   let filmData = {};
 
@@ -722,28 +1305,49 @@ bot.on("photo", async (ctx) => {
   } catch {
     filmData = {};
   }
+const photos = ctx.message.photo;
+const poster = photos[photos.length - 1];
 
-  const photos = ctx.message.photo;
-  const poster = photos[photos.length - 1];
-
-  // ✅ Wannan shine ake nema
-  filmData.posterFileId = poster.file_id;
-
-  await prisma.adminSession.update({
+// CHANGE POSTER
+if (session.step === "change_poster") {
+  await prisma.film.update({
     where: {
-      telegramId,
+      id: filmData.filmId,
     },
     data: {
-      step: "video",
-      filmData: JSON.stringify(filmData),
+      posterFileId: poster.file_id,
     },
   });
 
-  await ctx.reply(
-    "✅ An karɓi poster ɗin film.\n\n" +
-    "Mataki na 6/6\n\n" +
-    "🎥 Yanzu aika VIDEO ɗin film ɗin."
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    "✅ An canza poster na film cikin nasara."
   );
+}
+
+// ADD NEW FILM
+filmData.posterFileId = poster.file_id;
+
+await prisma.adminSession.update({
+  where: {
+    telegramId,
+  },
+  data: {
+    step: "video",
+    filmData: JSON.stringify(filmData),
+  },
+});
+
+return ctx.reply(
+  "✅ An karɓi poster ɗin film.\n\n" +
+  "Mataki na 6/6\n\n" +
+  "🎥 Yanzu aika VIDEO ɗin film ɗin."
+);
 });
 // =================================
 // VIDEO HANDLER
@@ -759,7 +1363,9 @@ bot.on("video", async (ctx) => {
 
   if (!session) return;
 
-  if (session.step !== "video") return;
+  if (session.step !== "video" && session.step !== "change_video") {
+  return;
+}
 
   let filmData = {};
 
@@ -771,7 +1377,30 @@ bot.on("video", async (ctx) => {
 
   // Adana video
   filmData.videoFileId = ctx.message.video.file_id;
+// =================================
+// CHANGE VIDEO
+// =================================
 
+if (session.step === "change_video") {
+  await prisma.film.update({
+    where: {
+      id: filmData.filmId,
+    },
+    data: {
+      videoFileId: ctx.message.video.file_id,
+    },
+  });
+
+  await prisma.adminSession.delete({
+    where: {
+      telegramId,
+    },
+  });
+
+  return ctx.reply(
+    "✅ An canza VIDEO na film cikin nasara."
+  );
+}
   console.log("FILM DATA:", filmData);
 
   // Tabbatar poster yana nan
@@ -820,6 +1449,7 @@ bot.on("video", async (ctx) => {
     ])
   );
 });
+
 // =================================
 // PUBLISH FILM TO CHANNEL
 // =================================

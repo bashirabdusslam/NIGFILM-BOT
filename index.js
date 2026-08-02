@@ -67,23 +67,41 @@ bot.action("admin_manage_films", async (ctx) => {
         `🎬 *${film.title}*\n\n` +
         `📂 ${film.category}\n` +
         `💰 ₦${Number(film.price).toLocaleString()}`,
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
-        [Markup.button.callback(
-  "💰 Price",
-  `price_film_${film.id}`
-),
-Markup.button.callback(
-  "🗑 Delete",
-  `delete_film_${film.id}`
-),
 
-[
-  Markup.button.callback(
-    "✏️ Edit",
-    `edit_film_${film.id}`
-  )
-]
+      parse_mode: "Markdown",
+
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "ℹ️ Details",
+            `film_details_${film.id}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "✏️ Edit",
+            `edit_film_${film.id}`
+          ),
+          Markup.button.callback(
+            "💰 Price",
+            `price_film_${film.id}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🖼 Poster",
+            `change_poster_${film.id}`
+          ),
+          Markup.button.callback(
+            "🎥 Video",
+            `change_video_${film.id}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🗑 Delete",
+            `delete_film_${film.id}`
+          ),
         ],
       ]),
     });

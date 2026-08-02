@@ -240,55 +240,7 @@ bot.action(/^price_film_(\d+)$/, async (ctx) => {
     "💰 Aika sabon farashin wannan film.\n\nMisali: 1000"
   );
 });
-// =================================
-// ADMIN SALES
-// =================================
 
-bot.action("admin_sales", async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.answerCbQuery("⛔ Ba ka da izini.");
-  }
-
-  await ctx.answerCbQuery();
-
-  const totalUsers = await prisma.user.count();
-
-  const totalMovies = await prisma.film.count();
-
-  const totalOrders = await prisma.order.count({
-    where: {
-      status: "paid",
-    },
-  });
-
-  const revenue = await prisma.order.aggregate({
-    where: {
-      status: "paid",
-    },
-    _sum: {
-      amount: true,
-    },
-  });
-
-  await ctx.reply(
-    `📊 *NIGFILM SALES DASHBOARD*
-
-💰 Total Revenue:
-₦${Number(revenue._sum.amount || 0).toLocaleString()}
-
-🛒 Total Sales:
-${totalOrders}
-
-👥 Total Users:
-${totalUsers}
-
-🎬 Total Movies:
-${totalMovies}`,
-    {
-      parse_mode: "Markdown",
-    }
-  );
-});
 // =================================
 // TODAY SALES
 // =================================

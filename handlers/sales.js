@@ -2,13 +2,14 @@ import { bot, prisma, ADMIN_ID } from "../bot.js";
 import { Markup } from "telegraf";
 
 export default function registerSalesHandlers() {
-
 bot.action("admin_sales", async (ctx) => {
   if (String(ctx.from.id) !== String(ADMIN_ID)) {
     return ctx.answerCbQuery("⛔ Ba ka da izini.");
   }
 
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch {}
 
   const totalUsers = await prisma.user.count();
 
@@ -47,49 +48,32 @@ bot.action("admin_sales", async (ctx) => {
     ).toLocaleString()}`,
     {
       parse_mode: "Markdown",
-
       ...Markup.inlineKeyboard([
         [
-  Markup.button.callback(
-    "📅 Today",
-    "sales_today"
-  ),
-  Markup.button.callback(
-    "📆 Month",
-    "sales_month"
-  ),
-],
-[
-  Markup.button.callback(
-    "🧾 Recent Orders",
-    "recent_orders"
-  ),
-],
-[
-  Markup.button.callback(
-    "🔄 Refresh",
-    "admin_sales"
-  ),
-],
-[
-  Markup.button.callback(
-    "⬅️ Back",
-    "admin_panel"
-  ),
-],
+          Markup.button.callback("📅 Today", "sales_today"),
+          Markup.button.callback("📆 Month", "sales_month"),
+        ],
+        [
+          Markup.button.callback("🧾 Recent Orders", "recent_orders"),
+        ],
+        [
+          Markup.button.callback("🔄 Refresh", "admin_sales"),
+        ],
+        [
+          Markup.button.callback("⬅️ Back", "admin_panel"),
+        ],
       ]),
     }
   );
 });
-
-
-}
 bot.action("sales_today", async (ctx) => {
   if (String(ctx.from.id) !== String(ADMIN_ID)) {
     return ctx.answerCbQuery("⛔ Ba ka da izini.");
   }
 
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch {}
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -120,7 +104,7 @@ bot.action("sales_today", async (ctx) => {
     },
   });
 
-  return ctx.reply(
+  return ctx.editMessageText(
     `📅 *TODAY'S SALES*
 
 🛒 Successful Orders: ${todayOrders}
@@ -140,13 +124,14 @@ bot.action("sales_today", async (ctx) => {
     }
   );
 });
-
 bot.action("sales_month", async (ctx) => {
   if (String(ctx.from.id) !== String(ADMIN_ID)) {
     return ctx.answerCbQuery("⛔ Ba ka da izini.");
   }
 
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch {}
 
   const start = new Date();
   start.setDate(1);
@@ -177,7 +162,7 @@ bot.action("sales_month", async (ctx) => {
     },
   });
 
-  return ctx.reply(
+  return ctx.editMessageText(
     `📆 *MONTHLY SALES*
 
 🛒 Successful Orders: ${monthOrders}
@@ -197,13 +182,14 @@ bot.action("sales_month", async (ctx) => {
     }
   );
 });
-
 bot.action("recent_orders", async (ctx) => {
   if (String(ctx.from.id) !== String(ADMIN_ID)) {
     return ctx.answerCbQuery("⛔ Ba ka da izini.");
   }
 
-  await ctx.answerCbQuery();
+  try {
+    await ctx.answerCbQuery();
+  } catch {}
 
   const orders = await prisma.order.findMany({
     where: {
@@ -219,7 +205,19 @@ bot.action("recent_orders", async (ctx) => {
   });
 
   if (orders.length === 0) {
-    return ctx.reply("❌ Har yanzu babu successful orders.");
+    return ctx.editMessageText(
+      "❌ Har yanzu babu successful orders.",
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "⬅️ Back",
+              "admin_sales"
+            ),
+          ],
+        ]),
+      }
+    );
   }
 
   let message = "🧾 *RECENT ORDERS*\n\n";
@@ -232,7 +230,7 @@ bot.action("recent_orders", async (ctx) => {
       `📅 ${order.createdAt.toLocaleString()}\n\n`;
   }
 
-  return ctx.reply(message, {
+  return ctx.editMessageText(message, {
     parse_mode: "Markdown",
     ...Markup.inlineKeyboard([
       [
@@ -244,3 +242,4 @@ bot.action("recent_orders", async (ctx) => {
     ]),
   });
 });
+}

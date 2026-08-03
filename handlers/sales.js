@@ -140,3 +140,107 @@ bot.action("sales_today", async (ctx) => {
     }
   );
 });
+
+bot.action("sales_month", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date();
+
+  const monthOrders = await prisma.order.count({
+    where: {
+      status: "paid",
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+  });
+
+  const monthRevenue = await prisma.order.aggregate({
+    where: {
+      status: "paid",
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  return ctx.reply(
+    `📆 *MONTHLY SALES*
+
+🛒 Successful Orders: ${monthOrders}
+
+💰 Revenue This Month:
+₦${Number(monthRevenue._sum.amount || 0).toLocaleString()}`,
+    {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "⬅️ Back",
+            "admin_sales"
+          ),
+        ],
+      ]),
+    }
+  );
+});
+
+bot.action("recent_orders", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: "paid",
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 10,
+    include: {
+      film: true,
+    },
+  });
+
+  if (orders.length === 0) {
+    return ctx.reply("❌ Har yanzu babu successful orders.");
+  }
+
+  let message = "🧾 *RECENT ORDERS*\n\n";
+
+  for (const order of orders) {
+    message +=
+      `🎬 ${order.film?.title || "Unknown Film"}\n` +
+      `👤 ${order.telegramId}\n` +
+      `💰 ₦${Number(order.amount).toLocaleString()}\n` +
+      `📅 ${order.createdAt.toLocaleString()}\n\n`;
+  }
+
+  return ctx.reply(message, {
+    parse_mode: "Markdown",
+    ...Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "⬅️ Back",
+          "admin_sales"
+        ),
+      ],
+    ]),
+  });
+});

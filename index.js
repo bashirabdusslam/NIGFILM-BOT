@@ -245,66 +245,6 @@ bot.action(/^price_film_(\d+)$/, async (ctx) => {
 });
 
 // =================================
-// MONTHLY SALES
-// =================================
-
-bot.action("sales_month", async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.answerCbQuery("⛔ Ba ka da izini.");
-  }
-
-  await ctx.answerCbQuery();
-
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date();
-
-  const monthOrders = await prisma.order.count({
-    where: {
-      status: "paid",
-      createdAt: {
-        gte: start,
-        lte: end,
-      },
-    },
-  });
-
-  const monthRevenue = await prisma.order.aggregate({
-    where: {
-      status: "paid",
-      createdAt: {
-        gte: start,
-        lte: end,
-      },
-    },
-    _sum: {
-      amount: true,
-    },
-  });
-
-  return ctx.reply(
-    `📆 *MONTHLY SALES*
-
-🛒 Successful Orders: ${monthOrders}
-
-💰 Revenue This Month:
-₦${Number(monthRevenue._sum.amount || 0).toLocaleString()}`,
-    {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "⬅️ Back",
-            "admin_sales"
-          ),
-        ],
-      ]),
-    }
-  );
-});
-// =================================
 // RECENT ORDERS
 // =================================
 

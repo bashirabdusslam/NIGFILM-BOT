@@ -84,3 +84,59 @@ bot.action("admin_sales", async (ctx) => {
 
 
 }
+bot.action("sales_today", async (ctx) => {
+  if (String(ctx.from.id) !== String(ADMIN_ID)) {
+    return ctx.answerCbQuery("⛔ Ba ka da izini.");
+  }
+
+  await ctx.answerCbQuery();
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const todayOrders = await prisma.order.count({
+    where: {
+      status: "paid",
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+  });
+
+  const todayRevenue = await prisma.order.aggregate({
+    where: {
+      status: "paid",
+      createdAt: {
+        gte: start,
+        lte: end,
+      },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  return ctx.reply(
+    `📅 *TODAY'S SALES*
+
+🛒 Successful Orders: ${todayOrders}
+
+💰 Revenue Today:
+₦${Number(todayRevenue._sum.amount || 0).toLocaleString()}`,
+    {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "⬅️ Back",
+            "admin_sales"
+          ),
+        ],
+      ]),
+    }
+  );
+});

@@ -11,6 +11,9 @@ app.use(
     },
   })
 );
+import registerAdminHandlers from "./handlers/admin.js";
+import registerSalesHandlers from "./handlers/sales.js";
+
 import { Markup } from "telegraf";
 import { bot, prisma, ADMIN_ID, CHANNEL_ID } from "./bot.js";
 
@@ -37,6 +40,9 @@ const adminMenu = Markup.inlineKeyboard([
     Markup.button.callback("⚙️ Settings", "admin_settings"),
   ],
 ]);
+
+registerAdminHandlers(adminMenu);
+registerSalesHandlers();
 // =================================
 // MANAGE FILMS
 // =================================
@@ -409,25 +415,6 @@ bot.action("recent_orders", async (ctx) => {
   });
 });
 // =================================
-// ADMIN PANEL
-// =================================
-
-bot.action("admin_panel", async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.answerCbQuery("⛔ Ba ka da izini.");
-  }
-
-  await ctx.answerCbQuery();
-
-  return ctx.editMessageText(
-    "👨‍💼 *ADMIN PANEL*\n\nZaɓi abin da kake son yi:",
-    {
-      parse_mode: "Markdown",
-      ...adminMenu,
-    }
-  );
-});
-// =================================
 // SALES DASHBOARD
 // =================================
 
@@ -611,22 +598,6 @@ bot.action("search_user", async (ctx) => {
 
   return ctx.reply(
     "🔍 Aika Telegram ID na user.\n\nMisali:\n7356306160"
-  );
-});
-// =================================
-// ADMIN COMMAND
-// =================================
-
-bot.command("admin", async (ctx) => {
-  if (String(ctx.from.id) !== String(ADMIN_ID)) {
-    return ctx.reply("⛔ Ba ka da izinin shiga Admin Panel.");
-  }
-
-  console.log("ADMIN COMMAND WORKING");
-
-  return ctx.reply(
-    "👨‍💼 ADMIN PANEL\n\nZaɓi abin da kake son yi:",
-    adminMenu
   );
 });
 // =================================

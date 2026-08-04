@@ -15,8 +15,9 @@ model User {
   username   String?
   createdAt  DateTime @default(now())
 
-  orders    Order[]
-  purchases Purchase[]
+  orders     Order[]
+  purchases  Purchase[]
+  carts      Cart[]
 }
 
 model Film {
@@ -36,7 +37,10 @@ model Film {
 
   orders    Order[]
   purchases Purchase[]
+  carts       Cart[]
+
 }
+
 
 model Order {
   id               Int      @id @default(autoincrement())
@@ -80,4 +84,16 @@ model AdminSession {
   telegramId String @unique
   step       String
   filmData   String
+}
+model Cart {
+  id         Int      @id @default(autoincrement())
+  telegramId String
+  filmId     Int
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [telegramId], references: [telegramId])
+  film Film @relation(fields: [filmId], references: [id])
+
+  @@unique([telegramId, filmId])
+  @@index([telegramId])
 }

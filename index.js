@@ -252,8 +252,11 @@ bot.start(async (ctx) => {
     },
   });
 
-  // Idan user ya fito daga Channel
+  // ===============================
+  // Deep Link (Film daga Channel)
+  // ===============================
   if (payload && payload.startsWith("film_")) {
+
     const filmId = Number(payload.replace("film_", ""));
 
     const film = await prisma.film.findUnique({
@@ -263,14 +266,14 @@ bot.start(async (ctx) => {
     });
 
     if (!film) {
-      return ctx.reply("❌ Ba a samu wannan film ɗin ba.");
+      return ctx.reply("❌ Ba a samu wannan film ba.");
     }
 
     if (!film.posterFileId) {
-  return ctx.reply("❌ Wannan film ba shi da poster.");
-}
+      return ctx.reply("❌ Wannan film ba shi da poster.");
+    }
 
-return ctx.replyWithPhoto(film.posterFileId, {
+    return ctx.replyWithPhoto(film.posterFileId, {
       caption:
         `🎬 *${film.title}*\n\n` +
         `📝 ${film.description}\n\n` +
@@ -278,6 +281,7 @@ return ctx.replyWithPhoto(film.posterFileId, {
         `💰 Farashi: ₦${Number(film.price).toLocaleString()}\n\n` +
         `👇 Danna BUY NOW domin ci gaba da siya.`,
       parse_mode: "Markdown",
+
       ...Markup.inlineKeyboard([
         [
           Markup.button.callback(
@@ -289,6 +293,45 @@ return ctx.replyWithPhoto(film.posterFileId, {
     });
   }
 
+  // ===============================
+  // USER DASHBOARD
+  // ===============================
+  return ctx.reply(
+    "🏠 *Barka da zuwa NIGFILM BOT*\n\nZaɓi abin da kake son yi:",
+    {
+      parse_mode: "Markdown",
+
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "🎬 Browse Films",
+            "browse_films"
+          ),
+          Markup.button.callback(
+            "🔍 Search Films",
+            "search_films"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🛒 My Cart",
+            "view_cart"
+          ),
+          Markup.button.callback(
+            "🎥 My Movies",
+            "my_purchases"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "💬 Support",
+            "support"
+          ),
+        ],
+      ]),
+    }
+  );
+});
   // =================================
   // NORMAL START
   // =================================

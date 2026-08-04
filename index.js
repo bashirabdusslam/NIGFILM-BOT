@@ -332,24 +332,6 @@ bot.start(async (ctx) => {
     }
   );
 });
-  // =================================
-  // NORMAL START
-  // =================================
-
-  return ctx.reply(
-    "🎬 *Barka da zuwa NIGFILM BOT!*\n\n" +
-      "🎥 Sayi fina-finai cikin sauƙi.\n\n" +
-      "👇 Zaɓi abin da kake son yi:",
-    {
-      parse_mode: "Markdown",
-      ...Markup.keyboard([
-        ["🎥 Browse Movies", "🎬 My Movies"],
-        ["📞 Support"],
-      ]).resize(),
-    }
-  );
-});
-
 // =================================
 // MY MOVIES
 // =================================

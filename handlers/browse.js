@@ -218,7 +218,13 @@ bot.action(/^view_film_(\d+)$/, async (ctx) => {
         ...Markup.inlineKeyboard([
           [
             Markup.button.callback(
-              "💳 Buy Now",
+              "🛒 Add to Cart",
+              `add_to_cart_${film.id}`
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "⚡ Buy Now",
               `buy_now_${film.id}`
             ),
           ],
@@ -244,23 +250,28 @@ bot.action(/^view_film_(\d+)$/, async (ctx) => {
 // ADD TO CART
 // =================================
 
-bot.action(/^cart_(\d+)$/, async (ctx) => {
+bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
   try {
     await ctx.answerCbQuery().catch(() => {});
 
     const telegramId = String(ctx.from.id);
     const filmId = Number(ctx.match[1]);
 
-    const film = await prisma.film.findUnique({
+    // Duba ko an riga an saya
+    const purchased = await prisma.purchase.findFirst({
       where: {
-        id: filmId,
+        telegramId,
+        filmId,
       },
     });
 
-    if (!film) {
-      return ctx.reply("❌ Film ba a samu ba.");
+    if (purchased) {
+      return ctx.reply(
+        "✅ Ka riga ka sayi wannan film."
+      );
     }
 
+    // Duba ko yana cikin cart
     const existing = await prisma.cart.findFirst({
       where: {
         telegramId,
@@ -269,9 +280,12 @@ bot.action(/^cart_(\d+)$/, async (ctx) => {
     });
 
     if (existing) {
-      return ctx.reply("🛒 Wannan film yana cikin Cart ɗinka.");
+      return ctx.reply(
+        "🛒 Wannan film yana cikin Cart ɗinka."
+      );
     }
 
+    // Saka a Cart
     await prisma.cart.create({
       data: {
         telegramId,
@@ -280,14 +294,77 @@ bot.action(/^cart_(\d+)$/, async (ctx) => {
     });
 
     return ctx.reply(
-      `✅ *${film.title}* an saka shi cikin Cart.`,
+      "✅ An saka film ɗin cikin Cart."
+    );
+
+  } catch (error) {
+    console.error("ADD TO CART ERROR:", error);
+
+    return ctx.reply(
+      "❌ An kasa saka film cikin Cart."
+    );
+  }
+});
+// =================================
+// VIEW CART
+// =================================
+
+bot.action("view_cart", async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+
+    const telegramId = String(ctx.from.id);
+
+    const cartItems = await prisma.cart.findMany({
+      where: {
+        telegramId,
+      },
+      include: {
+        film: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    if (cartItems.length === 0) {
+      return ctx.reply(
+        "🛒 Cart ɗinka babu komai."
+      );
+    }
+
+    let total = 0;
+
+    let message = "🛒 *YOUR CART*\n\n";
+
+    for (const item of cartItems) {
+      total += item.film.price;
+
+      message +=
+        `🎬 ${item.film.title}\n` +
+        `💰 ₦${Number(item.film.price).toLocaleString()}\n\n`;
+    }
+
+    message +=
+      `━━━━━━━━━━━━━━\n` +
+      `💵 *TOTAL:* ₦${Number(total).toLocaleString()}`;
+
+    return ctx.reply(
+      message,
       {
         parse_mode: "Markdown",
+
         ...Markup.inlineKeyboard([
           [
             Markup.button.callback(
-              "🛒 View Cart",
-              "view_cart"
+              "💳 Checkout",
+              "checkout_cart"
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "🗑 Clear Cart",
+              "clear_cart"
             ),
           ],
           [
@@ -304,7 +381,170 @@ bot.action(/^cart_(\d+)$/, async (ctx) => {
     console.error(error);
 
     return ctx.reply(
-      "❌ An samu kuskure wajen saka film cikin Cart."
+      "❌ An kasa buɗe Cart."
+    );
+  }
+});
+// =================================
+// CLEAR CART
+// =================================
+
+bot.action("clear_cart", async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+
+    const telegramId = String(ctx.from.id);
+
+    const count = await prisma.cart.count({
+      where: {
+        telegramId,
+      },
+    });
+
+    if (count === 0) {
+      return ctx.reply(
+        "🛒 Cart ɗinka babu komai."
+      );
+    }
+
+    await prisma.cart.deleteMany({
+      where: {
+        telegramId,
+      },
+    });
+
+    return ctx.reply(
+      "🗑 An share duk fina-finan da ke cikin Cart ɗinka.",
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🎬 Browse Films",
+              "browse_films"
+            ),
+          ],
+        ]),
+      }
+    );
+
+  } catch (error) {
+    console.error("CLEAR CART ERROR:", error);
+
+    return ctx.reply(
+      "❌ An kasa share Cart."
+    );
+  }
+});
+// =================================
+// CHECKOUT CART
+// =================================
+
+bot.action("checkout_cart", async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+
+    const telegramId = String(ctx.from.id);
+
+    const cartItems = await prisma.cart.findMany({
+      where: {
+        telegramId,
+      },
+      include: {
+        film: true,
+      },
+    });
+
+    if (cartItems.length === 0) {
+      return ctx.reply("🛒 Cart ɗinka babu komai.");
+    }
+
+    const total = cartItems.reduce(
+      (sum, item) => sum + item.film.price,
+      0
+    );
+
+    const reference =
+      "CART_" +
+      Date.now() +
+      "_" +
+      Math.floor(Math.random() * 100000);
+
+    // Create Order
+    await prisma.order.create({
+      data: {
+        telegramId,
+        filmId: cartItems[0].filmId,
+        amount: total,
+        status: "pending",
+        paymentReference: reference,
+      },
+    });
+
+    const email = `${telegramId}@nigfilm.com`;
+
+    const response = await fetch(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          amount: total * 100,
+          reference,
+          callback_url:
+            "https://nigfilm-bot.onrender.com/payment-success",
+
+          channels: [
+            "card",
+            "bank",
+            "bank_transfer",
+            "ussd",
+          ],
+
+          metadata: {
+            telegramId,
+            type: "cart_checkout",
+          },
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!result.status) {
+      console.error(result);
+
+      return ctx.reply(
+        "❌ An kasa ƙirƙirar Payment Link."
+      );
+    }
+
+    const paymentLink = result.data.authorization_url;
+
+    return ctx.reply(
+      `🛒 *CHECKOUT CART*
+
+🎬 Films: ${cartItems.length}
+
+💰 Total: ₦${Number(total).toLocaleString()}
+
+🔗 ${paymentLink}
+
+⚠️ Bayan ka biya, bot zai tura maka duk fina-finan da ke cikin Cart ta atomatik.`,
+      {
+        parse_mode: "Markdown",
+        disable_web_page_preview: true,
+      }
+    );
+
+  } catch (error) {
+    console.error("CHECKOUT CART ERROR:", error);
+
+    return ctx.reply(
+      "❌ An samu kuskure wajen Checkout."
     );
   }
 });
@@ -432,6 +672,40 @@ bot.action(/^buy_now_(\d+)$/, async (ctx) => {
 
     return ctx.reply(
       "❌ An samu kuskure wajen fara biyan kuɗi."
+    );
+  }
+});
+// =================================
+// SEARCH FILMS
+// =================================
+
+bot.action("search_films", async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+await prisma.userSession.upsert({
+  where: {
+    telegramId: String(ctx.from.id),
+  },
+  update: {
+    step: "user_search_film",
+    data: JSON.stringify({}),
+  },
+  create: {
+    telegramId: String(ctx.from.id),
+    step: "user_search_film",
+    data: JSON.stringify({}),
+  },
+});
+
+    return ctx.reply(
+      "🔍 Ka rubuta sunan film ɗin da kake nema."
+    );
+
+  } catch (err) {
+    console.error(err);
+
+    return ctx.reply(
+      "❌ An samu kuskure."
     );
   }
 });

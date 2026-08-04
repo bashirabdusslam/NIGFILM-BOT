@@ -8,59 +8,46 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  telegramId String   @unique
+  id         Int        @id @default(autoincrement())
+  telegramId String     @unique
   firstName  String?
   lastName   String?
   username   String?
-  createdAt  DateTime @default(now())
-
+  createdAt  DateTime   @default(now())
+  carts      Cart[]
   orders     Order[]
   purchases  Purchase[]
-  carts      Cart[]
 }
 
 model Film {
-  id           Int      @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   title        String
   description  String
   category     String
   price        Int
-
-  // OPTIONAL
   posterFileId String?
-
-  // REQUIRED
   videoFileId  String
-
-  createdAt    DateTime @default(now())
-
-  orders    Order[]
-  purchases Purchase[]
-  carts       Cart[]
-
+  createdAt    DateTime   @default(now())
+  carts        Cart[]
+  orders       Order[]
+  purchases    Purchase[]
 }
 
-
 model Order {
-  id               Int      @id @default(autoincrement())
-  telegramId       String
-  filmId           Int
-  amount           Int
-  status           String
-  paymentReference String   @unique
-
-  virtualAccountReference String?
-  accountNumber           String?
+  id                      Int        @id @default(autoincrement())
+  telegramId              String
+  filmId                  Int
+  amount                  Int
+  status                  String
+  paymentReference        String     @unique
+  createdAt               DateTime   @default(now())
   accountName             String?
+  accountNumber           String?
   bankName                String?
-
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [telegramId], references: [telegramId])
-  film Film @relation(fields: [filmId], references: [id])
-
-  purchases Purchase[]
+  virtualAccountReference String?
+  film                    Film       @relation(fields: [filmId], references: [id])
+  user                    User       @relation(fields: [telegramId], references: [telegramId])
+  purchases               Purchase[]
 
   @@index([telegramId])
 }
@@ -71,10 +58,9 @@ model Purchase {
   filmId     Int
   orderId    Int
   createdAt  DateTime @default(now())
-
-  user  User  @relation(fields: [telegramId], references: [telegramId])
-  film  Film  @relation(fields: [filmId], references: [id])
-  order Order @relation(fields: [orderId], references: [id])
+  film       Film     @relation(fields: [filmId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User     @relation(fields: [telegramId], references: [telegramId])
 
   @@index([telegramId])
 }
@@ -85,14 +71,14 @@ model AdminSession {
   step       String
   filmData   String
 }
+
 model Cart {
   id         Int      @id @default(autoincrement())
   telegramId String
   filmId     Int
   createdAt  DateTime @default(now())
-
-  user User @relation(fields: [telegramId], references: [telegramId])
-  film Film @relation(fields: [filmId], references: [id])
+  film       Film     @relation(fields: [filmId], references: [id])
+  user       User     @relation(fields: [telegramId], references: [telegramId])
 
   @@unique([telegramId, filmId])
   @@index([telegramId])

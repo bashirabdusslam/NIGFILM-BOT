@@ -439,49 +439,84 @@ async function processSingleFilmPayment({
 // =================================
 // PROCESS CART PAYMENT
 // =================================
-
 async function processCartPayment({
   order,
   metadata,
 }) {
-  const metadataFilmIds = Array.isArray(
-    metadata.filmIds
-  )
-    ? metadata.filmIds
+  let filmIds = [];
+
+  // Farko: ɗauko IDs daga database order
+  if (order.cartFilmIds) {
+    try {
+      const parsedFilmIds = JSON.parse(
+        order.cartFilmIds
+      );
+
+      if (Array.isArray(parsedFilmIds)) {
+        filmIds = parsedFilmIds
+          .map(Number)
+          .filter(Number.isInteger);
+      }
+    } catch (error) {
+      console.error(
+        "INVALID ORDER CART FILM IDS:",
+        error
+      );
+    }
+  }
+
+  // Na biyu: fallback zuwa Paystack metadata
+  if (
+    filmIds.length === 0 &&
+    Array.isArray(metadata?.filmIds)
+  ) {
+    filmIds = metadata.filmIds
+      .map(Number)
+      .filter(Number.isInteger);
+  }
+
+  // Paystack na iya mayar da filmIds a matsayin JSON string
+  if (
+    filmIds.length === 0 &&
+    typeof metadata?.filmIds === "string"
+  ) {
+    try {
+      const parsedMetadataIds = JSON.parse(
+        metadata.filmIds
+      );
+
+      if (Array.isArray(parsedMetadataIds)) {
+        filmIds = parsedMetadataIds
+          .map(Number)
+          .filter(Number.isInteger);
+      }
+    } catch {
+      filmIds = metadata.filmIds
+        .split(",")
         .map(Number)
-        .filter(Number.isInteger)
-    : [];
+        .filter(Number.isInteger);
+    }
+  }
 
-  let films = [];
+  filmIds = [...new Set(filmIds)];
 
-  if (metadataFilmIds.length > 0) {
-    films = await prisma.film.findMany({
-      where: {
-        id: {
-          in: metadataFilmIds,
-        },
-      },
-    });
-  } else {
-    // Fallback ga tsoffin cart payments
-    const cartItems =
-      await prisma.cart.findMany({
-        where: {
-          telegramId: order.telegramId,
-        },
-        include: {
-          film: true,
-        },
-      });
-
-    films = cartItems.map(
-      (item) => item.film
+  if (filmIds.length === 0) {
+    throw new Error(
+      `Babu film IDs a cart order ${order.id}`
     );
   }
 
+  const films = await prisma.film.findMany({
+    where: {
+      id: {
+        in: filmIds,
+      },
+    },
+  });
+
   if (films.length === 0) {
     throw new Error(
-      `No cart films found for order ${order.id}`
+      `Ba a samu cart films na order ${order.id}`
     );
   }
 
@@ -524,9 +559,7 @@ async function processCartPayment({
       where: {
         telegramId: order.telegramId,
         filmId: {
-          in: films.map(
-            (film) => film.id
-          ),
+          in: filmIds,
         },
       },
     });
@@ -541,6 +574,7 @@ async function processCartPayment({
     });
   });
 
+  // Tura duk films ɗin ɗaya bayan ɗaya
   for (const film of films) {
     try {
       await bot.telegram.sendVideo(
@@ -553,15 +587,19 @@ async function processCartPayment({
             "Ga film ɗinka, ka ji daɗin kallo.",
         }
       );
+
+      // Rage yiwuwar Telegram rate limit
+      await new Promise((resolve) =>
+        setTimeout(resolve, 500)
+      );
     } catch (deliveryError) {
       console.error(
-        `CART FILM DELIVERY ERROR — FILM ${film.id}:`,
+        `CART DELIVERY ERROR — FILM ${film.id}:`,
         deliveryError
       );
     }
   }
 }
-
 // =================================
 // SECURE HASH COMPARISON
 // =================================

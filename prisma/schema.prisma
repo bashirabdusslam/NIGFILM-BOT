@@ -32,11 +32,11 @@ model Film {
   orders       Order[]
   purchases    Purchase[]
 }
-
 model Order {
   id                      Int        @id @default(autoincrement())
   telegramId              String
   filmId                  Int
+  cartFilmIds             String?
   amount                  Int
   status                  String
   paymentReference        String     @unique

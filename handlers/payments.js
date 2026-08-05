@@ -337,23 +337,23 @@ export default function registerPaymentsHandlers() {
       // Za mu yi amfani da film na farko a matsayin wakilin cart order.
       const representativeFilmId =
         payableItems[0].filmId;
+     const filmIds = payableItems.map(
+  (item) => item.filmId
+);
 
-      const order = await prisma.order.create({
-        data: {
-          telegramId,
-          filmId: representativeFilmId,
-          amount: total,
-          status: "pending",
-          paymentReference: reference,
-        },
-      });
-
+const order = await prisma.order.create({
+  data: {
+    telegramId,
+    filmId: representativeFilmId,
+    cartFilmIds: JSON.stringify(filmIds),
+    amount: total,
+    status: "pending",
+    paymentReference: reference,
+  },
+});
       const email =
         `${telegramId}@telegram.nigfilm.com`;
 
-      const filmIds = payableItems.map(
-        (item) => item.filmId
-      );
 
       const paymentResult =
         await initializePaystackPayment({

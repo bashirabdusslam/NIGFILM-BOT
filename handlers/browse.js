@@ -2,6 +2,7 @@ import { bot, prisma } from "../bot.js";
 import { Markup } from "telegraf";
 
 export default function registerBrowseHandlers() {
+
   // =================================
   // BROWSE FILMS
   // =================================
@@ -23,11 +24,11 @@ export default function registerBrowseHandlers() {
       const validCategories = categories.filter(
         (item) =>
           typeof item.category === "string" &&
-          item.category.trim()
+          item.category.trim().length > 0
       );
 
       if (validCategories.length === 0) {
-        return safeEditOrReply(
+        return replaceCurrentMessage(
           ctx,
           "📭 Har yanzu babu wani film a database.",
           {
@@ -73,7 +74,7 @@ export default function registerBrowseHandlers() {
         ),
       ]);
 
-      return safeEditOrReply(
+      return replaceCurrentMessage(
         ctx,
         "🎬 *BROWSE FILMS*\n\nZaɓi category ɗin da kake son dubawa:",
         {
@@ -84,7 +85,8 @@ export default function registerBrowseHandlers() {
     } catch (error) {
       console.error("BROWSE FILMS ERROR:", error);
 
-      return ctx.reply(
+      return showError(
+        ctx,
         "❌ An samu kuskure wajen buɗe jerin films."
       );
     }
@@ -98,13 +100,7 @@ export default function registerBrowseHandlers() {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
-      let category;
-
-      try {
-        category = decodeURIComponent(ctx.match[1]);
-      } catch {
-        category = ctx.match[1];
-      }
+      const category = safeDecode(ctx.match[1]);
 
       const films = await prisma.film.findMany({
         where: {
@@ -116,7 +112,7 @@ export default function registerBrowseHandlers() {
       });
 
       if (films.length === 0) {
-        return safeEditOrReply(
+        return replaceCurrentMessage(
           ctx,
           "❌ Babu wani film a wannan category.",
           {
@@ -159,7 +155,7 @@ export default function registerBrowseHandlers() {
         ),
       ]);
 
-      return safeEditOrReply(
+      return replaceCurrentMessage(
         ctx,
         `📂 *${escapeMarkdown(
           category
@@ -175,7 +171,8 @@ export default function registerBrowseHandlers() {
         error
       );
 
-      return ctx.reply(
+      return showError(
+        ctx,
         "❌ An samu kuskure wajen ɗauko films."
       );
     }
@@ -204,7 +201,8 @@ export default function registerBrowseHandlers() {
       });
 
       if (!film) {
-        return ctx.reply(
+        return showError(
+          ctx,
           "❌ Ba a samu wannan film ba."
         );
       }
@@ -227,8 +225,6 @@ export default function registerBrowseHandlers() {
             "⚡ Buy Now",
             `buy_now_${film.id}`
           ),
-        ],
-        [
           Markup.button.callback(
             "🛒 Add to Cart",
             `add_to_cart_${film.id}`
@@ -237,7 +233,7 @@ export default function registerBrowseHandlers() {
         [
           Markup.button.callback(
             "⬅️ Back",
-            `category_${encodeURIComponent(
+            `back_category_${encodeURIComponent(
               film.category
             )}`
           ),
@@ -245,10 +241,16 @@ export default function registerBrowseHandlers() {
         [
           Markup.button.callback(
             "🏠 Main Menu",
-            "main_menu"
+            "main_menu_from_film"
           ),
         ],
       ]);
+
+      /*
+       * Goge category menu kafin a turo poster.
+       * Wannan yana rage yawan messages.
+       */
+      await ctx.deleteMessage().catch(() => {});
 
       if (film.posterFileId) {
         return ctx.replyWithPhoto(
@@ -273,102 +275,232 @@ export default function registerBrowseHandlers() {
       );
     }
   });
-// =================================
-// ADD TO CART
-// =================================
 
-bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
-  try {
-    const telegramId = String(ctx.from.id);
-    const filmId = Number(ctx.match[1]);
+  // =================================
+  // BACK TO CATEGORY FROM FILM
+  // =================================
 
-    if (!Number.isInteger(filmId)) {
-      return ctx.answerCbQuery(
-        "❌ Film ID bai dace ba.",
-        { show_alert: true }
-      );
+  bot.action(
+    /^back_category_(.+)$/,
+    async (ctx) => {
+      try {
+        await ctx.answerCbQuery().catch(() => {});
+
+        const category = safeDecode(ctx.match[1]);
+
+        const films = await prisma.film.findMany({
+          where: {
+            category,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+
+        const buttons = films.map((film) => [
+          Markup.button.callback(
+            `🎬 ${shortenText(film.title, 40)}`,
+            `view_film_${film.id}`
+          ),
+        ]);
+
+        buttons.push([
+          Markup.button.callback(
+            "⬅️ Categories",
+            "browse_films"
+          ),
+        ]);
+
+        buttons.push([
+          Markup.button.callback(
+            "🏠 Main Menu",
+            "main_menu"
+          ),
+        ]);
+
+        /*
+         * Goge poster, sannan a dawo da category list.
+         */
+        await ctx.deleteMessage().catch(() => {});
+
+        return ctx.reply(
+          `📂 *${escapeMarkdown(
+            category
+          )}*\n\nZaɓi film ɗin da kake son dubawa:`,
+          {
+            parse_mode: "Markdown",
+            ...Markup.inlineKeyboard(buttons),
+          }
+        );
+      } catch (error) {
+        console.error(
+          "BACK CATEGORY ERROR:",
+          error
+        );
+
+        return ctx.reply(
+          "❌ An samu kuskure wajen komawa category."
+        );
+      }
     }
+  );
 
-    // Tabbatar user yana database
-    await prisma.user.upsert({
-      where: {
-        telegramId,
-      },
-      update: {
-        firstName: ctx.from.first_name || "",
-        lastName: ctx.from.last_name || "",
-        username: ctx.from.username || "",
-      },
-      create: {
-        telegramId,
-        firstName: ctx.from.first_name || "",
-        lastName: ctx.from.last_name || "",
-        username: ctx.from.username || "",
-      },
-    });
+  // =================================
+  // MAIN MENU FROM FILM PHOTO
+  // =================================
 
-    const film = await prisma.film.findUnique({
-      where: {
-        id: filmId,
-      },
-    });
+  bot.action(
+    "main_menu_from_film",
+    async (ctx) => {
+      try {
+        await ctx.answerCbQuery().catch(() => {});
 
-    if (!film) {
-      return ctx.answerCbQuery(
-        "❌ Ba a samu wannan film ba.",
-        { show_alert: true }
-      );
+        await ctx.deleteMessage().catch(() => {});
+
+        return ctx.reply(
+          "🏠 *Barka da zuwa NIGFILM BOT*\n\n" +
+            "🎬 Sayi fina-finai cikin sauƙi.\n\n" +
+            "👇 Zaɓi abin da kake son yi:",
+          {
+            parse_mode: "Markdown",
+            ...mainMenuKeyboard(),
+          }
+        );
+      } catch (error) {
+        console.error(
+          "MAIN MENU FROM FILM ERROR:",
+          error
+        );
+
+        return ctx.reply(
+          "❌ An samu kuskure wajen komawa Main Menu."
+        );
+      }
     }
+  );
 
-    const purchased = await prisma.purchase.findFirst({
-      where: {
-        telegramId,
-        filmId,
-      },
-    });
+  // =================================
+  // ADD TO CART
+  // =================================
 
-    if (purchased) {
-      return ctx.answerCbQuery(
-        "✅ Ka riga ka sayi wannan film.",
-        { show_alert: true }
-      );
+  bot.action(
+    /^add_to_cart_(\d+)$/,
+    async (ctx) => {
+      try {
+        const telegramId = String(ctx.from.id);
+        const filmId = Number(ctx.match[1]);
+
+        if (!Number.isInteger(filmId)) {
+          return ctx.answerCbQuery(
+            "❌ Film ID bai dace ba.",
+            {
+              show_alert: true,
+            }
+          );
+        }
+
+        // Tabbatar user yana database
+        await prisma.user.upsert({
+          where: {
+            telegramId,
+          },
+          update: {
+            firstName: ctx.from.first_name || "",
+            lastName: ctx.from.last_name || "",
+            username: ctx.from.username || "",
+          },
+          create: {
+            telegramId,
+            firstName: ctx.from.first_name || "",
+            lastName: ctx.from.last_name || "",
+            username: ctx.from.username || "",
+          },
+        });
+
+        const film = await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+        });
+
+        if (!film) {
+          return ctx.answerCbQuery(
+            "❌ Ba a samu wannan film ba.",
+            {
+              show_alert: true,
+            }
+          );
+        }
+
+        const purchased =
+          await prisma.purchase.findFirst({
+            where: {
+              telegramId,
+              filmId,
+            },
+          });
+
+        if (purchased) {
+          return ctx.answerCbQuery(
+            "✅ Ka riga ka sayi wannan film.",
+            {
+              show_alert: true,
+            }
+          );
+        }
+
+        const existing =
+          await prisma.cart.findFirst({
+            where: {
+              telegramId,
+              filmId,
+            },
+          });
+
+        if (existing) {
+          return ctx.answerCbQuery(
+            "🛒 Wannan film yana cikin Cart ɗinka.",
+            {
+              show_alert: false,
+            }
+          );
+        }
+
+        await prisma.cart.create({
+          data: {
+            telegramId,
+            filmId,
+          },
+        });
+
+        /*
+         * Notification ne kawai.
+         * Ba zai ƙara sabon saƙo ba.
+         */
+        return ctx.answerCbQuery(
+          `✅ ${shortenText(
+            film.title,
+            100
+          )} an saka cikin Cart.`,
+          {
+            show_alert: false,
+          }
+        );
+      } catch (error) {
+        console.error(
+          "ADD TO CART ERROR:",
+          error
+        );
+
+        return ctx.answerCbQuery(
+          "❌ An kasa saka film cikin Cart.",
+          {
+            show_alert: true,
+          }
+        );
+      }
     }
-
-    const existing = await prisma.cart.findFirst({
-      where: {
-        telegramId,
-        filmId,
-      },
-    });
-
-    if (existing) {
-      return ctx.answerCbQuery(
-        "🛒 Wannan film yana cikin Cart ɗinka.",
-        { show_alert: true }
-      );
-    }
-
-    await prisma.cart.create({
-      data: {
-        telegramId,
-        filmId,
-      },
-    });
-
-    // Ƙaramin notification, ba sabon message ba
-    return ctx.answerCbQuery(
-      `✅ ${film.title} an saka cikin Cart.`,
-      { show_alert: false }
-    );
-  } catch (error) {
-    console.error("ADD TO CART ERROR:", error);
-
-    return ctx.answerCbQuery(
-      "❌ An kasa saka film cikin Cart.",
-      { show_alert: true }
-    );
-  }
-});
+  );
 
   // =================================
   // VIEW CART
@@ -378,131 +510,34 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
-      const telegramId = String(ctx.from.id);
-
-      const cartItems = await prisma.cart.findMany({
-        where: {
-          telegramId,
-        },
-        include: {
-          film: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-
-      if (cartItems.length === 0) {
-        return ctx.reply(
-          "🛒 Cart ɗinka babu komai.",
-          {
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  "🎬 Browse Films",
-                  "browse_films"
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  "🏠 Main Menu",
-                  "main_menu"
-                ),
-              ],
-            ]),
-          }
-        );
-      }
-
-      const total = cartItems.reduce(
-        (sum, item) =>
-          sum + Number(item.film.price),
-        0
-      );
-
-      let message = "🛒 *YOUR CART*\n\n";
-
-      cartItems.forEach((item, index) => {
-        message +=
-          `${index + 1}. 🎬 ${escapeMarkdown(
-            item.film.title
-          )}\n` +
-          `💰 ₦${Number(
-            item.film.price
-          ).toLocaleString()}\n\n`;
-      });
-
-      message +=
-        "━━━━━━━━━━━━━━\n" +
-        `💵 *TOTAL:* ₦${total.toLocaleString()}`;
-
-      const buttons = cartItems.map((item) => [
-        Markup.button.callback(
-          `❌ Remove ${shortenText(
-            item.film.title,
-            20
-          )}`,
-          `remove_cart_${item.filmId}`
-        ),
-      ]);
-
-      buttons.push([
-        Markup.button.callback(
-          "💳 Checkout",
-          "checkout_cart"
-        ),
-      ]);
-
-      buttons.push([
-        Markup.button.callback(
-          "🗑 Clear Cart",
-          "clear_cart"
-        ),
-      ]);
-
-      buttons.push([
-        Markup.button.callback(
-          "🎬 Continue Browsing",
-          "browse_films"
-        ),
-      ]);
-
-      buttons.push([
-        Markup.button.callback(
-          "🏠 Main Menu",
-          "main_menu"
-        ),
-      ]);
-
-      return ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
+      return showCart(ctx);
     } catch (error) {
       console.error("VIEW CART ERROR:", error);
 
-      return ctx.reply(
+      return showError(
+        ctx,
         "❌ An kasa buɗe Cart."
       );
     }
   });
 
   // =================================
-  // REMOVE ONE ITEM FROM CART
+  // REMOVE ONE CART ITEM
   // =================================
 
   bot.action(
     /^remove_cart_(\d+)$/,
     async (ctx) => {
       try {
-        await ctx.answerCbQuery().catch(() => {});
-
         const telegramId = String(ctx.from.id);
         const filmId = Number(ctx.match[1]);
 
         if (!Number.isInteger(filmId)) {
-          return ctx.reply(
-            "❌ Film ID bai dace ba."
+          return ctx.answerCbQuery(
+            "❌ Film ID bai dace ba.",
+            {
+              show_alert: true,
+            }
           );
         }
 
@@ -513,39 +548,24 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
           },
         });
 
-        if (deleted.count === 0) {
-          return ctx.reply(
-            "ℹ️ Wannan film baya cikin Cart ɗinka."
-          );
-        }
+        await ctx.answerCbQuery(
+          deleted.count > 0
+            ? "✅ An cire film daga Cart."
+            : "ℹ️ Film baya cikin Cart."
+        ).catch(() => {});
 
-        return ctx.reply(
-          "✅ An cire film ɗin daga Cart.",
-          {
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  "🛒 View Cart",
-                  "view_cart"
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  "🎬 Browse Films",
-                  "browse_films"
-                ),
-              ],
-            ]),
-          }
-        );
+        return showCart(ctx);
       } catch (error) {
         console.error(
-          "REMOVE CART ITEM ERROR:",
+          "REMOVE CART ERROR:",
           error
         );
 
-        return ctx.reply(
-          "❌ An kasa cire film daga Cart."
+        return ctx.answerCbQuery(
+          "❌ An kasa cire film daga Cart.",
+          {
+            show_alert: true,
+          }
         );
       }
     }
@@ -557,8 +577,6 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
 
   bot.action("clear_cart", async (ctx) => {
     try {
-      await ctx.answerCbQuery().catch(() => {});
-
       const telegramId = String(ctx.from.id);
 
       const deleted = await prisma.cart.deleteMany({
@@ -567,36 +585,21 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
         },
       });
 
-      if (deleted.count === 0) {
-        return ctx.reply(
-          "🛒 Cart ɗinka babu komai."
-        );
-      }
+      await ctx.answerCbQuery(
+        deleted.count > 0
+          ? "✅ An share Cart."
+          : "ℹ️ Cart ɗinka babu komai."
+      ).catch(() => {});
 
-      return ctx.reply(
-        "🗑 An share duk fina-finan da ke cikin Cart ɗinka.",
-        {
-          ...Markup.inlineKeyboard([
-            [
-              Markup.button.callback(
-                "🎬 Browse Films",
-                "browse_films"
-              ),
-            ],
-            [
-              Markup.button.callback(
-                "🏠 Main Menu",
-                "main_menu"
-              ),
-            ],
-          ]),
-        }
-      );
+      return showCart(ctx);
     } catch (error) {
       console.error("CLEAR CART ERROR:", error);
 
-      return ctx.reply(
-        "❌ An kasa share Cart."
+      return ctx.answerCbQuery(
+        "❌ An kasa share Cart.",
+        {
+          show_alert: true,
+        }
       );
     }
   });
@@ -609,8 +612,10 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
-      return ctx.reply(
-        "🔍 Domin neman film, rubuta:\n\n" +
+      return replaceCurrentMessage(
+        ctx,
+        "🔍 *SEARCH FILMS*\n\n" +
+          "Rubuta wannan command:\n\n" +
           "`/search sunan film`\n\n" +
           "Misali:\n" +
           "`/search Labarina`",
@@ -619,13 +624,7 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback(
-                "🎬 Browse Films",
-                "browse_films"
-              ),
-            ],
-            [
-              Markup.button.callback(
-                "🏠 Main Menu",
+                "⬅️ Main Menu",
                 "main_menu"
               ),
             ],
@@ -638,7 +637,8 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
         error
       );
 
-      return ctx.reply(
+      return showError(
+        ctx,
         "❌ An samu kuskure wajen fara search."
       );
     }
@@ -745,13 +745,157 @@ bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
 }
 
 // =================================
-// HELPERS
+// SHOW CART
 // =================================
 
-async function safeEditOrReply(
+async function showCart(ctx) {
+  const telegramId = String(ctx.from.id);
+
+  const cartItems = await prisma.cart.findMany({
+    where: {
+      telegramId,
+    },
+    include: {
+      film: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (cartItems.length === 0) {
+    return replaceCurrentMessage(
+      ctx,
+      "🛒 *MY CART*\n\nCart ɗinka babu komai.",
+      {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🎬 Browse Films",
+              "browse_films"
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "🏠 Main Menu",
+              "main_menu"
+            ),
+          ],
+        ]),
+      }
+    );
+  }
+
+  const total = cartItems.reduce(
+    (sum, item) =>
+      sum + Number(item.film.price),
+    0
+  );
+
+  let message = "🛒 *MY CART*\n\n";
+
+  cartItems.forEach((item, index) => {
+    message +=
+      `${index + 1}. 🎬 ${escapeMarkdown(
+        item.film.title
+      )}\n` +
+      `💰 ₦${Number(
+        item.film.price
+      ).toLocaleString()}\n\n`;
+  });
+
+  message +=
+    "━━━━━━━━━━━━━━\n" +
+    `💵 *TOTAL:* ₦${total.toLocaleString()}`;
+
+  const buttons = cartItems.map((item) => [
+    Markup.button.callback(
+      `❌ Remove ${shortenText(
+        item.film.title,
+        20
+      )}`,
+      `remove_cart_${item.filmId}`
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "💳 Checkout",
+      "checkout_cart"
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "🗑 Clear Cart",
+      "clear_cart"
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "⬅️ Browse Films",
+      "browse_films"
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "🏠 Main Menu",
+      "main_menu"
+    ),
+  ]);
+
+  return replaceCurrentMessage(ctx, message, {
+    parse_mode: "Markdown",
+    ...Markup.inlineKeyboard(buttons),
+  });
+}
+
+// =================================
+// MAIN MENU KEYBOARD
+// =================================
+
+function mainMenuKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback(
+        "🎬 Browse Films",
+        "browse_films"
+      ),
+      Markup.button.callback(
+        "🔍 Search Films",
+        "search_films"
+      ),
+    ],
+    [
+      Markup.button.callback(
+        "🛒 My Cart",
+        "view_cart"
+      ),
+      Markup.button.callback(
+        "🎥 My Movies",
+        "my_purchases"
+      ),
+    ],
+    [
+      Markup.button.callback(
+        "💬 Support",
+        "support"
+      ),
+    ],
+  ]);
+}
+
+// =================================
+// EDIT CURRENT MESSAGE
+// =================================
+
+async function replaceCurrentMessage(
   ctx,
   message,
-  options
+  options = {}
 ) {
   try {
     return await ctx.editMessageText(
@@ -772,15 +916,17 @@ async function safeEditOrReply(
 
     if (
       description.includes(
-        "message to edit not found"
+        "there is no text in the message to edit"
       ) ||
       description.includes(
         "message can't be edited"
       ) ||
       description.includes(
-        "there is no text in the message to edit"
+        "message to edit not found"
       )
     ) {
+      await ctx.deleteMessage().catch(() => {});
+
       return ctx.reply(message, options);
     }
 
@@ -788,12 +934,57 @@ async function safeEditOrReply(
   }
 }
 
+// =================================
+// SHOW ERROR
+// =================================
+
+async function showError(ctx, message) {
+  try {
+    return replaceCurrentMessage(
+      ctx,
+      message,
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🏠 Main Menu",
+              "main_menu"
+            ),
+          ],
+        ]),
+      }
+    );
+  } catch {
+    return ctx.reply(message);
+  }
+}
+
+// =================================
+// SAFE DECODE
+// =================================
+
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return String(value || "");
+  }
+}
+
+// =================================
+// ESCAPE MARKDOWN
+// =================================
+
 function escapeMarkdown(value) {
   return String(value ?? "").replace(
     /([_*[\]()~`>#+\-=|{}.!])/g,
     "\\$1"
   );
 }
+
+// =================================
+// SHORTEN TEXT
+// =================================
 
 function shortenText(value, maximumLength) {
   const text = String(value ?? "");

@@ -13,7 +13,15 @@ app.use(
 );
 import registerAdminHandlers from "./handlers/admin.js";
 import registerSalesHandlers from "./handlers/sales.js";
-
+import registerBrowseHandlers from "./handlers/browse.js";
+import registerFilmHandlers from "./handlers/films.js";
+import registerStartHandlers from "./handlers/start.js";
+import registerMyMoviesHandlers from "./handlers/mymovies.js";
+import registerUsersHandlers from "./handlers/users.js";
+import registerBroadcastHandlers from "./handlers/broadcast.js";
+import registerTextHandlers from "./handlers/textHandler.js";
+import registerPhotoHandlers from "./handlers/photoHandler.js";
+import registerVideoHandlers from "./handlers/videoHandler.js";
 import { Markup } from "telegraf";
 import { bot, prisma, ADMIN_ID, CHANNEL_ID } from "./bot.js";
 
@@ -43,6 +51,15 @@ const adminMenu = Markup.inlineKeyboard([
 
 registerAdminHandlers(adminMenu);
 registerSalesHandlers();
+registerStartHandlers();
+registerBrowseHandlers();
+registerFilmHandlers();
+registerMyMoviesHandlers();
+registerUsersHandlers();
+registerBroadcastHandlers();
+registerTextHandlers();
+registerPhotoHandlers();
+registerVideoHandlers();
 // =================================
 // DELETE FILM
 // =================================
@@ -124,7 +141,7 @@ bot.action(/^price_film_(\d+)$/, async (ctx) => {
     "💰 Aika sabon farashin wannan film.\n\nMisali: 1000"
   );
   });
-// =================================
+  // =================================
 // USERS DASHBOARD
 // =================================
 
@@ -145,12 +162,6 @@ bot.action("admin_users", async (ctx) => {
     },
   });
 
-  const totalBalance = await prisma.user.aggregate({
-    _sum: {
-      balance: true,
-    },
-  });
-
   return ctx.reply(
     `👥 *USERS DASHBOARD*
 
@@ -158,10 +169,7 @@ bot.action("admin_users", async (ctx) => {
 ${totalUsers}
 
 ✅ Active Users:
-${activeUsers}
-
-💰 Total Wallet Balance:
-₦${Number(totalBalance._sum.balance || 0).toLocaleString()}`,
+${activeUsers}`,
     {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard([
@@ -197,6 +205,7 @@ ${activeUsers}
     }
   );
 });
+
 // =================================
 // SEARCH USER
 // =================================
@@ -227,72 +236,6 @@ bot.action("search_user", async (ctx) => {
     "🔍 Aika Telegram ID na user.\n\nMisali:\n7356306160"
   );
 });
-// =================================
-// START
-// =================================
-
-bot.start(async (ctx) => {
-  const payload = ctx.startPayload;
-
-  // Save ko Update User
-  await prisma.user.upsert({
-    where: {
-      telegramId: String(ctx.from.id),
-    },
-    update: {
-      firstName: ctx.from.first_name || "",
-      lastName: ctx.from.last_name || "",
-      username: ctx.from.username || "",
-    },
-    create: {
-      telegramId: String(ctx.from.id),
-      firstName: ctx.from.first_name || "",
-      lastName: ctx.from.last_name || "",
-      username: ctx.from.username || "",
-    },
-  });
-
-  // ===============================
-  // Deep Link (Film daga Channel)
-  // ===============================
-  if (payload && payload.startsWith("film_")) {
-
-    const filmId = Number(payload.replace("film_", ""));
-
-    const film = await prisma.film.findUnique({
-      where: {
-        id: filmId,
-      },
-    });
-
-    if (!film) {
-      return ctx.reply("❌ Ba a samu wannan film ba.");
-    }
-
-    if (!film.posterFileId) {
-      return ctx.reply("❌ Wannan film ba shi da poster.");
-    }
-
-    return ctx.replyWithPhoto(film.posterFileId, {
-      caption:
-        `🎬 *${film.title}*\n\n` +
-        `📝 ${film.description}\n\n` +
-        `📂 Category: ${film.category}\n` +
-        `💰 Farashi: ₦${Number(film.price).toLocaleString()}\n\n` +
-        `👇 Danna BUY NOW domin ci gaba da siya.`,
-      parse_mode: "Markdown",
-
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "💳 BUY NOW",
-            `buy_now_${film.id}`
-          ),
-        ],
-      ]),
-    });
-  }
-
   // ===============================
   // USER DASHBOARD
   // ===============================

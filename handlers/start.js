@@ -137,44 +137,54 @@ export default function registerStartHandlers() {
 // =================================
 // SHOW MAIN MENU
 // =================================
-
 async function showMainMenu(ctx) {
   const message =
     "🏠 *Barka da zuwa NIGFILM BOT*\n\n" +
     "🎬 Sayi fina-finai cikin sauƙi.\n\n" +
     "👇 Zaɓi abin da kake son yi:";
 
-  const keyboard = Markup.inlineKeyboard([
-    [
-      Markup.button.callback(
-        "🎬 Browse Films",
-        "browse_films"
-      ),
-      Markup.button.callback(
-        "🔍 Search Films",
-        "search_films"
-      ),
-    ],
-    [
-      Markup.button.callback(
-        "🛒 My Cart",
-        "view_cart"
-      ),
-      Markup.button.callback(
-        "🎥 My Movies",
-        "my_purchases"
-      ),
-    ],
-    [
-      Markup.button.callback(
-        "💬 Support",
-        "support"
-      ),
-    ],
-  ]);
-
-  return ctx.reply(message, {
+  const options = {
     parse_mode: "Markdown",
-    ...keyboard,
-  });
+    ...Markup.inlineKeyboard([
+      [
+        Markup.button.callback(
+          "🎬 Browse Films",
+          "browse_films"
+        ),
+        Markup.button.callback(
+          "🔍 Search Films",
+          "search_films"
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "🛒 My Cart",
+          "view_cart"
+        ),
+        Markup.button.callback(
+          "🎥 My Movies",
+          "my_purchases"
+        ),
+      ],
+      [
+        Markup.button.callback(
+          "💬 Support",
+          "support"
+        ),
+      ],
+    ]),
+  };
+
+  if (ctx.callbackQuery?.message) {
+    try {
+      return await ctx.editMessageText(
+        message,
+        options
+      );
+    } catch {
+      return ctx.reply(message, options);
+    }
+  }
+
+  return ctx.reply(message, options);
 }

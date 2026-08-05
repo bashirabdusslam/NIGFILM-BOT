@@ -509,101 +509,90 @@ export default function registerFilmHandlers() {
       );
     }
   );
+// =================================
+// CONFIRM DELETE FILM
+// =================================
 
-  // =================================
-  // CONFIRM DELETE FILM
-  // =================================
-
-  bot.action(
-    /^confirm_delete_(\d+)$/,
-    async (ctx) => {
-      try {
-        if (
-          String(ctx.from.id) !==
-          String(ADMIN_ID)
-        ) {
-          return ctx.answerCbQuery(
-            "⛔ Ba ka da izini."
-          );
-        }
-
-        await ctx.answerCbQuery().catch(() => {});
-
-        const filmId = Number(ctx.match[1]);
-
-        const film =
-          await prisma.film.findUnique({
-            where: {
-              id: filmId,
-            },
-          });
-
-        if (!film) {
-          return ctx.reply(
-            "❌ Ba a samu wannan film ba."
-          );
-        }
-
-        await prisma.$transaction(
-          async (tx) => {
-            await tx.purchase.deleteMany({
-              where: {
-                filmId,
-              },
-            });
-
-            await tx.cart.deleteMany({
-              where: {
-                filmId,
-              },
-            });
-
-            await tx.order.deleteMany({
-              where: {
-                filmId,
-              },
-            });
-
-            await tx.film.delete({
-              where: {
-                id: filmId,
-              },
-            });
-          }
-        );
-
-        return ctx.reply(
-          `✅ Film "${film.title}" an goge cikin nasara.`,
-          {
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  "🎞️ Manage Films",
-                  "admin_manage_films"
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  "⬅️ Admin Panel",
-                  "admin_panel"
-                ),
-              ],
-            ]),
-          }
-        );
-      } catch (error) {
-        console.error(
-          "DELETE FILM ERROR:",
-          error
-        );
-
-        return ctx.reply(
-          "❌ An kasa goge film. Duba Render Logs."
-        );
-      }
+bot.action(/^confirm_delete_(\d+)$/, async (ctx) => {
+  try {
+    if (String(ctx.from.id) !== String(ADMIN_ID)) {
+      return ctx.answerCbQuery("⛔ Ba ka da izini.");
     }
-  );
 
+    await ctx.answerCbQuery().catch(() => {});
+
+    const filmId = Number(ctx.match[1]);
+
+    if (!Number.isInteger(filmId)) {
+      return ctx.reply("❌ Film ID bai dace ba.");
+    }
+
+    const film = await prisma.film.findUnique({
+      where: {
+        id: filmId,
+      },
+    });
+
+    if (!film) {
+      return ctx.reply(
+        "❌ Ba a samu wannan film ba."
+      );
+    }
+
+    // Fara goge duk records masu alaƙa da film
+    await prisma.$transaction([
+      prisma.purchase.deleteMany({
+        where: {
+          filmId,
+        },
+      }),
+
+      prisma.cart.deleteMany({
+        where: {
+          filmId,
+        },
+      }),
+
+      prisma.order.deleteMany({
+        where: {
+          filmId,
+        },
+      }),
+
+      prisma.film.delete({
+        where: {
+          id: filmId,
+        },
+      }),
+    ]);
+
+    return ctx.reply(
+      `✅ Film "${film.title}" an goge cikin nasara.`,
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🎞️ Manage Films",
+              "admin_manage_films"
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "⬅️ Admin Panel",
+              "admin_panel"
+            ),
+          ],
+        ]),
+      }
+    );
+  } catch (error) {
+    console.error("DELETE FILM ERROR:", error);
+
+    return ctx.reply(
+      "❌ An kasa goge film. Duba Render Logs."
+    );
+  }
+});
   // =================================
   // CANCEL DELETE
   // =================================

@@ -45,7 +45,7 @@ export default function registerBrowseHandlers() {
 
       const buttons = validCategories.map((item) => [
         Markup.button.callback(
-          `📂 ${item.category}`,
+          `📂 ${shortenText(item.category, 40)}`,
           `category_${encodeURIComponent(
             item.category
           )}`
@@ -98,9 +98,13 @@ export default function registerBrowseHandlers() {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
-      const category = decodeURIComponent(
-        ctx.match[1]
-      );
+      let category;
+
+      try {
+        category = decodeURIComponent(ctx.match[1]);
+      } catch {
+        category = ctx.match[1];
+      }
 
       const films = await prisma.film.findMany({
         where: {
@@ -123,6 +127,12 @@ export default function registerBrowseHandlers() {
                   "browse_films"
                 ),
               ],
+              [
+                Markup.button.callback(
+                  "🏠 Main Menu",
+                  "main_menu"
+                ),
+              ],
             ]),
           }
         );
@@ -130,7 +140,7 @@ export default function registerBrowseHandlers() {
 
       const buttons = films.map((film) => [
         Markup.button.callback(
-          `🎬 ${film.title}`,
+          `🎬 ${shortenText(film.title, 40)}`,
           `view_film_${film.id}`
         ),
       ]);
@@ -151,14 +161,19 @@ export default function registerBrowseHandlers() {
 
       return safeEditOrReply(
         ctx,
-        `📂 *${escapeMarkdown(category)}*\n\nZaɓi film ɗin da kake son dubawa:`,
+        `📂 *${escapeMarkdown(
+          category
+        )}*\n\nZaɓi film ɗin da kake son dubawa:`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard(buttons),
         }
       );
     } catch (error) {
-      console.error("CATEGORY FILMS ERROR:", error);
+      console.error(
+        "CATEGORY FILMS ERROR:",
+        error
+      );
 
       return ctx.reply(
         "❌ An samu kuskure wajen ɗauko films."
@@ -258,129 +273,102 @@ export default function registerBrowseHandlers() {
       );
     }
   });
+// =================================
+// ADD TO CART
+// =================================
 
-  // =================================
-  // ADD TO CART
-  // =================================
+bot.action(/^add_to_cart_(\d+)$/, async (ctx) => {
+  try {
+    const telegramId = String(ctx.from.id);
+    const filmId = Number(ctx.match[1]);
 
-  bot.action(
-    /^add_to_cart_(\d+)$/,
-    async (ctx) => {
-      try {
-        await ctx.answerCbQuery().catch(() => {});
-
-        const telegramId = String(ctx.from.id);
-        const filmId = Number(ctx.match[1]);
-
-        if (!Number.isInteger(filmId)) {
-          return ctx.reply(
-            "❌ Film ID bai dace ba."
-          );
-        }
-
-        const film = await prisma.film.findUnique({
-          where: {
-            id: filmId,
-          },
-        });
-
-        if (!film) {
-          return ctx.reply(
-            "❌ Ba a samu wannan film ba."
-          );
-        }
-
-        const purchased =
-          await prisma.purchase.findFirst({
-            where: {
-              telegramId,
-              filmId,
-            },
-          });
-
-        if (purchased) {
-          return ctx.reply(
-            "✅ Ka riga ka sayi wannan film.",
-            {
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback(
-                    "🎥 My Movies",
-                    "my_purchases"
-                  ),
-                ],
-              ]),
-            }
-          );
-        }
-
-        const existing =
-          await prisma.cart.findUnique({
-            where: {
-              telegramId_filmId: {
-                telegramId,
-                filmId,
-              },
-            },
-          });
-
-        if (existing) {
-          return ctx.reply(
-            "🛒 Wannan film yana cikin Cart ɗinka.",
-            {
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback(
-                    "🛒 View Cart",
-                    "view_cart"
-                  ),
-                ],
-              ]),
-            }
-          );
-        }
-
-        await prisma.cart.create({
-          data: {
-            telegramId,
-            filmId,
-          },
-        });
-
-        return ctx.reply(
-          `✅ *${escapeMarkdown(
-            film.title
-          )}* an saka shi cikin Cart.`,
-          {
-            parse_mode: "Markdown",
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback(
-                  "🛒 View Cart",
-                  "view_cart"
-                ),
-              ],
-              [
-                Markup.button.callback(
-                  "🎬 Continue Browsing",
-                  "browse_films"
-                ),
-              ],
-            ]),
-          }
-        );
-      } catch (error) {
-        console.error(
-          "ADD TO CART ERROR:",
-          error
-        );
-
-        return ctx.reply(
-          "❌ An kasa saka film cikin Cart."
-        );
-      }
+    if (!Number.isInteger(filmId)) {
+      return ctx.answerCbQuery(
+        "❌ Film ID bai dace ba.",
+        { show_alert: true }
+      );
     }
-  );
+
+    // Tabbatar user yana database
+    await prisma.user.upsert({
+      where: {
+        telegramId,
+      },
+      update: {
+        firstName: ctx.from.first_name || "",
+        lastName: ctx.from.last_name || "",
+        username: ctx.from.username || "",
+      },
+      create: {
+        telegramId,
+        firstName: ctx.from.first_name || "",
+        lastName: ctx.from.last_name || "",
+        username: ctx.from.username || "",
+      },
+    });
+
+    const film = await prisma.film.findUnique({
+      where: {
+        id: filmId,
+      },
+    });
+
+    if (!film) {
+      return ctx.answerCbQuery(
+        "❌ Ba a samu wannan film ba.",
+        { show_alert: true }
+      );
+    }
+
+    const purchased = await prisma.purchase.findFirst({
+      where: {
+        telegramId,
+        filmId,
+      },
+    });
+
+    if (purchased) {
+      return ctx.answerCbQuery(
+        "✅ Ka riga ka sayi wannan film.",
+        { show_alert: true }
+      );
+    }
+
+    const existing = await prisma.cart.findFirst({
+      where: {
+        telegramId,
+        filmId,
+      },
+    });
+
+    if (existing) {
+      return ctx.answerCbQuery(
+        "🛒 Wannan film yana cikin Cart ɗinka.",
+        { show_alert: true }
+      );
+    }
+
+    await prisma.cart.create({
+      data: {
+        telegramId,
+        filmId,
+      },
+    });
+
+    // Ƙaramin notification, ba sabon message ba
+    return ctx.answerCbQuery(
+      `✅ ${film.title} an saka cikin Cart.`,
+      { show_alert: false }
+    );
+  } catch (error) {
+    console.error("ADD TO CART ERROR:", error);
+
+    return ctx.answerCbQuery(
+      "❌ An kasa saka film cikin Cart.",
+      { show_alert: true }
+    );
+  }
+});
 
   // =================================
   // VIEW CART
@@ -500,7 +488,7 @@ export default function registerBrowseHandlers() {
   });
 
   // =================================
-  // REMOVE ONE CART ITEM
+  // REMOVE ONE ITEM FROM CART
   // =================================
 
   bot.action(
@@ -512,12 +500,24 @@ export default function registerBrowseHandlers() {
         const telegramId = String(ctx.from.id);
         const filmId = Number(ctx.match[1]);
 
-        await prisma.cart.deleteMany({
+        if (!Number.isInteger(filmId)) {
+          return ctx.reply(
+            "❌ Film ID bai dace ba."
+          );
+        }
+
+        const deleted = await prisma.cart.deleteMany({
           where: {
             telegramId,
             filmId,
           },
         });
+
+        if (deleted.count === 0) {
+          return ctx.reply(
+            "ℹ️ Wannan film baya cikin Cart ɗinka."
+          );
+        }
 
         return ctx.reply(
           "✅ An cire film ɗin daga Cart.",
@@ -527,6 +527,12 @@ export default function registerBrowseHandlers() {
                 Markup.button.callback(
                   "🛒 View Cart",
                   "view_cart"
+                ),
+              ],
+              [
+                Markup.button.callback(
+                  "🎬 Browse Films",
+                  "browse_films"
                 ),
               ],
             ]),
@@ -610,6 +616,20 @@ export default function registerBrowseHandlers() {
           "`/search Labarina`",
         {
           parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "🎬 Browse Films",
+                "browse_films"
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "🏠 Main Menu",
+                "main_menu"
+              ),
+            ],
+          ]),
         }
       );
     } catch (error) {
@@ -630,10 +650,11 @@ export default function registerBrowseHandlers() {
 
   bot.command("search", async (ctx) => {
     try {
-      const text = ctx.message?.text || "";
+      const messageText =
+        ctx.message?.text || "";
 
-      const query = text
-        .replace(/^\/search(@\w+)?/i, "")
+      const query = messageText
+        .replace(/^\/search(?:@\w+)?/i, "")
         .trim();
 
       if (!query) {
@@ -671,6 +692,12 @@ export default function registerBrowseHandlers() {
                   "browse_films"
                 ),
               ],
+              [
+                Markup.button.callback(
+                  "🏠 Main Menu",
+                  "main_menu"
+                ),
+              ],
             ]),
           }
         );
@@ -678,7 +705,7 @@ export default function registerBrowseHandlers() {
 
       const buttons = films.map((film) => [
         Markup.button.callback(
-          `🎬 ${film.title}`,
+          `🎬 ${shortenText(film.title, 40)}`,
           `view_film_${film.id}`
         ),
       ]);
@@ -687,6 +714,13 @@ export default function registerBrowseHandlers() {
         Markup.button.callback(
           "🎬 Browse Films",
           "browse_films"
+        ),
+      ]);
+
+      buttons.push([
+        Markup.button.callback(
+          "🏠 Main Menu",
+          "main_menu"
         ),
       ]);
 
@@ -755,8 +789,10 @@ async function safeEditOrReply(
 }
 
 function escapeMarkdown(value) {
-  return String(value ?? "")
-    .replace(/([_*[\]()~`>#+\-=|{}.!])/g, "\\$1");
+  return String(value ?? "").replace(
+    /([_*[\]()~`>#+\-=|{}.!])/g,
+    "\\$1"
+  );
 }
 
 function shortenText(value, maximumLength) {

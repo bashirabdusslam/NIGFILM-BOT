@@ -1,8 +1,10 @@
 import { bot, prisma } from "../bot.js";
 import { Markup } from "telegraf";
 
-export default function registerBrowseHandlers() {
+// Ana adana users da suka danna Search Films a nan
+const userSearchSessions = new Set();
 
+export default function registerBrowseHandlers() {
   // =================================
   // BROWSE FILMS
   // =================================
@@ -10,6 +12,10 @@ export default function registerBrowseHandlers() {
   bot.action("browse_films", async (ctx) => {
     try {
       await ctx.answerCbQuery().catch(() => {});
+
+      userSearchSessions.delete(
+        String(ctx.from.id)
+      );
 
       const categories = await prisma.film.findMany({
         distinct: ["category"],
@@ -83,7 +89,10 @@ export default function registerBrowseHandlers() {
         }
       );
     } catch (error) {
-      console.error("BROWSE FILMS ERROR:", error);
+      console.error(
+        "BROWSE FILMS ERROR:",
+        error
+      );
 
       return showError(
         ctx,
@@ -246,10 +255,7 @@ export default function registerBrowseHandlers() {
         ],
       ]);
 
-      /*
-       * Goge category menu kafin a turo poster.
-       * Wannan yana rage yawan messages.
-       */
+      // Goge tsohon menu kafin a turo poster
       await ctx.deleteMessage().catch(() => {});
 
       if (film.posterFileId) {
@@ -268,7 +274,10 @@ export default function registerBrowseHandlers() {
         ...keyboard,
       });
     } catch (error) {
-      console.error("VIEW FILM ERROR:", error);
+      console.error(
+        "VIEW FILM ERROR:",
+        error
+      );
 
       return ctx.reply(
         "❌ An samu kuskure wajen buɗe film."
@@ -277,7 +286,7 @@ export default function registerBrowseHandlers() {
   });
 
   // =================================
-  // BACK TO CATEGORY FROM FILM
+  // BACK TO CATEGORY
   // =================================
 
   bot.action(
@@ -299,7 +308,10 @@ export default function registerBrowseHandlers() {
 
         const buttons = films.map((film) => [
           Markup.button.callback(
-            `🎬 ${shortenText(film.title, 40)}`,
+            `🎬 ${shortenText(
+              film.title,
+              40
+            )}`,
             `view_film_${film.id}`
           ),
         ]);
@@ -318,9 +330,6 @@ export default function registerBrowseHandlers() {
           ),
         ]);
 
-        /*
-         * Goge poster, sannan a dawo da category list.
-         */
         await ctx.deleteMessage().catch(() => {});
 
         return ctx.reply(
@@ -346,7 +355,7 @@ export default function registerBrowseHandlers() {
   );
 
   // =================================
-  // MAIN MENU FROM FILM PHOTO
+  // MAIN MENU FROM FILM
   // =================================
 
   bot.action(
@@ -399,7 +408,6 @@ export default function registerBrowseHandlers() {
           );
         }
 
-        // Tabbatar user yana database
         await prisma.user.upsert({
           where: {
             telegramId,
@@ -473,10 +481,6 @@ export default function registerBrowseHandlers() {
           },
         });
 
-        /*
-         * Notification ne kawai.
-         * Ba zai ƙara sabon saƙo ba.
-         */
         return ctx.answerCbQuery(
           `✅ ${shortenText(
             film.title,
@@ -512,7 +516,10 @@ export default function registerBrowseHandlers() {
 
       return showCart(ctx);
     } catch (error) {
-      console.error("VIEW CART ERROR:", error);
+      console.error(
+        "VIEW CART ERROR:",
+        error
+      );
 
       return showError(
         ctx,
@@ -522,7 +529,7 @@ export default function registerBrowseHandlers() {
   });
 
   // =================================
-  // REMOVE ONE CART ITEM
+  // REMOVE CART ITEM
   // =================================
 
   bot.action(
@@ -593,7 +600,10 @@ export default function registerBrowseHandlers() {
 
       return showCart(ctx);
     } catch (error) {
-      console.error("CLEAR CART ERROR:", error);
+      console.error(
+        "CLEAR CART ERROR:",
+        error
+      );
 
       return ctx.answerCbQuery(
         "❌ An kasa share Cart.",
@@ -612,19 +622,30 @@ export default function registerBrowseHandlers() {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
+      const telegramId = String(ctx.from.id);
+
+      userSearchSessions.add(telegramId);
+
       return replaceCurrentMessage(
         ctx,
-        "🔍 *SEARCH FILMS*\n\n" +
-          "Rubuta wannan command:\n\n" +
-          "`/search sunan film`\n\n" +
-          "Misali:\n" +
-          "`/search Labarina`",
+        `🔍 *SEARCH FILMS*
+
+Yanzu rubuta sunan film ɗin da kake nema.
+
+Misali:
+Labarina`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback(
-                "⬅️ Main Menu",
+                "❌ Cancel Search",
+                "cancel_film_search"
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "🏠 Main Menu",
                 "main_menu"
               ),
             ],
@@ -645,28 +666,73 @@ export default function registerBrowseHandlers() {
   });
 
   // =================================
-  // SEARCH FILMS COMMAND
+  // CANCEL SEARCH
   // =================================
 
-  bot.command("search", async (ctx) => {
-    try {
-      const messageText =
-        ctx.message?.text || "";
+  bot.action(
+    "cancel_film_search",
+    async (ctx) => {
+      try {
+        await ctx.answerCbQuery().catch(() => {});
 
-      const query = messageText
-        .replace(/^\/search(?:@\w+)?/i, "")
-        .trim();
+        userSearchSessions.delete(
+          String(ctx.from.id)
+        );
 
-      if (!query) {
-        return ctx.reply(
-          "🔍 Ka rubuta sunan film bayan `/search`.\n\n" +
-            "Misali:\n" +
-            "`/search Labarina`",
+        return replaceCurrentMessage(
+          ctx,
+          "✅ An soke neman film.",
           {
-            parse_mode: "Markdown",
+            ...Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  "🎬 Browse Films",
+                  "browse_films"
+                ),
+              ],
+              [
+                Markup.button.callback(
+                  "🏠 Main Menu",
+                  "main_menu"
+                ),
+              ],
+            ]),
           }
         );
+      } catch (error) {
+        console.error(
+          "CANCEL SEARCH ERROR:",
+          error
+        );
+
+        return ctx.reply(
+          "❌ An samu kuskure wajen soke search."
+        );
       }
+    }
+  );
+
+  // =================================
+  // RECEIVE FILM SEARCH TEXT
+  // =================================
+
+  bot.on("text", async (ctx, next) => {
+    try {
+      const telegramId = String(ctx.from.id);
+      const query = ctx.message?.text?.trim();
+
+      if (!userSearchSessions.has(telegramId)) {
+        return next();
+      }
+
+      if (!query || query.startsWith("/")) {
+        return next();
+      }
+
+      userSearchSessions.delete(telegramId);
+
+      // Goge rubutun da user ya aika domin rage cunkoso
+      await ctx.deleteMessage().catch(() => {});
 
       const films = await prisma.film.findMany({
         where: {
@@ -686,6 +752,12 @@ export default function registerBrowseHandlers() {
           `❌ Ba a samu film mai suna "${query}" ba.`,
           {
             ...Markup.inlineKeyboard([
+              [
+                Markup.button.callback(
+                  "🔍 Sake Search",
+                  "search_films"
+                ),
+              ],
               [
                 Markup.button.callback(
                   "🎬 Browse Films",
@@ -712,8 +784,8 @@ export default function registerBrowseHandlers() {
 
       buttons.push([
         Markup.button.callback(
-          "🎬 Browse Films",
-          "browse_films"
+          "🔍 Search Again",
+          "search_films"
         ),
       ]);
 
@@ -725,7 +797,11 @@ export default function registerBrowseHandlers() {
       ]);
 
       return ctx.reply(
-        `🔍 *SEARCH RESULTS*\n\nAn samu films ${films.length}:`,
+        `🔍 *SEARCH RESULTS*
+
+An samu films ${films.length} masu alaƙa da:
+
+"${escapeMarkdown(query)}"`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard(buttons),
@@ -733,7 +809,47 @@ export default function registerBrowseHandlers() {
       );
     } catch (error) {
       console.error(
-        "SEARCH FILMS COMMAND ERROR:",
+        "FILM SEARCH TEXT ERROR:",
+        error
+      );
+
+      userSearchSessions.delete(
+        String(ctx.from.id)
+      );
+
+      return ctx.reply(
+        "❌ An samu kuskure wajen neman film."
+      );
+    }
+  });
+
+  // =================================
+  // OPTIONAL /SEARCH COMMAND
+  // =================================
+
+  bot.command("search", async (ctx) => {
+    try {
+      const messageText =
+        ctx.message?.text || "";
+
+      const query = messageText
+        .replace(/^\/search(?:@\w+)?/i, "")
+        .trim();
+
+      if (!query) {
+        userSearchSessions.add(
+          String(ctx.from.id)
+        );
+
+        return ctx.reply(
+          "🔍 Yanzu rubuta sunan film ɗin da kake nema."
+        );
+      }
+
+      return searchByCommand(ctx, query);
+    } catch (error) {
+      console.error(
+        "SEARCH COMMAND ERROR:",
         error
       );
 
@@ -742,6 +858,80 @@ export default function registerBrowseHandlers() {
       );
     }
   });
+}
+
+// =================================
+// SEARCH USING COMMAND
+// =================================
+
+async function searchByCommand(ctx, query) {
+  const films = await prisma.film.findMany({
+    where: {
+      title: {
+        contains: query,
+        mode: "insensitive",
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 20,
+  });
+
+  if (films.length === 0) {
+    return ctx.reply(
+      `❌ Ba a samu film mai suna "${query}" ba.`,
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🔍 Sake Search",
+              "search_films"
+            ),
+          ],
+          [
+            Markup.button.callback(
+              "🎬 Browse Films",
+              "browse_films"
+            ),
+          ],
+        ]),
+      }
+    );
+  }
+
+  const buttons = films.map((film) => [
+    Markup.button.callback(
+      `🎬 ${shortenText(film.title, 40)}`,
+      `view_film_${film.id}`
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "🔍 Search Again",
+      "search_films"
+    ),
+  ]);
+
+  buttons.push([
+    Markup.button.callback(
+      "🏠 Main Menu",
+      "main_menu"
+    ),
+  ]);
+
+  return ctx.reply(
+    `🔍 *SEARCH RESULTS*
+
+An samu films ${films.length} masu alaƙa da:
+
+"${escapeMarkdown(query)}"`,
+    {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard(buttons),
+    }
+  );
 }
 
 // =================================
@@ -897,6 +1087,10 @@ async function replaceCurrentMessage(
   message,
   options = {}
 ) {
+  if (!ctx.callbackQuery?.message) {
+    return ctx.reply(message, options);
+  }
+
   try {
     return await ctx.editMessageText(
       message,

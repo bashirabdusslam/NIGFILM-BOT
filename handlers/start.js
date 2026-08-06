@@ -28,7 +28,102 @@ export default function registerStartHandlers() {
           username: ctx.from.username || "",
         },
       });
+// =================================
+// ADD TO CART DEEP LINK
+// Misali: /start cart_12
+// =================================
 
+if (payload && payload.startsWith("cart_")) {
+  const filmId = Number(
+    payload.replace("cart_", "")
+  );
+
+  if (!Number.isInteger(filmId)) {
+    return ctx.reply(
+      "❌ Film link ɗin bai dace ba."
+    );
+  }
+
+  const film = await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+  if (!film) {
+    return ctx.reply(
+      "❌ Ba a samu wannan film ba."
+    );
+  }
+
+  const purchased =
+    await prisma.purchase.findFirst({
+      where: {
+        telegramId,
+        filmId,
+      },
+    });
+
+  if (purchased) {
+    return ctx.reply(
+      "✅ Ka riga ka sayi wannan film.",
+      {
+        ...Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              "🎥 My Movies",
+              "my_purchases"
+            ),
+          ],
+        ]),
+      }
+    );
+  }
+
+  const existing = await prisma.cart.findFirst({
+    where: {
+      telegramId,
+      filmId,
+    },
+  });
+
+  if (!existing) {
+    await prisma.cart.create({
+      data: {
+        telegramId,
+        filmId,
+      },
+    });
+  }
+
+  return ctx.reply(
+    existing
+      ? `🛒 "${film.title}" yana cikin Cart ɗinka.`
+      : `✅ "${film.title}" an saka shi cikin Cart.`,
+    {
+      ...Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            "🛒 View Cart",
+            "view_cart"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🎬 Browse Films",
+            "browse_films"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🏠 Main Menu",
+            "main_menu"
+          ),
+        ],
+      ]),
+    }
+  );
+}
       // =================================
       // FILM DEEP LINK
       // Misali: /start film_12

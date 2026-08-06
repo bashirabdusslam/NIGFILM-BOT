@@ -164,7 +164,7 @@ export default function registerPaymentsHandlers() {
           ...Markup.inlineKeyboard([
             [
               Markup.button.url(
-                `💳 Biya ₦${price.toLocaleString()}`,
+                `💳 Pay Now (paystack) ₦${price.toLocaleString()}`,
                 paymentLink
               ),
             ],
@@ -403,7 +403,7 @@ const order = await prisma.order.create({
           ...Markup.inlineKeyboard([
             [
               Markup.button.url(
-                `💳 Biya ₦${total.toLocaleString()}`,
+                `💳 Pay Now (paystack) ₦${total.toLocaleString()}`,
                 paymentLink
               ),
             ],

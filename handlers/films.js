@@ -615,96 +615,208 @@ bot.action(/^confirm_delete_(\d+)$/, async (ctx) => {
       ]),
     });
   });
-
   // =================================
-  // PUBLISH FILM TO CHANNEL
-  // =================================
+// PUBLISH FILM TO CHANNEL + USERS
+// =================================
 
-  bot.action(
-    /^admin_publish_film_(\d+)$/,
-    async (ctx) => {
-      try {
-        if (
-          String(ctx.from.id) !==
-          String(ADMIN_ID)
-        ) {
-          return ctx.answerCbQuery(
-            "⛔ Ba ka da izini."
-          );
-        }
-
-        await ctx.answerCbQuery().catch(() => {});
-
-        const filmId = Number(ctx.match[1]);
-
-        const film =
-          await prisma.film.findUnique({
-            where: {
-              id: filmId,
-            },
-          });
-
-        if (!film) {
-          return ctx.reply(
-            "❌ Ba a samu wannan film ba."
-          );
-        }
-
-        if (!film.posterFileId) {
-          return ctx.reply(
-            "❌ Wannan film ba shi da poster. Ka saka poster kafin publish."
-          );
-        }
-
-        if (!CHANNEL_ID) {
-          return ctx.reply(
-            "❌ CHANNEL_ID baya cikin environment variables."
-          );
-        }
-
-        const caption =
-          `🎬 *${film.title}*\n\n` +
-          `📝 ${film.description}\n\n` +
-          `📂 Category: ${film.category}\n` +
-          `💰 Price: ₦${Number(
-            film.price
-          ).toLocaleString()}\n\n` +
-          "━━━━━━━━━━━━━━━\n" +
-          "🔥 Kalli wannan fim cikin inganci.\n\n" +
-          "👇 Danna BUY NOW domin siya.";
-
-        await bot.telegram.sendPhoto(
-          CHANNEL_ID,
-          film.posterFileId,
-          {
-            caption,
-            parse_mode: "Markdown",
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.url(
-                  "💳 BUY NOW",
-                  `https://t.me/Nigfilm_bot?start=film_${film.id}`
-                ),
-              ],
-            ]),
-          }
-        );
-
-        return ctx.reply(
-          `✅ An publish "${film.title}" zuwa channel cikin nasara.`
-        );
-      } catch (error) {
-        console.error(
-          "PUBLISH FILM ERROR:",
-          error
-        );
-
-        return ctx.reply(
-          "❌ An samu kuskure wajen publish film."
+bot.action(
+  /^admin_publish_film_(\d+)$/,
+  async (ctx) => {
+    try {
+      if (
+        String(ctx.from.id) !== String(ADMIN_ID)
+      ) {
+        return ctx.answerCbQuery(
+          "⛔ Ba ka da izini."
         );
       }
+
+      await ctx.answerCbQuery().catch(() => {});
+
+      const filmId = Number(ctx.match[1]);
+
+      if (!Number.isInteger(filmId)) {
+        return ctx.reply(
+          "❌ Film ID bai dace ba."
+        );
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+      });
+
+      if (!film) {
+        return ctx.reply(
+          "❌ Ba a samu wannan film ba."
+        );
+      }
+
+      if (!film.posterFileId) {
+        return ctx.reply(
+          "❌ Wannan film ba shi da poster."
+        );
+      }
+
+      const botUsername =
+        process.env.BOT_USERNAME ||
+        "Nigfilm_bot";
+
+      const buyLink =
+        `https://t.me/${botUsername}?start=film_${film.id}`;
+
+      const cartLink =
+        `https://t.me/${botUsername}?start=cart_${film.id}`;
+
+      const caption =
+        `🎬 *${escapeMarkdown(film.title)}*
+
+📝 ${escapeMarkdown(
+          film.description || ""
+        )}
+
+📂 Category: ${escapeMarkdown(
+          film.category || ""
+        )}
+💰 Price: ₦${Number(
+          film.price
+        ).toLocaleString()}
+
+━━━━━━━━━━━━━━━
+🔥 Sabon film yana nan yanzu.
+
+👇 Zaɓi abin da kake son yi:`;
+
+      // =================================
+      // SEND TO CHANNEL
+      // =================================
+
+      await bot.telegram.sendPhoto(
+        CHANNEL_ID,
+        film.posterFileId,
+        {
+          caption,
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.url(
+                "💳 BUY NOW",
+                buyLink
+              ),
+              Markup.button.url(
+                "🛒 ADD TO CART",
+                cartLink
+              ),
+            ],
+          ]),
+        }
+      );
+
+      // =================================
+      // SEND TO ALL BOT USERS
+      // =================================
+
+      const users = await prisma.user.findMany({
+        select: {
+          telegramId: true,
+        },
+      });
+
+      let delivered = 0;
+      let failed = 0;
+
+      for (const user of users) {
+        try {
+          await bot.telegram.sendPhoto(
+            user.telegramId,
+            film.posterFileId,
+            {
+              caption,
+              parse_mode: "Markdown",
+              ...Markup.inlineKeyboard([
+                [
+                  Markup.button.callback(
+                    "💳 BUY NOW",
+                    `buy_now_${film.id}`
+                  ),
+                  Markup.button.callback(
+                    "🛒 ADD TO CART",
+                    `add_to_cart_${film.id}`
+                  ),
+                ],
+                [
+                  Markup.button.callback(
+                    "📥 DOWNLOAD",
+                    `download_${film.id}`
+                  ),
+                ],
+              ]),
+            }
+          );
+
+          delivered += 1;
+        } catch (error) {
+          failed += 1;
+
+          console.error(
+            `PUBLISH USER FAILED ${user.telegramId}:`,
+            error?.message || error
+          );
+        }
+
+        await delay(100);
+      }
+
+      return ctx.reply(
+        `✅ *PUBLISH YA KAMMALA*
+
+🎬 Film:
+${escapeMarkdown(film.title)}
+
+📢 Channel:
+An tura cikin nasara.
+
+👥 Total Bot Users:
+${users.length}
+
+✅ Delivered:
+${delivered}
+
+❌ Failed:
+${failed}`,
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "🎞️ Manage Films",
+                "admin_manage_films"
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "⬅️ Admin Panel",
+                "admin_panel"
+              ),
+            ],
+          ]),
+        }
+      );
+    } catch (error) {
+      console.error(
+        "PUBLISH FILM ERROR:",
+        error
+      );
+
+      return ctx.reply(
+        "❌ An samu kuskure wajen publish film."
+      );
     }
-  );
+  }
+);
+
+// Wannan } yana rufe registerFilmHandlers()
 }
 
 // =================================
@@ -734,4 +846,25 @@ async function saveFilmEditSession(
       }),
     },
   });
+}
+
+// =================================
+// HELPER: DELAY
+// =================================
+
+function delay(milliseconds) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+// =================================
+// HELPER: ESCAPE MARKDOWN
+// =================================
+
+function escapeMarkdown(value) {
+  return String(value ?? "").replace(
+    /([_*[\]()~`>#+\-=|{}.!])/g,
+    "\\$1"
+  );
 }

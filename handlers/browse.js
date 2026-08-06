@@ -505,7 +505,133 @@ export default function registerBrowseHandlers() {
       }
     }
   );
+// =================================
+// ADD TO CART FROM CHANNEL
+// =================================
 
+bot.action(
+  /^channel_add_cart_(\d+)$/,
+  async (ctx) => {
+    try {
+      const telegramId = String(ctx.from.id);
+      const filmId = Number(ctx.match[1]);
+
+      if (!Number.isInteger(filmId)) {
+        return ctx.answerCbQuery(
+          "❌ Film ID bai dace ba.",
+          {
+            show_alert: true,
+          }
+        );
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+      });
+
+      if (!film) {
+        return ctx.answerCbQuery(
+          "❌ Ba a samu wannan film ba.",
+          {
+            show_alert: true,
+          }
+        );
+      }
+
+      // Tabbatar user yana database
+      await prisma.user.upsert({
+        where: {
+          telegramId,
+        },
+        update: {
+          firstName: ctx.from.first_name || "",
+          lastName: ctx.from.last_name || "",
+          username: ctx.from.username || "",
+        },
+        create: {
+          telegramId,
+          firstName: ctx.from.first_name || "",
+          lastName: ctx.from.last_name || "",
+          username: ctx.from.username || "",
+        },
+      });
+
+      // Duba ko user ya riga ya saya
+      const purchased =
+        await prisma.purchase.findFirst({
+          where: {
+            telegramId,
+            filmId,
+          },
+        });
+
+      if (purchased) {
+        return ctx.answerCbQuery(
+          `✅ Ka riga ka sayi ${shortenText(
+            film.title,
+            120
+          )}`,
+          {
+            show_alert: false,
+          }
+        );
+      }
+
+      // Duba ko yana cart
+      const existing =
+        await prisma.cart.findFirst({
+          where: {
+            telegramId,
+            filmId,
+          },
+        });
+
+      if (existing) {
+        return ctx.answerCbQuery(
+          `🛒 Already added: ${shortenText(
+            film.title,
+            100
+          )}`,
+          {
+            show_alert: false,
+          }
+        );
+      }
+
+      await prisma.cart.create({
+        data: {
+          telegramId,
+          filmId,
+        },
+      });
+
+      // Wannan shi ne ƙaramin saƙon saman screen
+      return ctx.answerCbQuery(
+        `✅ Added: ${shortenText(
+          film.title,
+          120
+        )}`,
+        {
+          show_alert: false,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "CHANNEL ADD TO CART ERROR:",
+        error
+      );
+
+      return ctx.answerCbQuery(
+        "❌ An kasa saka film cikin Cart.",
+        {
+          show_alert: true,
+        }
+      );
+    }
+  }
+);
   // =================================
   // VIEW CART
   // =================================

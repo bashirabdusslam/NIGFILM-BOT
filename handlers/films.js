@@ -666,8 +666,6 @@ bot.action(
       const buyLink =
         `https://t.me/${botUsername}?start=film_${film.id}`;
 
-      const cartLink =
-        `https://t.me/${botUsername}?start=cart_${film.id}`;
 
       const caption =
         `🎬 *${escapeMarkdown(film.title)}*
@@ -699,17 +697,17 @@ bot.action(
           caption,
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard([
-            [
-              Markup.button.url(
-                "💳 BUY NOW",
-                buyLink
-              ),
-              Markup.button.url(
-                "🛒 ADD TO CART",
-                cartLink
-              ),
-            ],
-          ]),
+  [
+    Markup.button.url(
+      "💳 BUY NOW",
+      buyLink
+    ),
+    Markup.button.callback(
+      "🛒 ADD TO CART",
+      `channel_add_cart_${film.id}`
+    ),
+  ],
+]),
         }
       );
 

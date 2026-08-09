@@ -2,14 +2,21 @@ import { bot, prisma, ADMIN_ID } from "../bot.js";
 import { Markup } from "telegraf";
 
 export default function registerVideoHandlers() {
-  bot.on("video", async (ctx) => {
+
+  // =================================
+  // VIDEO / DOCUMENT HANDLER
+  // =================================
+
+  bot.on(["video", "document"], async (ctx) => {
     try {
       const telegramId = String(ctx.from.id).trim();
 
+      // Admin kawai
       if (telegramId !== String(ADMIN_ID)) {
         return;
       }
 
+      // Nemo admin session
       const session = await prisma.adminSession.findUnique({
         where: {
           telegramId,
@@ -20,12 +27,17 @@ export default function registerVideoHandlers() {
         return;
       }
 
+      // Sai idan muna jiran video
       if (
         session.step !== "video" &&
         session.step !== "change_video"
       ) {
         return;
       }
+
+      // =================================
+      // FILM DATA
+      // =================================
 
       let filmData = {};
 
@@ -37,12 +49,18 @@ export default function registerVideoHandlers() {
         filmData = {};
       }
 
+      // =================================
+      // KARƁAR VIDEO KO FILE/DOCUMENT
+      // =================================
+
       const videoFileId =
-        ctx.message?.video?.file_id;
+        ctx.message?.video?.file_id ||
+        ctx.message?.document?.file_id;
 
       if (!videoFileId) {
         return ctx.reply(
-          "❌ Ba a samu video ɗin da ka aika ba."
+          "❌ Ba a samu film ɗin da ka aika ba.\n\n" +
+          "Ka aika film ɗin a matsayin Video ko File."
         );
       }
 
@@ -75,6 +93,7 @@ export default function registerVideoHandlers() {
           );
         }
 
+        // Sabunta video/file
         await prisma.film.update({
           where: {
             id: filmId,
@@ -87,7 +106,7 @@ export default function registerVideoHandlers() {
         await deleteAdminSession(telegramId);
 
         return ctx.reply(
-          `✅ An canza VIDEO na "${film.title}" cikin nasara.`,
+          `✅ An canza VIDEO/FILE na "${film.title}" cikin nasara.`,
           {
             ...Markup.inlineKeyboard([
               [
@@ -121,7 +140,8 @@ export default function registerVideoHandlers() {
         await deleteAdminSession(telegramId);
 
         return ctx.reply(
-          "❌ Bayanan film ba su cika ba.\n\nKa sake fara Add Film."
+          "❌ Bayanan film ba su cika ba.\n\n" +
+          "Ka sake fara Add Film."
         );
       }
 
@@ -131,9 +151,14 @@ export default function registerVideoHandlers() {
         await deleteAdminSession(telegramId);
 
         return ctx.reply(
-          "❌ Farashin film bai dace ba.\n\nKa sake fara Add Film."
+          "❌ Farashin film bai dace ba.\n\n" +
+          "Ka sake fara Add Film."
         );
       }
+
+      // =================================
+      // SAVE FILM
+      // =================================
 
       const film = await prisma.film.create({
         data: {
@@ -146,24 +171,26 @@ export default function registerVideoHandlers() {
         },
       });
 
+      // Goge admin session bayan an gama
       await deleteAdminSession(telegramId);
 
+      // =================================
+      // SUCCESS MESSAGE
+      // =================================
+
       return ctx.reply(
-        `✅ *FILM AN ADANA CIKIN NASARA!*
-
-🎬 Suna: ${escapeMarkdown(film.title)}
-
-💰 Farashi: ₦${Number(
-          film.price
-        ).toLocaleString()}
-
-📂 Category: ${escapeMarkdown(
-          film.category
-        )}
-
-📢 Danna ƙasa domin tura shi zuwa Channel:`,
+        `✅ *FILM AN ADANA CIKIN NASARA!*\n\n` +
+          `🎬 Suna: ${escapeMarkdown(film.title)}\n\n` +
+          `💰 Farashi: ₦${Number(
+            film.price
+          ).toLocaleString()}\n\n` +
+          `📂 Category: ${escapeMarkdown(
+            film.category
+          )}\n\n` +
+          `📢 Danna ƙasa domin tura shi zuwa Channel:`,
         {
           parse_mode: "Markdown",
+
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback(
@@ -186,18 +213,20 @@ export default function registerVideoHandlers() {
           ]),
         }
       );
+
     } catch (error) {
       console.error(
-        "VIDEO HANDLER ERROR:",
+        "VIDEO/DOCUMENT HANDLER ERROR:",
         error
       );
 
       return ctx.reply(
-        "❌ An samu kuskure wajen adana video ko film."
+        "❌ An samu kuskure wajen adana video/file ko film."
       );
     }
   });
 }
+
 
 // =================================
 // HELPERS
@@ -210,6 +239,7 @@ async function deleteAdminSession(telegramId) {
     },
   });
 }
+
 
 function escapeMarkdown(value) {
   return String(value ?? "").replace(

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import * as tus from "tus-js-client";
 import "./App.css";
 
 // =====================================================
@@ -19,13 +20,27 @@ const BUNNY_LIBRARY_ID =
 
 function App() {
   // ===================================================
+  // SESSION TOKEN HELPER
+  // ===================================================
+
+  function getSessionToken() {
+    return (
+      localStorage.getItem(
+        "nigfilm_session_token"
+      ) || ""
+    );
+  }
+
+  // ===================================================
   // AUTH
   // ===================================================
 
   const [user, setUser] = useState(() => {
     try {
       const saved =
-        localStorage.getItem("nigfilm_user");
+        localStorage.getItem(
+          "nigfilm_user"
+        );
 
       return saved
         ? JSON.parse(saved)
@@ -60,8 +75,10 @@ function App() {
   const [page, setPage] =
     useState("home");
 
-  const [selectedFilm, setSelectedFilm] =
-    useState(null);
+  const [
+    selectedFilm,
+    setSelectedFilm,
+  ] = useState(null);
 
   // ===================================================
   // FILMS
@@ -70,8 +87,10 @@ function App() {
   const [films, setFilms] =
     useState([]);
 
-  const [filmsLoading, setFilmsLoading] =
-    useState(false);
+  const [
+    filmsLoading,
+    setFilmsLoading,
+  ] = useState(false);
 
   const [filmsError, setFilmsError] =
     useState("");
@@ -116,11 +135,64 @@ function App() {
   ] = useState("");
 
   // ===================================================
+  // ADMIN BUNNY UPLOAD
+  // ===================================================
+
+  const [
+    adminFilmId,
+    setAdminFilmId,
+  ] = useState("");
+
+  const [
+    adminVideoFile,
+    setAdminVideoFile,
+  ] = useState(null);
+
+  const [
+    uploadProgress,
+    setUploadProgress,
+  ] = useState(0);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [
+    uploadError,
+    setUploadError,
+  ] = useState("");
+
+  const [
+    uploadSuccess,
+    setUploadSuccess,
+  ] = useState("");
+
+  // ===================================================
+  // BUNNY STATUS
+  // ===================================================
+
+  const [
+    bunnyStatus,
+    setBunnyStatus,
+  ] = useState(null);
+
+  const [
+    bunnyStatusLoading,
+    setBunnyStatusLoading,
+  ] = useState(false);
+
+  const [
+    bunnyStatusError,
+    setBunnyStatusError,
+  ] = useState("");
+
+  // ===================================================
   // VIDEO
   // ===================================================
 
-  const [videoError, setVideoError] =
-    useState("");
+  const [
+    videoError,
+    setVideoError,
+  ] = useState("");
 
   // ===================================================
   // INITIAL LOAD
@@ -202,7 +274,9 @@ function App() {
     });
   }
 
-  function findPurchasedMovie(filmId) {
+  function findPurchasedMovie(
+    filmId
+  ) {
     const found =
       myMovies.find((item) => {
         const movie =
@@ -251,11 +325,8 @@ function App() {
 
   function goHome() {
     setPage("home");
-
     setSelectedFilm(null);
-
     setVideoError("");
-
     setPaymentError("");
 
     window.scrollTo({
@@ -266,7 +337,6 @@ function App() {
 
   function goSearch() {
     setPage("home");
-
     setSelectedFilm(null);
 
     window.scrollTo({
@@ -292,7 +362,6 @@ function App() {
     setPage("details");
 
     setPaymentError("");
-
     setVideoError("");
 
     window.scrollTo({
@@ -312,6 +381,29 @@ function App() {
     });
   }
 
+  function openAdminUpload() {
+    if (
+      user?.role !== "ADMIN"
+    ) {
+      return;
+    }
+
+    setPage("adminUpload");
+    setSelectedFilm(null);
+
+    setUploadError("");
+    setUploadSuccess("");
+    setUploadProgress(0);
+
+    setBunnyStatus(null);
+    setBunnyStatusError("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
   // ===================================================
   // LOAD FILMS
   // ===================================================
@@ -319,7 +411,6 @@ function App() {
   async function loadFilms() {
     try {
       setFilmsLoading(true);
-
       setFilmsError("");
 
       const response =
@@ -333,7 +424,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-          "An kasa ɗauko fina-finai."
+            "An kasa ɗauko fina-finai."
         );
       }
 
@@ -352,8 +443,8 @@ function App() {
       );
 
       setFilmsError(
-        error.message ||
-        "An samu matsala wajen ɗauko fina-finai."
+        error?.message ||
+          "An samu matsala wajen ɗauko fina-finai."
       );
     } finally {
       setFilmsLoading(false);
@@ -364,12 +455,13 @@ function App() {
   // REGISTER
   // ===================================================
 
-  async function handleRegister(event) {
+  async function handleRegister(
+    event
+  ) {
     event.preventDefault();
 
     try {
       setAuthLoading(true);
-
       setAuthError("");
 
       const response =
@@ -401,7 +493,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-          "Register bai yi nasara ba."
+            "Register bai yi nasara ba."
         );
       }
 
@@ -413,8 +505,19 @@ function App() {
 
       localStorage.setItem(
         "nigfilm_user",
-        JSON.stringify(data.user)
+        JSON.stringify(
+          data.user
+        )
       );
+
+      if (
+        data?.session?.token
+      ) {
+        localStorage.setItem(
+          "nigfilm_session_token",
+          data.session.token
+        );
+      }
 
       setUser(data.user);
 
@@ -428,8 +531,8 @@ function App() {
       );
 
       setAuthError(
-        error.message ||
-        "Register bai yi nasara ba."
+        error?.message ||
+          "Register bai yi nasara ba."
       );
     } finally {
       setAuthLoading(false);
@@ -440,12 +543,13 @@ function App() {
   // LOGIN
   // ===================================================
 
-  async function handleLogin(event) {
+  async function handleLogin(
+    event
+  ) {
     event.preventDefault();
 
     try {
       setAuthLoading(true);
-
       setAuthError("");
 
       const response =
@@ -474,7 +578,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-          "Login bai yi nasara ba."
+            "Login bai yi nasara ba."
         );
       }
 
@@ -484,9 +588,24 @@ function App() {
         );
       }
 
+      if (
+        !data?.session?.token
+      ) {
+        throw new Error(
+          "Backend bai dawo da session token ba."
+        );
+      }
+
       localStorage.setItem(
         "nigfilm_user",
-        JSON.stringify(data.user)
+        JSON.stringify(
+          data.user
+        )
+      );
+
+      localStorage.setItem(
+        "nigfilm_session_token",
+        data.session.token
       );
 
       setUser(data.user);
@@ -501,8 +620,8 @@ function App() {
       );
 
       setAuthError(
-        error.message ||
-        "Login bai yi nasara ba."
+        error?.message ||
+          "Login bai yi nasara ba."
       );
     } finally {
       setAuthLoading(false);
@@ -518,21 +637,27 @@ function App() {
       "nigfilm_user"
     );
 
-    setUser(null);
+    localStorage.removeItem(
+      "nigfilm_session_token"
+    );
 
+    setUser(null);
     setMyMovies([]);
 
     setSelectedFilm(null);
 
     setFullName("");
-
     setPhone("");
-
     setPassword("");
 
     setAuthMode("login");
-
     setPage("home");
+
+    setAdminFilmId("");
+    setAdminVideoFile(null);
+
+    setBunnyStatus(null);
+    setUploadProgress(0);
   }
 
   // ===================================================
@@ -559,7 +684,6 @@ function App() {
 
     try {
       setMyMoviesLoading(true);
-
       setMyMoviesError("");
 
       const response =
@@ -573,7 +697,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-          "An kasa ɗauko My Movies."
+            "An kasa ɗauko My Movies."
         );
       }
 
@@ -598,8 +722,8 @@ function App() {
       );
 
       setMyMoviesError(
-        error.message ||
-        "An samu matsala wajen ɗauko fina-finan da ka saya."
+        error?.message ||
+          "An samu matsala wajen ɗauko fina-finan da ka saya."
       );
     } finally {
       setMyMoviesLoading(false);
@@ -610,12 +734,16 @@ function App() {
   // BUY MOVIE
   // ===================================================
 
-  async function buyMovie(film) {
+  async function buyMovie(
+    film
+  ) {
     if (!user?.id) {
       return;
     }
 
-    if (isPurchased(film.id)) {
+    if (
+      isPurchased(film.id)
+    ) {
       const purchasedFilm =
         findPurchasedMovie(
           film.id
@@ -630,7 +758,6 @@ function App() {
 
     try {
       setPaymentLoading(true);
-
       setPaymentError("");
 
       const response =
@@ -660,11 +787,13 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-          "An kasa fara payment."
+            "An kasa fara payment."
         );
       }
 
-      if (!data.authorizationUrl) {
+      if (
+        !data.authorizationUrl
+      ) {
         throw new Error(
           "Paystack payment URL bai samu ba."
         );
@@ -679,8 +808,8 @@ function App() {
       );
 
       setPaymentError(
-        error.message ||
-        "An samu matsala wajen buɗe Paystack."
+        error?.message ||
+          "An samu matsala wajen buɗe Paystack."
       );
     } finally {
       setPaymentLoading(false);
@@ -691,12 +820,18 @@ function App() {
   // DIRECT MOVIE DOWNLOAD
   // ===================================================
 
-  function downloadMovie(film) {
+  function downloadMovie(
+    film
+  ) {
     if (!user?.id) {
       return;
     }
 
-    if (!isPurchased(film.id)) {
+    if (
+      !isPurchased(
+        film.id
+      )
+    ) {
       setVideoError(
         "Sai ka sayi film kafin download."
       );
@@ -706,24 +841,15 @@ function App() {
 
     setVideoError("");
 
-    /*
-      Backend ɗinmu zai:
-      1. Duba WebPurchase.
-      2. Samo Bunny video.
-      3. Stream file.
-      4. Sa Content-Disposition: attachment.
-
-      Saboda haka browser zai fara download
-      ba tare da zuwa Bunny page ba.
-    */
-
     const downloadUrl =
       `${API_URL}/api/web/movies/` +
       `${film.id}/download` +
       `?webUserId=${user.id}`;
 
     const anchor =
-      document.createElement("a");
+      document.createElement(
+        "a"
+      );
 
     anchor.href =
       downloadUrl;
@@ -744,6 +870,503 @@ function App() {
   }
 
   // ===================================================
+  // ADMIN - LOAD BUNNY STATUS
+  // ===================================================
+
+  async function loadBunnyStatus(
+    filmId
+  ) {
+    const id =
+      Number(filmId);
+
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      setBunnyStatus(null);
+
+      return;
+    }
+
+    try {
+      setBunnyStatusLoading(
+        true
+      );
+
+      setBunnyStatusError("");
+
+      const response =
+        await fetch(
+          `${API_URL}/api/admin/bunny/status/${id}`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${getSessionToken()}`,
+            },
+          }
+        );
+
+      const data =
+        await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa duba Bunny status."
+        );
+      }
+
+      setBunnyStatus(
+        data?.bunny || null
+      );
+    } catch (error) {
+      console.error(
+        "BUNNY STATUS ERROR:",
+        error
+      );
+
+      setBunnyStatus(null);
+
+      setBunnyStatusError(
+        error?.message ||
+          "An samu matsala wajen duba status."
+      );
+    } finally {
+      setBunnyStatusLoading(
+        false
+      );
+    }
+  }
+
+  // ===================================================
+  // ADMIN - REPLACE VIDEO
+  // ===================================================
+
+  async function replaceFilmOnBunny() {
+    const filmId =
+      Number(adminFilmId);
+
+    if (
+      !Number.isInteger(filmId) ||
+      filmId <= 0
+    ) {
+      setUploadError(
+        "Ka zaɓi film da farko."
+      );
+
+      return;
+    }
+
+    if (!adminVideoFile) {
+      setUploadError(
+        "Ka zaɓi sabon video da za a saka."
+      );
+
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      setUploadProgress(0);
+
+      setUploadError("");
+      setUploadSuccess("");
+
+      // ===============================================
+      // PREPARE REPLACE
+      // ===============================================
+
+      const response =
+        await fetch(
+          `${API_URL}/api/admin/bunny/prepare-replace`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${getSessionToken()}`,
+            },
+
+            body: JSON.stringify({
+              filmId,
+            }),
+          }
+        );
+
+      const data =
+        await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa shirya Replace Video."
+        );
+      }
+
+      const uploadInfo =
+        data?.upload;
+
+      if (
+        !uploadInfo?.endpoint ||
+        !uploadInfo?.libraryId ||
+        !uploadInfo?.videoId ||
+        !uploadInfo
+          ?.authorizationSignature ||
+        !uploadInfo
+          ?.authorizationExpire
+      ) {
+        throw new Error(
+          "Backend bai dawo da cikakken Bunny Replace credentials ba."
+        );
+      }
+
+      // ===============================================
+      // TUS REPLACE
+      // ===============================================
+
+      const upload =
+        new tus.Upload(
+          adminVideoFile,
+          {
+            endpoint:
+              uploadInfo.endpoint,
+
+            retryDelays: [
+              0,
+              3000,
+              5000,
+              10000,
+              20000,
+            ],
+
+            headers: {
+              AuthorizationSignature:
+                uploadInfo
+                  .authorizationSignature,
+
+              AuthorizationExpire:
+                uploadInfo
+                  .authorizationExpire,
+
+              VideoId:
+                uploadInfo.videoId,
+
+              LibraryId:
+                uploadInfo.libraryId,
+            },
+
+            metadata: {
+              filetype:
+                adminVideoFile.type ||
+                "video/mp4",
+
+              title:
+                adminVideoFile.name,
+            },
+
+            onError(error) {
+              console.error(
+                "BUNNY REPLACE ERROR:",
+                error
+              );
+
+              setUploading(false);
+
+              setUploadError(
+                error?.message ||
+                  "Replace Video bai yi nasara ba."
+              );
+            },
+
+            onProgress(
+              bytesUploaded,
+              bytesTotal
+            ) {
+              const percentage =
+                bytesTotal > 0
+                  ? (
+                      (bytesUploaded /
+                        bytesTotal) *
+                      100
+                    ).toFixed(1)
+                  : 0;
+
+              setUploadProgress(
+                Number(
+                  percentage
+                )
+              );
+            },
+
+            onSuccess() {
+              setUploading(false);
+
+              setUploadProgress(
+                100
+              );
+
+              setUploadSuccess(
+                `✅ "${data?.film?.title || adminVideoFile.name}" an maye gurbin video ɗinsa cikin nasara. Bunny zai sake transcoding.`
+              );
+
+              setAdminVideoFile(
+                null
+              );
+
+              loadBunnyStatus(
+                filmId
+              );
+            },
+          }
+        );
+
+      const previousUploads =
+        await upload.findPreviousUploads();
+
+      if (
+        previousUploads.length >
+        0
+      ) {
+        upload.resumeFromPreviousUpload(
+          previousUploads[0]
+        );
+      }
+
+      upload.start();
+    } catch (error) {
+      console.error(
+        "REPLACE VIDEO ERROR:",
+        error
+      );
+
+      setUploading(false);
+
+      setUploadError(
+        error?.message ||
+          "An samu matsala wajen Replace Video."
+      );
+    }
+  }
+
+  // ===================================================
+  // ADMIN - UPLOAD VIDEO TO BUNNY
+  // ===================================================
+
+  async function uploadFilmToBunny() {
+    const filmId =
+      Number(adminFilmId);
+
+    if (
+      !Number.isInteger(filmId) ||
+      filmId <= 0
+    ) {
+      setUploadError(
+        "Ka zaɓi film da farko."
+      );
+
+      return;
+    }
+
+    if (!adminVideoFile) {
+      setUploadError(
+        "Ka zaɓi video/file da za a upload."
+      );
+
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      setUploadProgress(0);
+
+      setUploadError("");
+      setUploadSuccess("");
+
+      // ===============================================
+      // PREPARE UPLOAD
+      // ===============================================
+
+      const response =
+        await fetch(
+          `${API_URL}/api/admin/bunny/prepare-upload`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${getSessionToken()}`,
+            },
+
+            body: JSON.stringify({
+              filmId,
+            }),
+          }
+        );
+
+      const data =
+        await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa shirya Bunny upload."
+        );
+      }
+
+      const uploadInfo =
+        data?.upload;
+
+      if (
+        !uploadInfo?.endpoint ||
+        !uploadInfo?.libraryId ||
+        !uploadInfo?.videoId ||
+        !uploadInfo
+          ?.authorizationSignature ||
+        !uploadInfo
+          ?.authorizationExpire
+      ) {
+        throw new Error(
+          "Backend bai dawo da cikakken Bunny upload credentials ba."
+        );
+      }
+
+      // ===============================================
+      // TUS UPLOAD
+      // ===============================================
+
+      const upload =
+        new tus.Upload(
+          adminVideoFile,
+          {
+            endpoint:
+              uploadInfo.endpoint,
+
+            retryDelays: [
+              0,
+              3000,
+              5000,
+              10000,
+              20000,
+            ],
+
+            headers: {
+              AuthorizationSignature:
+                uploadInfo
+                  .authorizationSignature,
+
+              AuthorizationExpire:
+                uploadInfo
+                  .authorizationExpire,
+
+              VideoId:
+                uploadInfo.videoId,
+
+              LibraryId:
+                uploadInfo.libraryId,
+            },
+
+            metadata: {
+              filetype:
+                adminVideoFile.type ||
+                "video/mp4",
+
+              title:
+                adminVideoFile.name,
+            },
+
+            onError(error) {
+              console.error(
+                "BUNNY TUS UPLOAD ERROR:",
+                error
+              );
+
+              setUploading(false);
+
+              setUploadError(
+                error?.message ||
+                  "Upload bai yi nasara ba."
+              );
+            },
+
+            onProgress(
+              bytesUploaded,
+              bytesTotal
+            ) {
+              const percentage =
+                bytesTotal > 0
+                  ? (
+                      (bytesUploaded /
+                        bytesTotal) *
+                      100
+                    ).toFixed(1)
+                  : 0;
+
+              setUploadProgress(
+                Number(
+                  percentage
+                )
+              );
+            },
+
+            onSuccess() {
+              setUploading(false);
+
+              setUploadProgress(
+                100
+              );
+
+              setUploadSuccess(
+                `✅ "${data?.film?.title || adminVideoFile.name}" ya shiga Bunny Stream. Bunny zai fara transcoding.`
+              );
+
+              setAdminVideoFile(
+                null
+              );
+
+              loadBunnyStatus(
+                filmId
+              );
+            },
+          }
+        );
+
+      const previousUploads =
+        await upload.findPreviousUploads();
+
+      if (
+        previousUploads.length >
+        0
+      ) {
+        upload.resumeFromPreviousUpload(
+          previousUploads[0]
+        );
+      }
+
+      upload.start();
+    } catch (error) {
+      console.error(
+        "ADMIN UPLOAD ERROR:",
+        error
+      );
+
+      setUploading(false);
+
+      setUploadError(
+        error?.message ||
+          "An samu matsala wajen upload."
+      );
+    }
+  }
+
+  // ===================================================
   // FILTER FILMS
   // ===================================================
 
@@ -758,18 +1381,20 @@ function App() {
         (film) => {
           const title =
             String(
-              film.title || ""
+              film.title ||
+                ""
             ).toLowerCase();
 
           const description =
             String(
               film.description ||
-              ""
+                ""
             ).toLowerCase();
 
           const category =
             String(
-              film.category || ""
+              film.category ||
+                ""
             )
               .trim()
               .toLowerCase();
@@ -780,7 +1405,9 @@ function App() {
             description.includes(
               query
             ) ||
-            category.includes(query);
+            category.includes(
+              query
+            );
 
           let matchesCategory =
             true;
@@ -923,7 +1550,7 @@ function App() {
                 <input
                   type="text"
                   value={fullName}
-                  placeholder="Bashir Abdussalam"
+                  placeholder="Full name"
                   onChange={(
                     event
                   ) =>
@@ -1002,7 +1629,9 @@ function App() {
                       "login"
                     );
 
-                    setAuthError("");
+                    setAuthError(
+                      ""
+                    );
                   }}
                 >
                   Login
@@ -1090,7 +1719,9 @@ function App() {
                       "register"
                     );
 
-                    setAuthError("");
+                    setAuthError(
+                      ""
+                    );
                   }}
                 >
                   Register
@@ -1233,10 +1864,6 @@ function App() {
                   "Babu cikakken bayanin wannan film tukuna."}
               </p>
 
-              {/* =============================
-                  BUNNY PLAYER
-              ============================== */}
-
               {purchased &&
                 playerUrl && (
                   <div className="bunny-player">
@@ -1318,12 +1945,14 @@ function App() {
                             .querySelector(
                               ".bunny-player"
                             )
-                            ?.scrollIntoView({
-                              behavior:
-                                "smooth",
-                              block:
-                                "center",
-                            });
+                            ?.scrollIntoView(
+                              {
+                                behavior:
+                                  "smooth",
+                                block:
+                                  "center",
+                              }
+                            );
                         }}
                       >
                         ▶ Watch Movie
@@ -1393,7 +2022,9 @@ function App() {
   // MY MOVIES PAGE
   // ===================================================
 
-  if (page === "myMovies") {
+  if (
+    page === "myMovies"
+  ) {
     return (
       <div className="app">
         {header}
@@ -1429,7 +2060,9 @@ function App() {
             myMoviesError && (
               <div className="status error">
                 <p>
-                  {myMoviesError}
+                  {
+                    myMoviesError
+                  }
                 </p>
 
                 <button
@@ -1501,10 +2134,533 @@ function App() {
   }
 
   // ===================================================
+  // ADMIN SECURITY CHECK
+  // ===================================================
+
+  if (
+    page === "adminUpload" &&
+    user?.role !== "ADMIN"
+  ) {
+    return (
+      <div className="app">
+        {header}
+
+        <main className="movie-details">
+          <div className="movie-details-card">
+            <div
+              className="details-content"
+              style={{
+                gridColumn:
+                  "1 / -1",
+              }}
+            >
+              <h2>
+                ⛔ Access Denied
+              </h2>
+
+              <p className="details-description">
+                Ba ka da izinin shiga
+                Admin Panel.
+              </p>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  goHome
+                }
+              >
+                ← Home
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ===================================================
+  // ADMIN BUNNY UPLOAD PAGE
+  // ===================================================
+
+  if (
+    page === "adminUpload"
+  ) {
+    const selectedAdminFilm =
+      films.find(
+        (film) =>
+          Number(film.id) ===
+          Number(adminFilmId)
+      );
+
+    return (
+      <div className="app">
+        {header}
+
+        <main className="movie-details">
+          <button
+            type="button"
+            className="back-button"
+            onClick={
+              openProfile
+            }
+          >
+            ← Back to Profile
+          </button>
+
+          <div className="movie-details-card">
+            <div
+              className="details-content"
+              style={{
+                gridColumn:
+                  "1 / -1",
+              }}
+            >
+              <p className="small-title">
+                NIGFILM ADMIN
+              </p>
+
+              <h2>
+                🐰 Bunny Video Upload
+              </h2>
+
+              <p className="details-description">
+                Zaɓi film daga database,
+                sannan ka zaɓi video daga
+                laptop domin upload kai
+                tsaye zuwa Bunny Stream.
+              </p>
+
+              <div className="admin-upload-field">
+                <label htmlFor="admin-film">
+                  🎬 Select Movie
+                </label>
+
+                <select
+                  id="admin-film"
+                  value={
+                    adminFilmId
+                  }
+                  disabled={
+                    uploading
+                  }
+                  onChange={(
+                    event
+                  ) => {
+                    const filmId =
+                      event.target
+                        .value;
+
+                    setAdminFilmId(
+                      filmId
+                    );
+
+                    setUploadError(
+                      ""
+                    );
+
+                    setUploadSuccess(
+                      ""
+                    );
+
+                    setUploadProgress(
+                      0
+                    );
+
+                    setBunnyStatus(
+                      null
+                    );
+
+                    setBunnyStatusError(
+                      ""
+                    );
+
+                    if (filmId) {
+                      loadBunnyStatus(
+                        filmId
+                      );
+                    }
+                  }}
+                >
+                  <option value="">
+                    -- Choose Movie --
+                  </option>
+
+                  {films.map(
+                    (film) => (
+                      <option
+                        key={
+                          film.id
+                        }
+                        value={
+                          film.id
+                        }
+                      >
+                        #
+                        {
+                          film.id
+                        }{" "}
+                        —{" "}
+                        {
+                          film.title
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              {selectedAdminFilm && (
+                <div className="admin-selected-film">
+                  <img
+                    src={posterSrc(
+                      selectedAdminFilm
+                    )}
+                    alt={
+                      selectedAdminFilm.title
+                    }
+                  />
+
+                  <div>
+                    <small>
+                      SELECTED MOVIE
+                    </small>
+
+                    <h3>
+                      {
+                        selectedAdminFilm.title
+                      }
+                    </h3>
+
+                    <p>
+                      Film ID:{" "}
+                      {
+                        selectedAdminFilm.id
+                      }
+                    </p>
+
+                    <p>
+                      Category:{" "}
+                      {selectedAdminFilm.category ||
+                        "Movie"}
+                    </p>
+
+                    <p>
+                      Price: ₦
+                      {Number(
+                        selectedAdminFilm.price ||
+                          0
+                      ).toLocaleString()}
+                    </p>
+
+                    <div className="admin-bunny-status">
+                      {!bunnyStatus &&
+                        !bunnyStatusLoading && (
+                          <p>
+                            Bunny:{" "}
+                            {selectedAdminFilm.bunnyVideoId
+                              ? "✅ Connected"
+                              : "⏳ Not connected"}
+                          </p>
+                        )}
+
+                      {bunnyStatusLoading && (
+                        <p>
+                          🔄 Ana duba Bunny status...
+                        </p>
+                      )}
+
+                      {bunnyStatus && (
+                        <>
+                          <p>
+                            Bunny:{" "}
+                            {bunnyStatus.connected
+                              ? "✅ Connected"
+                              : "⏳ Not connected"}
+                          </p>
+
+                          <p>
+                            Status:{" "}
+                            <strong>
+                              {bunnyStatus.ready
+                                ? "✅ Ready"
+                                : bunnyStatus.failed
+                                  ? "❌ Failed"
+                                  : bunnyStatus.label ||
+                                    "Unknown"}
+                            </strong>
+                          </p>
+
+                          {bunnyStatus.connected && (
+                            <p>
+                              Progress:{" "}
+                              {Number(
+                                bunnyStatus.progress ||
+                                  0
+                              ).toFixed(
+                                0
+                              )}
+                              %
+                            </p>
+                          )}
+
+                          {bunnyStatus
+                            .resolutions
+                            ?.length >
+                            0 && (
+                            <p>
+                              Resolutions:{" "}
+                              {bunnyStatus.resolutions.join(
+                                ", "
+                              )}
+                            </p>
+                          )}
+                        </>
+                      )}
+
+                      {bunnyStatusError && (
+                        <p className="admin-status-error">
+                          ❌{" "}
+                          {
+                            bunnyStatusError
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedAdminFilm && (
+                <div className="details-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={
+                      bunnyStatusLoading ||
+                      uploading
+                    }
+                    onClick={() =>
+                      loadBunnyStatus(
+                        selectedAdminFilm.id
+                      )
+                    }
+                  >
+                    {bunnyStatusLoading
+                      ? "🔄 Checking..."
+                      : "🔄 Refresh Status"}
+                  </button>
+                </div>
+              )}
+
+              <div className="admin-upload-field">
+                <label htmlFor="admin-video">
+                  📁 Select Video
+                </label>
+
+                <input
+                  id="admin-video"
+                  type="file"
+                  accept="video/*,.mp4,.mkv,.mov,.avi"
+                  disabled={
+                    uploading
+                  }
+                  onChange={(
+                    event
+                  ) => {
+                    const file =
+                      event.target
+                        .files?.[0] ||
+                      null;
+
+                    setAdminVideoFile(
+                      file
+                    );
+
+                    setUploadProgress(
+                      0
+                    );
+
+                    setUploadError(
+                      ""
+                    );
+
+                    setUploadSuccess(
+                      ""
+                    );
+                  }}
+                />
+              </div>
+
+              {adminVideoFile && (
+                <div className="admin-file-info">
+                  <strong>
+                    📄{" "}
+                    {
+                      adminVideoFile.name
+                    }
+                  </strong>
+
+                  <span>
+                    {formatFileSize(
+                      adminVideoFile.size
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {(uploading ||
+                uploadProgress >
+                  0) && (
+                <div className="admin-progress">
+                  <div className="admin-progress-top">
+                    <span>
+                      {uploading
+                        ? "⬆️ Uploading to Bunny..."
+                        : "Upload"}
+                    </span>
+
+                    <strong>
+                      {uploadProgress.toFixed(
+                        1
+                      )}
+                      %
+                    </strong>
+                  </div>
+
+                  <div className="admin-progress-track">
+                    <div
+                      className="admin-progress-bar"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          uploadProgress
+                        )}%`,
+                      }}
+                    />
+                  </div>
+
+                  {uploading && (
+                    <small>
+                      Kada ka rufe
+                      wannan page har
+                      upload ya gama.
+                    </small>
+                  )}
+                </div>
+              )}
+
+              {uploadError && (
+                <div className="auth-error">
+                  ❌{" "}
+                  {uploadError}
+                </div>
+              )}
+
+              {uploadSuccess && (
+                <div className="admin-upload-success">
+                  {uploadSuccess}
+                </div>
+              )}
+
+              <div className="details-actions">
+                {!bunnyStatus
+                  ?.connected ? (
+                  <button
+                    type="button"
+                    className="buy-now-button"
+                    disabled={
+                      uploading ||
+                      !adminFilmId ||
+                      !adminVideoFile
+                    }
+                    onClick={
+                      uploadFilmToBunny
+                    }
+                  >
+                    {uploading
+                      ? `⬆️ Uploading ${uploadProgress.toFixed(
+                          1
+                        )}%`
+                      : "⬆️ Upload to Bunny"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="buy-now-button"
+                    disabled={
+                      uploading ||
+                      !adminFilmId ||
+                      !adminVideoFile
+                    }
+                    onClick={() => {
+                      const confirmed =
+                        window.confirm(
+                          `Kana tabbatar kana son maye gurbin video na "${selectedAdminFilm?.title}"?\n\nTsohon video zai maye gurbinsa da sabon file ɗin da ka zaɓa.`
+                        );
+
+                      if (
+                        confirmed
+                      ) {
+                        replaceFilmOnBunny();
+                      }
+                    }}
+                  >
+                    {uploading
+                      ? `♻️ Replacing ${uploadProgress.toFixed(
+                          1
+                        )}%`
+                      : "♻️ Replace Video"}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={
+                    uploading
+                  }
+                  onClick={
+                    openProfile
+                  }
+                >
+                  ← Back
+                </button>
+              </div>
+
+              <div className="movie-security-note">
+                🔒 Video zai tafi kai
+                tsaye daga browser zuwa
+                Bunny Stream. Bunny API
+                Key ba zai shiga
+                frontend ba.
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <BottomNav
+          page={page}
+          goHome={goHome}
+          goSearch={goSearch}
+          loadMyMovies={
+            loadMyMovies
+          }
+          openProfile={
+            openProfile
+          }
+        />
+      </div>
+    );
+  }
+
+  // ===================================================
   // PROFILE PAGE
   // ===================================================
 
-  if (page === "profile") {
+  if (
+    page === "profile"
+  ) {
     return (
       <div className="app">
         {header}
@@ -1536,6 +2692,13 @@ function App() {
                   📱{" "}
                   {user.phone}
                 </span>
+
+                {user?.role ===
+                  "ADMIN" && (
+                  <span>
+                    🛡️ Admin
+                  </span>
+                )}
               </div>
 
               <p className="details-description">
@@ -1564,6 +2727,19 @@ function App() {
                 >
                   🏠 Home
                 </button>
+
+                {user?.role ===
+                  "ADMIN" && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      openAdminUpload
+                    }
+                  >
+                    ⚙️ Admin Upload
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1604,15 +2780,20 @@ function App() {
 
       <section className="search-section">
         <div className="search-box">
-          <span>🔍</span>
+          <span>
+            🔍
+          </span>
 
           <input
             type="text"
             placeholder="Search movies..."
             value={search}
-            onChange={(event) =>
+            onChange={(
+              event
+            ) =>
               setSearch(
-                event.target.value
+                event.target
+                  .value
               )
             }
           />
@@ -1643,10 +2824,12 @@ function App() {
                 .getElementById(
                   "movies"
                 )
-                ?.scrollIntoView({
-                  behavior:
-                    "smooth",
-                });
+                ?.scrollIntoView(
+                  {
+                    behavior:
+                      "smooth",
+                  }
+                );
             }}
           >
             🎬 Browse Movies
@@ -1777,8 +2960,8 @@ function App() {
             0 && (
             <div className="status">
               <p>
-                🎬 Babu film
-                a wannan category.
+                🎬 Babu film a
+                wannan category.
               </p>
             </div>
           )}
@@ -1829,94 +3012,96 @@ function MovieGrid({
 }) {
   return (
     <div className="movie-grid">
-      {films.map((rawFilm) => {
-        const film =
-          rawFilm?.film ||
-          rawFilm;
+      {films.map(
+        (rawFilm) => {
+          const film =
+            rawFilm?.film ||
+            rawFilm;
 
-        return (
-          <article
-            className="movie-card"
-            key={film.id}
-          >
-            <div
-              className="poster-container"
-              role="button"
-              tabIndex={0}
-              onClick={() =>
-                openFilm(film)
-              }
-              onKeyDown={(
-                event
-              ) => {
-                if (
-                  event.key ===
-                    "Enter" ||
-                  event.key ===
-                    " "
-                ) {
-                  openFilm(
-                    film
-                  );
-                }
-              }}
+          return (
+            <article
+              className="movie-card"
+              key={film.id}
             >
-              <img
-                src={
-                  posterSrc(
+              <div
+                className="poster-container"
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  openFilm(
                     film
                   )
                 }
-                alt={
-                  film.title
-                }
-                className="poster"
-                loading="lazy"
-                onError={(event) => {
-                  event.currentTarget.style.opacity =
-                    "0.3";
+                onKeyDown={(
+                  event
+                ) => {
+                  if (
+                    event.key ===
+                      "Enter" ||
+                    event.key ===
+                      " "
+                  ) {
+                    openFilm(
+                      film
+                    );
+                  }
                 }}
-              />
-
-              {!purchased && (
-                <span className="price">
-                  ₦
-                  {Number(
-                    film.price ||
-                      0
-                  ).toLocaleString()}
-                </span>
-              )}
-
-              <div className="play-button">
-                ▶
-              </div>
-            </div>
-
-            <div className="movie-info">
-              <h3>
-                {film.title}
-              </h3>
-
-              <p>
-                {film.category ||
-                  "Movie"}
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  openFilm(film)
-                }
               >
-                {purchased
-                  ? "▶ Watch Movie"
-                  : "View Movie"}
-              </button>
-            </div>
-          </article>
-        );
-      })}
+                <img
+                  src={posterSrc(
+                    film
+                  )}
+                  alt={
+                    film.title
+                  }
+                  className="poster"
+                  loading="lazy"
+                />
+
+                {!purchased && (
+                  <span className="price">
+                    ₦
+                    {Number(
+                      film.price ||
+                        0
+                    ).toLocaleString()}
+                  </span>
+                )}
+
+                <div className="play-button">
+                  ▶
+                </div>
+              </div>
+
+              <div className="movie-info">
+                <h3>
+                  {
+                    film.title
+                  }
+                </h3>
+
+                <p>
+                  {film.category ||
+                    "Movie"}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    openFilm(
+                      film
+                    )
+                  }
+                >
+                  {purchased
+                    ? "▶ Watch Movie"
+                    : "View Movie"}
+                </button>
+              </div>
+            </article>
+          );
+        }
+      )}
     </div>
   );
 }
@@ -1999,10 +3184,46 @@ function BottomNav({
 }
 
 // =====================================================
+// FORMAT FILE SIZE
+// =====================================================
+
+function formatFileSize(
+  bytes
+) {
+  const size =
+    Number(bytes || 0);
+
+  if (size <= 0) {
+    return "0 MB";
+  }
+
+  if (
+    size >=
+    1024 *
+      1024 *
+      1024
+  ) {
+    return `${(
+      size /
+      (1024 *
+        1024 *
+        1024)
+    ).toFixed(2)} GB`;
+  }
+
+  return `${(
+    size /
+    (1024 * 1024)
+  ).toFixed(2)} MB`;
+}
+
+// =====================================================
 // SAFE JSON
 // =====================================================
 
-async function readJson(response) {
+async function readJson(
+  response
+) {
   const text =
     await response.text();
 

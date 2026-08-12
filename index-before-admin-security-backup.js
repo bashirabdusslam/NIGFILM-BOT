@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import crypto from "crypto";
 import { Markup } from "telegraf";
 import { Readable } from "node:stream";
@@ -83,31 +83,31 @@ app.use((req, res, next) => {
 const adminMenu = Markup.inlineKeyboard([
   [
     Markup.button.callback(
-      "ðŸŽ¬ Add Film",
+      "🎬 Add Film",
       "admin_add_film"
     ),
 
     Markup.button.callback(
-      "ðŸŽžï¸ Manage Films",
+      "🎞️ Manage Films",
       "admin_manage_films"
     ),
   ],
 
   [
     Markup.button.callback(
-      "ðŸ“Š Sales",
+      "📊 Sales",
       "admin_sales"
     ),
 
     Markup.button.callback(
-      "ðŸ‘¥ Users",
+      "👥 Users",
       "admin_users"
     ),
   ],
 
   [
     Markup.button.callback(
-      "ðŸ“¢ Broadcast",
+      "📢 Broadcast",
       "admin_broadcast"
     ),
   ],
@@ -173,14 +173,14 @@ webVideoUrl: true,
     });
   } catch (error) {
     console.error(
-      "âŒ GET FILMS API ERROR:",
+      "❌ GET FILMS API ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
       message:
-        "An samu matsala wajen É—auko fina-finai.",
+        "An samu matsala wajen ɗauko fina-finai.",
     });
   }
 });
@@ -244,14 +244,14 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "âŒ GET SINGLE FILM API ERROR:",
+        "❌ GET SINGLE FILM API ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko film.",
+          "An samu matsala wajen ɗauko film.",
       });
     }
   }
@@ -290,14 +290,14 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "âŒ GET CATEGORIES API ERROR:",
+        "❌ GET CATEGORIES API ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko categories.",
+          "An samu matsala wajen ɗauko categories.",
       });
     }
   }
@@ -384,7 +384,7 @@ webVideoUrl: true,
       });
     } catch (error) {
       console.error(
-        "âŒ SEARCH FILMS API ERROR:",
+        "❌ SEARCH FILMS API ERROR:",
         error
       );
 
@@ -443,7 +443,7 @@ app.get(
 
       if (!response.ok) {
         console.error(
-          "âŒ TELEGRAM POSTER FETCH FAILED:",
+          "❌ TELEGRAM POSTER FETCH FAILED:",
           response.status
         );
 
@@ -473,7 +473,7 @@ app.get(
       return res.send(imageBuffer);
     } catch (error) {
       console.error(
-        "âŒ POSTER API ERROR:",
+        "❌ POSTER API ERROR:",
         error
       );
 
@@ -516,7 +516,7 @@ app.post(
         return res.status(400).json({
           success: false,
           message:
-            "Ka cika duk bayanan da ake buÆ™ata.",
+            "Ka cika duk bayanan da ake buƙata.",
         });
       }
 
@@ -540,7 +540,7 @@ app.post(
         return res.status(400).json({
           success: false,
           message:
-            "Password ya zama aÆ™alla haruffa 6.",
+            "Password ya zama aƙalla haruffa 6.",
         });
       }
 
@@ -601,7 +601,7 @@ app.post(
         );
 
       console.log(
-        "âœ… WEB USER REGISTERED:",
+        "✅ WEB USER REGISTERED:",
         user.id
       );
 
@@ -613,7 +613,7 @@ app.post(
         success: true,
 
         message:
-          "Account an Æ™irÆ™ira cikin nasara.",
+          "Account an ƙirƙira cikin nasara.",
 
         user,
 
@@ -627,14 +627,14 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ WEB REGISTER ERROR:",
+        "❌ WEB REGISTER ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen Æ™irÆ™irar account.",
+          "An samu matsala wajen ƙirƙirar account.",
       });
     }
   }
@@ -716,7 +716,7 @@ app.post(
         );
 
       console.log(
-        "âœ… WEB USER LOGIN:",
+        "✅ WEB USER LOGIN:",
         user.id,
         user.role
       );
@@ -748,7 +748,7 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ WEB LOGIN ERROR:",
+        "❌ WEB LOGIN ERROR:",
         error
       );
 
@@ -809,7 +809,7 @@ app.post(
           .PAYSTACK_SECRET_KEY
       ) {
         console.error(
-          "âŒ PAYSTACK_SECRET_KEY babu."
+          "❌ PAYSTACK_SECRET_KEY babu."
         );
 
         return res.status(500).json({
@@ -969,7 +969,7 @@ app.post(
           ?.authorization_url
       ) {
         console.error(
-          "âŒ WEB PAYSTACK INITIALIZE ERROR:",
+          "❌ WEB PAYSTACK INITIALIZE ERROR:",
           paystackData
         );
 
@@ -992,7 +992,7 @@ app.post(
       }
 
       console.log(
-        "âœ… WEB PAYSTACK INITIALIZED:",
+        "✅ WEB PAYSTACK INITIALIZED:",
         reference
       );
 
@@ -1019,7 +1019,7 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ WEB PAYMENT INITIALIZE ERROR:",
+        "❌ WEB PAYMENT INITIALIZE ERROR:",
         error
       );
 
@@ -1111,12 +1111,12 @@ app.get(
               "Payment Successful",
 
             message:
-              "An tabbatar da payment É—inka. Film É—in ya shiga My Movies.",
+              "An tabbatar da payment ɗinka. Film ɗin ya shiga My Movies.",
           })
         );
     } catch (error) {
       console.error(
-        "âŒ WEB PAYMENT CALLBACK ERROR:",
+        "❌ WEB PAYMENT CALLBACK ERROR:",
         error
       );
 
@@ -1212,14 +1212,14 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "âŒ WEB MY MOVIES ERROR:",
+        "❌ WEB MY MOVIES ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko My Movies.",
+          "An samu matsala wajen ɗauko My Movies.",
       });
     }
   }
@@ -1297,14 +1297,14 @@ app.get(
 
       if (!telegramResponse.ok) {
         console.error(
-          "âŒ TELEGRAM VIDEO FETCH FAILED:",
+          "❌ TELEGRAM VIDEO FETCH FAILED:",
           telegramResponse.status
         );
 
         return res.status(502).json({
           success: false,
           message:
-            "An kasa É—auko video daga Telegram.",
+            "An kasa ɗauko video daga Telegram.",
         });
       }
 
@@ -1343,7 +1343,7 @@ app.get(
       return res.send(buffer);
     } catch (error) {
       console.error(
-        "âŒ WEB VIDEO STREAM ERROR:",
+        "❌ WEB VIDEO STREAM ERROR:",
         error
       );
 
@@ -1442,14 +1442,14 @@ app.post(
         !bunnyData?.guid
       ) {
         console.error(
-          "âŒ BUNNY CREATE VIDEO ERROR:",
+          "❌ BUNNY CREATE VIDEO ERROR:",
           bunnyData
         );
 
         return res.status(502).json({
           success: false,
           message:
-            "An kasa Æ™irÆ™irar video a Bunny Stream.",
+            "An kasa ƙirƙirar video a Bunny Stream.",
         });
       }
 
@@ -1471,7 +1471,7 @@ app.post(
       });
 
       console.log(
-        "âœ… BUNNY VIDEO CREATED:",
+        "✅ BUNNY VIDEO CREATED:",
         {
           filmId: film.id,
           bunnyVideoId,
@@ -1486,14 +1486,14 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ BUNNY CREATE VIDEO ERROR:",
+        "❌ BUNNY CREATE VIDEO ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen Æ™irÆ™irar Bunny video.",
+          "An samu matsala wajen ƙirƙirar Bunny video.",
       });
     }
   }
@@ -1583,14 +1583,14 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "âŒ WEB MY MOVIES ERROR:",
+        "❌ WEB MY MOVIES ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko My Movies.",
+          "An samu matsala wajen ɗauko My Movies.",
       });
     }
   }
@@ -1677,7 +1677,7 @@ app.get(
         return res.status(404).json({
           success: false,
           message:
-            "Wannan film bai haÉ—u da Bunny Stream ba.",
+            "Wannan film bai haɗu da Bunny Stream ba.",
         });
       }
 
@@ -1730,7 +1730,7 @@ app.get(
           await infoResponse.text();
 
         console.error(
-          "âŒ BUNNY VIDEO INFO ERROR:",
+          "❌ BUNNY VIDEO INFO ERROR:",
           infoResponse.status,
           text
         );
@@ -1837,7 +1837,7 @@ app.get(
           await videoResponse.text();
 
         console.error(
-          "âŒ BUNNY DOWNLOAD FETCH ERROR:",
+          "❌ BUNNY DOWNLOAD FETCH ERROR:",
           videoResponse.status,
           errorText
         );
@@ -1845,7 +1845,7 @@ app.get(
         return res.status(502).json({
           success: false,
           message:
-            "An kasa É—auko film domin download.",
+            "An kasa ɗauko film domin download.",
         });
       }
 
@@ -1900,7 +1900,7 @@ app.get(
       );
 
       console.log(
-        "â¬‡ï¸ WEB MOVIE DOWNLOAD STARTED:",
+        "⬇️ WEB MOVIE DOWNLOAD STARTED:",
         {
           webUserId,
           filmId,
@@ -1922,7 +1922,7 @@ app.get(
         "error",
         (error) => {
           console.error(
-            "âŒ DOWNLOAD STREAM ERROR:",
+            "❌ DOWNLOAD STREAM ERROR:",
             error
           );
 
@@ -1937,7 +1937,7 @@ app.get(
       stream.pipe(res);
     } catch (error) {
       console.error(
-        "âŒ DIRECT DOWNLOAD ERROR:",
+        "❌ DIRECT DOWNLOAD ERROR:",
         error
       );
 
@@ -2029,7 +2029,7 @@ async function requireAdmin(
       return res.status(401).json({
         success: false,
         message:
-          "Session ya Æ™are.",
+          "Session ya ƙare.",
       });
     }
 
@@ -2053,7 +2053,7 @@ async function requireAdmin(
     return next();
   } catch (error) {
     console.error(
-      "âŒ REQUIRE ADMIN ERROR:",
+      "❌ REQUIRE ADMIN ERROR:",
       error
     );
 
@@ -2150,14 +2150,14 @@ app.post(
           !bunnyData?.guid
         ) {
           console.error(
-            "âŒ BUNNY CREATE VIDEO ERROR:",
+            "❌ BUNNY CREATE VIDEO ERROR:",
             bunnyData
           );
 
           return res.status(502).json({
             success: false,
             message:
-              "An kasa Æ™irÆ™irar Bunny video.",
+              "An kasa ƙirƙirar Bunny video.",
           });
         }
 
@@ -2202,7 +2202,7 @@ app.post(
           .digest("hex");
 
       console.log(
-        "âœ… BUNNY UPLOAD PREPARED:",
+        "✅ BUNNY UPLOAD PREPARED:",
         {
           filmId,
           bunnyVideoId,
@@ -2236,7 +2236,7 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ PREPARE BUNNY UPLOAD ERROR:",
+        "❌ PREPARE BUNNY UPLOAD ERROR:",
         error
       );
 
@@ -2257,7 +2257,7 @@ app.post(
   async (req, res) => {
     try {
       // =================================
-      // 1. KARÆI FILM ID
+      // 1. KARƁI FILM ID
       // =================================
 
       const filmId = Number(
@@ -2320,7 +2320,7 @@ app.post(
       }
 
       // =================================
-      // 4. DOLE FILM YA RIGA YA HAÆŠU DA BUNNY
+      // 4. DOLE FILM YA RIGA YA HAƊU DA BUNNY
       // =================================
 
       if (!film.bunnyVideoId) {
@@ -2354,7 +2354,7 @@ app.post(
           await bunnyResponse.text();
 
         console.error(
-          "âŒ BUNNY REPLACE CHECK ERROR:",
+          "❌ BUNNY REPLACE CHECK ERROR:",
           bunnyResponse.status,
           errorText
         );
@@ -2370,7 +2370,7 @@ app.post(
         await bunnyResponse.json();
 
       // =================================
-      // 6. Æ˜IRÆ˜IRI TUS AUTH EXPIRY
+      // 6. ƘIRƘIRI TUS AUTH EXPIRY
       // =================================
 
       const expirationTime =
@@ -2378,7 +2378,7 @@ app.post(
         6 * 60 * 60;
 
       // =================================
-      // 7. Æ˜IRÆ˜IRI BUNNY TUS SIGNATURE
+      // 7. ƘIRƘIRI BUNNY TUS SIGNATURE
       // =================================
 
       const signatureString =
@@ -2398,7 +2398,7 @@ app.post(
       // =================================
 
       console.log(
-        "â™»ï¸ BUNNY REPLACE PREPARED:",
+        "♻️ BUNNY REPLACE PREPARED:",
         {
           filmId: film.id,
           title: film.title,
@@ -2452,7 +2452,7 @@ app.post(
       });
     } catch (error) {
       console.error(
-        "âŒ PREPARE BUNNY REPLACE ERROR:",
+        "❌ PREPARE BUNNY REPLACE ERROR:",
         error
       );
 
@@ -2581,7 +2581,7 @@ app.get(
           await bunnyResponse.text();
 
         console.error(
-          "âŒ BUNNY STATUS API ERROR:",
+          "❌ BUNNY STATUS API ERROR:",
           bunnyResponse.status,
           errorText
         );
@@ -2708,7 +2708,7 @@ app.get(
             : 0;
 
       console.log(
-        "ðŸ° BUNNY STATUS:",
+        "🐰 BUNNY STATUS:",
         {
           filmId,
           bunnyVideoId:
@@ -2779,7 +2779,7 @@ app.get(
       });
     } catch (error) {
       console.error(
-        "âŒ ADMIN BUNNY STATUS ERROR:",
+        "❌ ADMIN BUNNY STATUS ERROR:",
         error
       );
 
@@ -2806,7 +2806,7 @@ app.post(
       return res.sendStatus(200);
     } catch (error) {
       console.error(
-        "âŒ TELEGRAM WEBHOOK ERROR:",
+        "❌ TELEGRAM WEBHOOK ERROR:",
         error
       );
 
@@ -2825,7 +2825,7 @@ app.get("/", (req, res) => {
     service: "NIGFILM",
 
     message:
-      "âœ… NIGFILM BOT & WEB API suna aiki!",
+      "✅ NIGFILM BOT & WEB API suna aiki!",
   });
 });
 
@@ -2946,7 +2946,7 @@ a {
 <div class="card">
 
 <div class="icon">
-âœ…
+✅
 </div>
 
 <h1>
@@ -2954,12 +2954,12 @@ Payment Successful
 </h1>
 
 <p>
-An karÉ“i biyan kuÉ—inka cikin nasara.
-Ka koma Telegram domin karÉ“ar film É—inka.
+An karɓi biyan kuɗinka cikin nasara.
+Ka koma Telegram domin karɓar film ɗinka.
 </p>
 
 <a href="https://t.me/Nigfilm_bot">
-BuÉ—e NIGFILM BOT
+Buɗe NIGFILM BOT
 </a>
 
 </div>
@@ -2992,7 +2992,7 @@ app.post(
           .PAYSTACK_SECRET_KEY
       ) {
         console.log(
-          "âŒ Missing Paystack signature, raw body or secret key"
+          "❌ Missing Paystack signature, raw body or secret key"
         );
 
         return res.sendStatus(400);
@@ -3015,7 +3015,7 @@ app.post(
         )
       ) {
         console.log(
-          "âŒ Invalid Paystack signature"
+          "❌ Invalid Paystack signature"
         );
 
         return res.sendStatus(401);
@@ -3043,14 +3043,14 @@ app.post(
 
       if (!reference) {
         console.log(
-          "âŒ Payment reference is missing"
+          "❌ Payment reference is missing"
         );
 
         return res.sendStatus(200);
       }
 
       console.log(
-        "âœ… Paystack payment received:",
+        "✅ Paystack payment received:",
         reference
       );
 
@@ -3083,7 +3083,7 @@ app.post(
 
         if (!result.success) {
           console.error(
-            "âŒ WEB PAYMENT PROCESS FAILED:",
+            "❌ WEB PAYMENT PROCESS FAILED:",
             result.message
           );
 
@@ -3091,7 +3091,7 @@ app.post(
         }
 
         console.log(
-          "âœ… WEB PAYMENT PROCESSED:",
+          "✅ WEB PAYMENT PROCESSED:",
           reference
         );
 
@@ -3112,7 +3112,7 @@ app.post(
 
       if (!order) {
         console.log(
-          "âŒ Telegram/Web Order not found:",
+          "❌ Telegram/Web Order not found:",
           reference
         );
 
@@ -3137,7 +3137,7 @@ app.post(
           expectedAmount
       ) {
         console.log(
-          "âŒ Payment amount mismatch:",
+          "❌ Payment amount mismatch:",
           {
             reference,
             paidAmount,
@@ -3153,7 +3153,7 @@ app.post(
         "paid"
       ) {
         console.log(
-          "â„¹ï¸ Order already processed:",
+          "ℹ️ Order already processed:",
           reference
         );
 
@@ -3178,7 +3178,7 @@ app.post(
         await bot.telegram.sendMessage(
           order.telegramId,
 
-          "âœ… An tabbatar da biyan kuÉ—inka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT â¤ï¸"
+          "✅ An tabbatar da biyan kuɗinka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT ❤️"
         );
       } catch (
         messageError
@@ -3190,14 +3190,14 @@ app.post(
       }
 
       console.log(
-        "âœ… TELEGRAM PAYMENT PROCESSED:",
+        "✅ TELEGRAM PAYMENT PROCESSED:",
         reference
       );
 
       return res.sendStatus(200);
     } catch (error) {
       console.error(
-        "âŒ PAYSTACK WEBHOOK ERROR:",
+        "❌ PAYSTACK WEBHOOK ERROR:",
         error
       );
 
@@ -3227,7 +3227,7 @@ async function processWebFilmPayment({
       return {
         success: false,
         message:
-          "Ba a samu WebOrder É—in payment ba.",
+          "Ba a samu WebOrder ɗin payment ba.",
       };
     }
 
@@ -3242,7 +3242,7 @@ async function processWebFilmPayment({
         expectedAmount
     ) {
       console.error(
-        "âŒ WEB PAYMENT AMOUNT MISMATCH:",
+        "❌ WEB PAYMENT AMOUNT MISMATCH:",
         {
           reference,
           paidAmount,
@@ -3253,7 +3253,7 @@ async function processWebFilmPayment({
       return {
         success: false,
         message:
-          "Adadin kuÉ—in da aka biya bai dace da farashin film ba.",
+          "Adadin kuɗin da aka biya bai dace da farashin film ba.",
       };
     }
 
@@ -3278,7 +3278,7 @@ async function processWebFilmPayment({
       return {
         success: false,
         message:
-          "Ba a samu film É—in order ba.",
+          "Ba a samu film ɗin order ba.",
       };
     }
 
@@ -3340,7 +3340,7 @@ async function processWebFilmPayment({
     );
 
     console.log(
-      "âœ… WEB PURCHASE CREATED:",
+      "✅ WEB PURCHASE CREATED:",
       {
         webUserId:
           order.webUserId,
@@ -3357,7 +3357,7 @@ async function processWebFilmPayment({
     };
   } catch (error) {
     console.error(
-      "âŒ PROCESS WEB PAYMENT ERROR:",
+      "❌ PROCESS WEB PAYMENT ERROR:",
       error
     );
 
@@ -3413,7 +3413,7 @@ async function verifyPaystackTransaction(
         "success"
     ) {
       console.error(
-        "âŒ PAYSTACK VERIFY FAILED:",
+        "❌ PAYSTACK VERIFY FAILED:",
         data
       );
 
@@ -3452,7 +3452,7 @@ async function verifyPaystackTransaction(
     };
   } catch (error) {
     console.error(
-      "âŒ VERIFY PAYSTACK ERROR:",
+      "❌ VERIFY PAYSTACK ERROR:",
       error
     );
 
@@ -3545,10 +3545,10 @@ async function processSingleFilmPayment({
       film.videoFileId,
       {
         caption:
-          `ðŸŽ‰ PAYMENT CONFIRMED\n\n` +
-          `ðŸŽ¬ ${film.title}\n\n` +
+          `🎉 PAYMENT CONFIRMED\n\n` +
+          `🎬 ${film.title}\n\n` +
           "Na gode da siyan film.\n" +
-          "Ga film É—inka, ka ji daÉ—in kallo.",
+          "Ga film ɗinka, ka ji daɗin kallo.",
       }
     );
   } catch (
@@ -3563,7 +3563,7 @@ async function processSingleFilmPayment({
       .sendMessage(
         order.telegramId,
 
-        "âš ï¸ An tabbatar da payment amma tura video ta samu matsala.\n\nKa shiga My Movies domin sake sauke film É—in."
+        "⚠️ An tabbatar da payment amma tura video ta samu matsala.\n\nKa shiga My Movies domin sake sauke film ɗin."
       )
       .catch(() => {});
   }
@@ -3768,9 +3768,9 @@ async function processCartPayment({
         film.videoFileId,
         {
           caption:
-            `ðŸŽ‰ PAYMENT CONFIRMED\n\n` +
-            `ðŸŽ¬ ${film.title}\n\n` +
-            "Ga film É—inka, ka ji daÉ—in kallo.",
+            `🎉 PAYMENT CONFIRMED\n\n` +
+            `🎬 ${film.title}\n\n` +
+            "Ga film ɗinka, ka ji daɗin kallo.",
         }
       );
 
@@ -3785,7 +3785,7 @@ async function processCartPayment({
       deliveryError
     ) {
       console.error(
-        `CART DELIVERY ERROR â€” FILM ${film.id}:`,
+        `CART DELIVERY ERROR — FILM ${film.id}:`,
         deliveryError
       );
     }
@@ -3965,7 +3965,7 @@ function buildWebPaymentPage({
   message,
 }) {
   const icon =
-    success ? "âœ…" : "âŒ";
+    success ? "✅" : "❌";
 
   const headingColor =
     success
@@ -4135,7 +4135,7 @@ const server =
     PORT,
     async () => {
       console.log(
-        `ðŸŒ NIGFILM server yana aiki a port ${PORT}`
+        `🌐 NIGFILM server yana aiki a port ${PORT}`
       );
 
       try {
@@ -4144,12 +4144,12 @@ const server =
         );
 
         console.log(
-          "âœ… Telegram Webhook an saita:",
+          "✅ Telegram Webhook an saita:",
           TELEGRAM_WEBHOOK_URL
         );
       } catch (error) {
         console.error(
-          "âŒ SET TELEGRAM WEBHOOK ERROR:",
+          "❌ SET TELEGRAM WEBHOOK ERROR:",
           error
         );
       }
@@ -4157,7 +4157,7 @@ const server =
   );
 
 console.log(
-  "ðŸ¤– NIGFILM BOT & WEB API started successfully."
+  "🤖 NIGFILM BOT & WEB API started successfully."
 );
 
 // ======================================================
@@ -4180,7 +4180,7 @@ async function gracefulShutdown(
     true;
 
   console.log(
-    `ðŸ›‘ Ana rufe server saboda ${signal}...`
+    `🛑 Ana rufe server saboda ${signal}...`
   );
 
   server.close(
@@ -4189,13 +4189,13 @@ async function gracefulShutdown(
         await prisma.$disconnect();
 
         console.log(
-          "âœ… Prisma da server sun rufe lafiya."
+          "✅ Prisma da server sun rufe lafiya."
         );
 
         process.exit(0);
       } catch (error) {
         console.error(
-          "âŒ SHUTDOWN ERROR:",
+          "❌ SHUTDOWN ERROR:",
           error
         );
 
@@ -4206,7 +4206,7 @@ async function gracefulShutdown(
 
   setTimeout(() => {
     console.error(
-      "âŒ Graceful shutdown timeout."
+      "❌ Graceful shutdown timeout."
     );
 
     process.exit(1);

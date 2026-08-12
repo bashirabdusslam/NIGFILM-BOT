@@ -20,16 +20,36 @@ model User {
   purchases Purchase[]
 }
 
+enum WebUserRole {
+  USER
+  ADMIN
+}
+
 model WebUser {
-  id           Int      @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   fullName     String
-  phone        String   @unique
+  phone        String      @unique
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         WebUserRole @default(USER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   webPurchases WebPurchase[]
   webOrders    WebOrder[]
+  webSessions  WebSession[]
+}
+
+model WebSession {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  webUserId Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([expiresAt])
 }
 
 model Film {

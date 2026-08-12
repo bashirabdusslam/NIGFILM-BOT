@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "crypto";
 import { Markup } from "telegraf";
-
+import { Readable } from "node:stream";
 import { bot, prisma } from "./bot.js";
 
 import registerAdminHandlers from "./handlers/admin.js";
@@ -17,21 +17,29 @@ import registerPhotoHandlers from "./handlers/photoHandler.js";
 import registerVideoHandlers from "./handlers/videoHandler.js";
 import registerPaymentsHandlers from "./handlers/payments.js";
 
-// =================================
+// ======================================================
 // EXPRESS APP
-// =================================
+// ======================================================
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+const PUBLIC_BASE_URL =
+  process.env.PUBLIC_BASE_URL ||
+  "http://localhost:3000";
+
+const WEB_APP_URL =
+  process.env.WEB_APP_URL ||
+  "http://localhost:5173";
+
 const TELEGRAM_WEBHOOK_URL =
   process.env.TELEGRAM_WEBHOOK_URL ||
   "https://nigfilm-bot.onrender.com/telegram-webhook";
 
-// =================================
+// ======================================================
 // EXPRESS JSON + RAW BODY
-// =================================
+// ======================================================
 
 app.use(
   express.json({
@@ -41,12 +49,15 @@ app.use(
   })
 );
 
-// =================================
-// SIMPLE CORS FOR WEB APP
-// =================================
+// ======================================================
+// CORS
+// ======================================================
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Origin",
+    "*"
+  );
 
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -65,9 +76,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// =================================
+// ======================================================
 // ADMIN MENU
-// =================================
+// ======================================================
 
 const adminMenu = Markup.inlineKeyboard([
   [
@@ -102,9 +113,9 @@ const adminMenu = Markup.inlineKeyboard([
   ],
 ]);
 
-// =================================
+// ======================================================
 // REGISTER TELEGRAM HANDLERS
-// =================================
+// ======================================================
 
 registerAdminHandlers(adminMenu);
 registerSalesHandlers();
@@ -120,12 +131,12 @@ registerVideoHandlers();
 registerPaymentsHandlers();
 
 // ======================================================
-// NIGFILM WEB APP API
+// NIGFILM WEB API
 // ======================================================
 
-// =================================
+// ======================================================
 // GET ALL FILMS
-// =================================
+// ======================================================
 
 app.get("/api/films", async (req, res) => {
   try {
@@ -171,208 +182,224 @@ app.get("/api/films", async (req, res) => {
   }
 });
 
-// =================================
+// ======================================================
 // GET SINGLE FILM
-// =================================
+// ======================================================
 
-app.get("/api/films/:id", async (req, res) => {
-  try {
-    const filmId = Number(req.params.id);
+app.get(
+  "/api/films/:id",
+  async (req, res) => {
+    try {
+      const filmId =
+        Number(req.params.id);
 
-    if (
-      !Number.isInteger(filmId) ||
-      filmId <= 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Film ID bai dace ba.",
-      });
-    }
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Film ID bai dace ba.",
+        });
+      }
 
-    const film = await prisma.film.findUnique({
-      where: {
-        id: filmId,
-      },
+      const film =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
 
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        price: true,
-        posterFileId: true,
-        createdAt: true,
-      },
-    });
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            price: true,
+            posterFileId: true,
+            createdAt: true,
+          },
+        });
 
-    if (!film) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Ba a samu wannan film ba.",
-      });
-    }
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
 
-    return res.status(200).json({
-      success: true,
-
-      film: {
-        ...film,
-
-        posterUrl:
-          `/api/films/${film.id}/poster`,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "❌ GET SINGLE FILM API ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen ɗauko film.",
-    });
-  }
-});
-
-// =================================
-// GET FILM CATEGORIES
-// =================================
-
-app.get("/api/categories", async (req, res) => {
-  try {
-    const films = await prisma.film.findMany({
-      select: {
-        category: true,
-      },
-    });
-
-    const categories = [
-      ...new Set(
-        films
-          .map((film) => film.category)
-          .filter(Boolean)
-      ),
-    ].sort();
-
-    return res.status(200).json({
-      success: true,
-      count: categories.length,
-      categories,
-    });
-  } catch (error) {
-    console.error(
-      "❌ GET CATEGORIES API ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen ɗauko categories.",
-    });
-  }
-});
-
-// =================================
-// SEARCH FILMS
-// =================================
-
-app.get("/api/search", async (req, res) => {
-  try {
-    const query = String(
-      req.query.q || ""
-    ).trim();
-
-    if (!query) {
       return res.status(200).json({
         success: true,
-        count: 0,
-        films: [],
+
+        film: {
+          ...film,
+
+          posterUrl:
+            `/api/films/${film.id}/poster`,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ GET SINGLE FILM API ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ɗauko film.",
       });
     }
-
-    const films = await prisma.film.findMany({
-      where: {
-        OR: [
-          {
-            title: {
-              contains: query,
-              mode: "insensitive",
-            },
-          },
-
-          {
-            description: {
-              contains: query,
-              mode: "insensitive",
-            },
-          },
-
-          {
-            category: {
-              contains: query,
-              mode: "insensitive",
-            },
-          },
-        ],
-      },
-
-      orderBy: {
-        createdAt: "desc",
-      },
-
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        category: true,
-        price: true,
-        posterFileId: true,
-        createdAt: true,
-      },
-    });
-
-    const result = films.map((film) => ({
-      ...film,
-      posterUrl:
-        `/api/films/${film.id}/poster`,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      count: result.length,
-      films: result,
-    });
-  } catch (error) {
-    console.error(
-      "❌ SEARCH FILMS API ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen neman film.",
-    });
   }
-});
+);
 
-// =================================
+// ======================================================
+// GET CATEGORIES
+// ======================================================
+
+app.get(
+  "/api/categories",
+  async (req, res) => {
+    try {
+      const films =
+        await prisma.film.findMany({
+          select: {
+            category: true,
+          },
+        });
+
+      const categories = [
+        ...new Set(
+          films
+            .map(
+              (film) =>
+                film.category
+            )
+            .filter(Boolean)
+        ),
+      ].sort();
+
+      return res.status(200).json({
+        success: true,
+        count: categories.length,
+        categories,
+      });
+    } catch (error) {
+      console.error(
+        "❌ GET CATEGORIES API ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ɗauko categories.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// SEARCH FILMS
+// ======================================================
+
+app.get(
+  "/api/search",
+  async (req, res) => {
+    try {
+      const query = String(
+        req.query.q || ""
+      ).trim();
+
+      if (!query) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          films: [],
+        });
+      }
+
+      const films =
+        await prisma.film.findMany({
+          where: {
+            OR: [
+              {
+                title: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+
+              {
+                description: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+
+              {
+                category: {
+                  contains: query,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            price: true,
+            posterFileId: true,
+            createdAt: true,
+          },
+        });
+
+      const result =
+        films.map((film) => ({
+          ...film,
+
+          posterUrl:
+            `/api/films/${film.id}/poster`,
+        }));
+
+      return res.status(200).json({
+        success: true,
+        count: result.length,
+        films: result,
+      });
+    } catch (error) {
+      console.error(
+        "❌ SEARCH FILMS API ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen neman film.",
+      });
+    }
+  }
+);
+
+// ======================================================
 // FILM POSTER PROXY
-// =================================
-//
-// Wannan yana ba Web App damar nuna poster
-// ba tare da bayyana Telegram BOT_TOKEN ba.
-//
+// ======================================================
 
 app.get(
   "/api/films/:id/poster",
   async (req, res) => {
     try {
-      const filmId = Number(req.params.id);
+      const filmId =
+        Number(req.params.id);
 
       if (
         !Number.isInteger(filmId) ||
@@ -404,9 +431,8 @@ app.get(
           film.posterFileId
         );
 
-      const response = await fetch(
-        fileLink.href
-      );
+      const response =
+        await fetch(fileLink.href);
 
       if (!response.ok) {
         console.error(
@@ -450,6 +476,1408 @@ app.get(
 );
 
 // ======================================================
+// WEB AUTH
+// ======================================================
+
+// ======================================================
+// REGISTER
+// ======================================================
+
+app.post(
+  "/api/auth/register",
+  async (req, res) => {
+    try {
+      const fullName =
+        String(
+          req.body?.fullName || ""
+        ).trim();
+
+      const phone =
+        normalizePhone(
+          req.body?.phone
+        );
+
+      const password =
+        String(
+          req.body?.password || ""
+        );
+
+      if (
+        !fullName ||
+        !phone ||
+        !password
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka cika duk bayanan da ake buƙata.",
+        });
+      }
+
+      if (fullName.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka cikakken suna.",
+        });
+      }
+
+      if (phone.length < 10) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Phone number bai dace ba.",
+        });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Password ya zama aƙalla haruffa 6.",
+        });
+      }
+
+      const existingUser =
+        await prisma.webUser.findUnique({
+          where: {
+            phone,
+          },
+        });
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "An riga an yi register da wannan phone number.",
+        });
+      }
+
+      const passwordHash =
+        hashPassword(password);
+
+      const user =
+        await prisma.webUser.create({
+          data: {
+            fullName,
+            phone,
+            passwordHash,
+          },
+
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+            createdAt: true,
+          },
+        });
+
+      console.log(
+        "✅ WEB USER REGISTERED:",
+        user.id
+      );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Account an ƙirƙira cikin nasara.",
+        user,
+      });
+    } catch (error) {
+      console.error(
+        "❌ WEB REGISTER ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ƙirƙirar account.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// LOGIN
+// ======================================================
+
+app.post(
+  "/api/auth/login",
+  async (req, res) => {
+    try {
+      const phone =
+        normalizePhone(
+          req.body?.phone
+        );
+
+      const password =
+        String(
+          req.body?.password || ""
+        );
+
+      if (!phone || !password) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka phone number da password.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            phone,
+          },
+        });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "Phone number ko password bai dace ba.",
+        });
+      }
+
+      const passwordCorrect =
+        verifyPassword(
+          password,
+          user.passwordHash
+        );
+
+      if (!passwordCorrect) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "Phone number ko password bai dace ba.",
+        });
+      }
+
+      console.log(
+        "✅ WEB USER LOGIN:",
+        user.id
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Login ya yi nasara.",
+
+        user: {
+          id: user.id,
+          fullName:
+            user.fullName,
+          phone:
+            user.phone,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ WEB LOGIN ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen login.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// WEB PAYSTACK PAYMENT INITIALIZE
+// ======================================================
+
+app.post(
+  "/api/web/payments/initialize",
+  async (req, res) => {
+    try {
+      const webUserId =
+        Number(
+          req.body?.webUserId
+        );
+
+      const filmId =
+        Number(
+          req.body?.filmId
+        );
+
+      if (
+        !Number.isInteger(
+          webUserId
+        ) ||
+        webUserId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Web User ID bai dace ba.",
+        });
+      }
+
+      if (
+        !Number.isInteger(
+          filmId
+        ) ||
+        filmId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Film ID bai dace ba.",
+        });
+      }
+
+      if (
+        !process.env
+          .PAYSTACK_SECRET_KEY
+      ) {
+        console.error(
+          "❌ PAYSTACK_SECRET_KEY babu."
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Paystack bai gama saitawa ba.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            id: webUserId,
+          },
+        });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan Web User ba.",
+        });
+      }
+
+      const film =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+        });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
+
+      // =================================
+      // CHECK PURCHASE
+      // =================================
+
+      const existingPurchase =
+        await prisma.webPurchase.findUnique({
+          where: {
+            webUserId_filmId: {
+              webUserId:
+                user.id,
+
+              filmId:
+                film.id,
+            },
+          },
+        });
+
+      if (existingPurchase) {
+        return res.status(409).json({
+          success: false,
+          alreadyPurchased: true,
+
+          message:
+            "Ka riga ka sayi wannan film. Ka shiga My Movies.",
+        });
+      }
+
+      // =================================
+      // CREATE REFERENCE
+      // =================================
+
+      const reference =
+        `WEB_${user.id}_${film.id}_${Date.now()}_${crypto
+          .randomBytes(4)
+          .toString("hex")}`;
+
+      // =================================
+      // CREATE WEB ORDER
+      // =================================
+
+      const order =
+        await prisma.webOrder.create({
+          data: {
+            webUserId:
+              user.id,
+
+            filmId:
+              film.id,
+
+            amount:
+              Number(film.price),
+
+            status:
+              "pending",
+
+            paymentReference:
+              reference,
+          },
+        });
+
+      // =================================
+      // INITIALIZE PAYSTACK
+      // =================================
+
+      const paystackResponse =
+        await fetch(
+          "https://api.paystack.co/transaction/initialize",
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              email:
+                `webuser${user.id}@nigfilm.app`,
+
+              // Kobo
+              amount:
+                Number(
+                  film.price
+                ) * 100,
+
+              reference,
+
+              callback_url:
+                `${PUBLIC_BASE_URL}/web-payment-success`,
+
+              metadata: {
+                type:
+                  "web_film_purchase",
+
+                webUserId:
+                  user.id,
+
+                filmId:
+                  film.id,
+
+                webOrderId:
+                  order.id,
+              },
+            }),
+          }
+        );
+
+      const paystackData =
+        await paystackResponse.json();
+
+      if (
+        !paystackResponse.ok ||
+        !paystackData?.status ||
+        !paystackData?.data
+          ?.authorization_url
+      ) {
+        console.error(
+          "❌ WEB PAYSTACK INITIALIZE ERROR:",
+          paystackData
+        );
+
+        await prisma.webOrder.update({
+          where: {
+            id: order.id,
+          },
+
+          data: {
+            status: "failed",
+          },
+        });
+
+        return res.status(502).json({
+          success: false,
+          message:
+            paystackData?.message ||
+            "An kasa fara Paystack payment.",
+        });
+      }
+
+      console.log(
+        "✅ WEB PAYSTACK INITIALIZED:",
+        reference
+      );
+
+      return res.status(200).json({
+        success: true,
+
+        authorizationUrl:
+          paystackData.data
+            .authorization_url,
+
+        accessCode:
+          paystackData.data
+            .access_code,
+
+        reference,
+
+        order: {
+          id: order.id,
+          amount:
+            order.amount,
+          status:
+            order.status,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ WEB PAYMENT INITIALIZE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen fara payment.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// WEB PAYMENT CALLBACK
+// ======================================================
+
+app.get(
+  "/web-payment-success",
+  async (req, res) => {
+    try {
+      const reference =
+        String(
+          req.query.reference || ""
+        ).trim();
+
+      if (!reference) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Payment Reference Missing",
+              message:
+                "Ba a samu payment reference ba.",
+            })
+          );
+      }
+
+      const verification =
+        await verifyPaystackTransaction(
+          reference
+        );
+
+      if (
+        !verification.success
+      ) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Payment Not Confirmed",
+              message:
+                verification.message,
+            })
+          );
+      }
+
+      const result =
+        await processWebFilmPayment({
+          reference,
+          paidAmount:
+            verification.amount,
+        });
+
+      if (!result.success) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Payment Problem",
+              message:
+                result.message,
+            })
+          );
+      }
+
+      return res
+        .status(200)
+        .send(
+          buildWebPaymentPage({
+            success: true,
+
+            title:
+              "Payment Successful",
+
+            message:
+              "An tabbatar da payment ɗinka. Film ɗin ya shiga My Movies.",
+          })
+        );
+    } catch (error) {
+      console.error(
+        "❌ WEB PAYMENT CALLBACK ERROR:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          buildWebPaymentPage({
+            success: false,
+
+            title:
+              "Payment Error",
+
+            message:
+              "An samu matsala wajen tabbatar da payment.",
+          })
+        );
+    }
+  }
+);
+
+// ======================================================
+// WEB MY MOVIES API
+// ======================================================
+
+app.get(
+  "/api/web/users/:webUserId/movies",
+  async (req, res) => {
+    try {
+      const webUserId =
+        Number(
+          req.params.webUserId
+        );
+
+      if (
+        !Number.isInteger(
+          webUserId
+        ) ||
+        webUserId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Web User ID bai dace ba.",
+        });
+      }
+
+      const purchases =
+        await prisma.webPurchase.findMany({
+          where: {
+            webUserId,
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          include: {
+            film: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                category: true,
+                price: true,
+                bunnyVideoId: true,
+                webVideoUrl: true,
+                createdAt: true,
+              },
+            },
+          },
+        });
+
+      const movies =
+        purchases.map(
+          (purchase) => ({
+            purchaseId:
+              purchase.id,
+
+            purchasedAt:
+              purchase.createdAt,
+
+            ...purchase.film,
+
+            posterUrl:
+              `/api/films/${purchase.film.id}/poster`,
+          })
+        );
+
+      return res.status(200).json({
+        success: true,
+        count: movies.length,
+        movies,
+      });
+    } catch (error) {
+      console.error(
+        "❌ WEB MY MOVIES ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ɗauko My Movies.",
+      });
+    }
+  }
+);
+// ======================================================
+// WEB MOVIE VIDEO STREAM
+// ======================================================
+
+app.get(
+  "/api/web/movies/:filmId/video",
+  async (req, res) => {
+    try {
+      const filmId = Number(req.params.filmId);
+      const webUserId = Number(req.query.webUserId);
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !Number.isInteger(webUserId) ||
+        webUserId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID ko Web User ID bai dace ba.",
+        });
+      }
+
+      // =================================
+      // VERIFY PURCHASE
+      // =================================
+
+      const purchase =
+        await prisma.webPurchase.findUnique({
+          where: {
+            webUserId_filmId: {
+              webUserId,
+              filmId,
+            },
+          },
+
+          include: {
+            film: true,
+          },
+        });
+
+      if (!purchase) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Ba ka sayi wannan film ba.",
+        });
+      }
+
+      const film = purchase.film;
+
+      if (!film?.videoFileId) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu video file na wannan film ba.",
+        });
+      }
+
+      // =================================
+      // GET TELEGRAM FILE LINK
+      // =================================
+
+      const fileLink =
+        await bot.telegram.getFileLink(
+          film.videoFileId
+        );
+
+      const telegramResponse =
+        await fetch(fileLink.href);
+
+      if (!telegramResponse.ok) {
+        console.error(
+          "❌ TELEGRAM VIDEO FETCH FAILED:",
+          telegramResponse.status
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa ɗauko video daga Telegram.",
+        });
+      }
+
+      const contentType =
+        telegramResponse.headers.get(
+          "content-type"
+        ) || "video/mp4";
+
+      const contentLength =
+        telegramResponse.headers.get(
+          "content-length"
+        );
+
+      res.setHeader(
+        "Content-Type",
+        contentType
+      );
+
+      if (contentLength) {
+        res.setHeader(
+          "Content-Length",
+          contentLength
+        );
+      }
+
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store"
+      );
+
+      const buffer =
+        Buffer.from(
+          await telegramResponse.arrayBuffer()
+        );
+
+      return res.send(buffer);
+    } catch (error) {
+      console.error(
+        "❌ WEB VIDEO STREAM ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen kunna film.",
+      });
+    }
+  }
+);
+// ======================================================
+// BUNNY STREAM - CREATE VIDEO
+// ======================================================
+
+app.post(
+  "/api/admin/bunny/create-video",
+  async (req, res) => {
+    try {
+      const filmId = Number(req.body?.filmId);
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "Bunny Stream config bai cika ba.",
+        });
+      }
+
+      const film =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+        });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
+
+      // Idan video ya riga ya samu Bunny ID
+      if (film.bunnyVideoId) {
+        return res.status(200).json({
+          success: true,
+          alreadyExists: true,
+          bunnyVideoId:
+            film.bunnyVideoId,
+          webVideoUrl:
+            film.webVideoUrl,
+        });
+      }
+
+      const bunnyResponse =
+        await fetch(
+          `https://video.bunnycdn.com/library/${libraryId}/videos`,
+          {
+            method: "POST",
+
+            headers: {
+              AccessKey: apiKey,
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              title: film.title,
+            }),
+          }
+        );
+
+      const bunnyData =
+        await bunnyResponse.json();
+
+      if (
+        !bunnyResponse.ok ||
+        !bunnyData?.guid
+      ) {
+        console.error(
+          "❌ BUNNY CREATE VIDEO ERROR:",
+          bunnyData
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa ƙirƙirar video a Bunny Stream.",
+        });
+      }
+
+      const bunnyVideoId =
+        bunnyData.guid;
+
+      const webVideoUrl =
+        `https://player.mediadelivery.net/embed/${libraryId}/${bunnyVideoId}`;
+
+      await prisma.film.update({
+        where: {
+          id: film.id,
+        },
+
+        data: {
+          bunnyVideoId,
+          webVideoUrl,
+        },
+      });
+
+      console.log(
+        "✅ BUNNY VIDEO CREATED:",
+        {
+          filmId: film.id,
+          bunnyVideoId,
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        filmId: film.id,
+        bunnyVideoId,
+        webVideoUrl,
+      });
+    } catch (error) {
+      console.error(
+        "❌ BUNNY CREATE VIDEO ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ƙirƙirar Bunny video.",
+      });
+    }
+  }
+);
+// ======================================================
+// WEB - MY MOVIES
+// ======================================================
+
+app.get(
+  "/api/web/my-movies",
+  async (req, res) => {
+    try {
+      const webUserId = Number(
+        req.query.webUserId
+      );
+
+      if (
+        !Number.isInteger(webUserId) ||
+        webUserId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Web User ID bai dace ba.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            id: webUserId,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan user ba.",
+        });
+      }
+
+      const purchases =
+        await prisma.webPurchase.findMany({
+          where: {
+            webUserId,
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          include: {
+            film: {
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                category: true,
+                price: true,
+                posterFileId: true,
+                bunnyVideoId: true,
+                webVideoUrl: true,
+                createdAt: true,
+              },
+            },
+          },
+        });
+
+      const movies =
+        purchases.map(
+          (purchase) => ({
+            ...purchase.film,
+
+            posterUrl:
+              `/api/films/${purchase.film.id}/poster`,
+          })
+        );
+
+      return res.status(200).json({
+        success: true,
+        count: movies.length,
+        movies,
+      });
+    } catch (error) {
+      console.error(
+        "❌ WEB MY MOVIES ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ɗauko My Movies.",
+      });
+    }
+  }
+);
+// ======================================================
+// WEB - DIRECT SECURE MOVIE DOWNLOAD
+// ======================================================
+
+app.get(
+  "/api/web/movies/:filmId/download",
+  async (req, res) => {
+    try {
+      const filmId = Number(
+        req.params.filmId
+      );
+
+      const webUserId = Number(
+        req.query.webUserId
+      );
+
+      // =================================
+      // VALIDATION
+      // =================================
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !Number.isInteger(webUserId) ||
+        webUserId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Film ID ko User ID bai dace ba.",
+        });
+      }
+
+      // =================================
+      // VERIFY PURCHASE
+      // =================================
+
+      const purchase =
+        await prisma.webPurchase.findFirst({
+          where: {
+            webUserId,
+            filmId,
+          },
+        });
+
+      if (!purchase) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Ba ka sayi wannan film ba.",
+        });
+      }
+
+      // =================================
+      // GET FILM
+      // =================================
+
+      const film =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            bunnyVideoId: true,
+          },
+        });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (!film.bunnyVideoId) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Wannan film bai haɗu da Bunny Stream ba.",
+        });
+      }
+
+      // =================================
+      // BUNNY CONFIG
+      // =================================
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      const tokenKey =
+        process.env.BUNNY_STREAM_TOKEN_KEY;
+
+      const cdnHostname =
+        process.env.BUNNY_STREAM_CDN_HOSTNAME;
+
+      if (
+        !libraryId ||
+        !apiKey ||
+        !tokenKey ||
+        !cdnHostname
+      ) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "Bunny download config bai cika ba.",
+        });
+      }
+
+      // =================================
+      // GET BUNNY VIDEO INFO
+      // =================================
+
+      const infoResponse =
+        await fetch(
+          `https://video.bunnycdn.com/library/${libraryId}/videos/${film.bunnyVideoId}`,
+          {
+            headers: {
+              AccessKey: apiKey,
+              Accept: "application/json",
+            },
+          }
+        );
+
+      if (!infoResponse.ok) {
+        const text =
+          await infoResponse.text();
+
+        console.error(
+          "❌ BUNNY VIDEO INFO ERROR:",
+          infoResponse.status,
+          text
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa samun bayanin film daga Bunny.",
+        });
+      }
+
+      const bunnyVideo =
+        await infoResponse.json();
+
+      // =================================
+      // BEST AVAILABLE MP4
+      // =================================
+
+      const available =
+        String(
+          bunnyVideo.availableResolutions ||
+            ""
+        )
+          .split(",")
+          .map((item) =>
+            item.trim()
+          )
+          .filter(Boolean);
+
+      const preferred =
+        [
+          "1080p",
+          "720p",
+          "480p",
+          "360p",
+          "240p",
+        ].find((resolution) =>
+          available.includes(
+            resolution
+          )
+        );
+
+      if (!preferred) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Film bai gama processing ba tukuna.",
+        });
+      }
+
+      // =================================
+      // BUILD SIGNED BUNNY URL
+      // =================================
+
+      const hostname =
+        cdnHostname
+          .replace(/^https?:\/\//, "")
+          .replace(/\/+$/, "");
+
+      const bunnyPath =
+        `/${film.bunnyVideoId}/play_${preferred}.mp4`;
+
+      const expires =
+        Math.floor(Date.now() / 1000) +
+        15 * 60;
+
+      const signaturePayload =
+        `${bunnyPath}${expires}`;
+
+      const signature =
+        crypto
+          .createHmac(
+            "sha256",
+            tokenKey
+          )
+          .update(signaturePayload)
+          .digest("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=+$/g, "");
+
+      const token =
+        `HS256-${signature}`;
+
+      const bunnyDownloadUrl =
+        `https://${hostname}${bunnyPath}` +
+        `?token=${encodeURIComponent(token)}` +
+        `&expires=${expires}`;
+
+      // =================================
+      // FETCH VIDEO FROM BUNNY
+      // =================================
+
+      const videoResponse =
+        await fetch(
+          bunnyDownloadUrl
+        );
+
+      if (
+        !videoResponse.ok ||
+        !videoResponse.body
+      ) {
+        const errorText =
+          await videoResponse.text();
+
+        console.error(
+          "❌ BUNNY DOWNLOAD FETCH ERROR:",
+          videoResponse.status,
+          errorText
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa ɗauko film domin download.",
+        });
+      }
+
+      // =================================
+      // DOWNLOAD HEADERS
+      // =================================
+
+      const safeTitle =
+        String(
+          film.title ||
+            "NIGFILM"
+        )
+          .replace(
+            /[<>:"/\\|?*\x00-\x1F]/g,
+            "_"
+          )
+          .trim();
+
+      const fileName =
+        `${safeTitle}.mp4`;
+
+      res.setHeader(
+        "Content-Type",
+        videoResponse.headers.get(
+          "content-type"
+        ) || "video/mp4"
+      );
+
+      const contentLength =
+        videoResponse.headers.get(
+          "content-length"
+        );
+
+      if (contentLength) {
+        res.setHeader(
+          "Content-Length",
+          contentLength
+        );
+      }
+
+      // Wannan ne yake tilasta DOWNLOAD
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(
+          fileName
+        )}`
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store"
+      );
+
+      console.log(
+        "⬇️ WEB MOVIE DOWNLOAD STARTED:",
+        {
+          webUserId,
+          filmId,
+          resolution: preferred,
+        }
+      );
+
+      // =================================
+      // STREAM DIRECTLY
+      // Kada mu saka 500MB cikin RAM
+      // =================================
+
+      const stream =
+        Readable.fromWeb(
+          videoResponse.body
+        );
+
+      stream.on(
+        "error",
+        (error) => {
+          console.error(
+            "❌ DOWNLOAD STREAM ERROR:",
+            error
+          );
+
+          if (!res.headersSent) {
+            res.sendStatus(500);
+          } else {
+            res.destroy(error);
+          }
+        }
+      );
+
+      stream.pipe(res);
+    } catch (error) {
+      console.error(
+        "❌ DIRECT DOWNLOAD ERROR:",
+        error
+      );
+
+      if (!res.headersSent) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "An samu matsala wajen download film.",
+        });
+      }
+    }
+  }
+);
+// ======================================================
 // TELEGRAM WEBHOOK
 // ======================================================
 
@@ -457,7 +1885,9 @@ app.post(
   "/telegram-webhook",
   async (req, res) => {
     try {
-      await bot.handleUpdate(req.body);
+      await bot.handleUpdate(
+        req.body
+      );
 
       return res.sendStatus(200);
     } catch (error) {
@@ -471,35 +1901,40 @@ app.post(
   }
 );
 
-// =================================
+// ======================================================
 // HEALTH CHECK
-// =================================
+// ======================================================
 
 app.get("/", (req, res) => {
   return res.status(200).json({
     success: true,
     service: "NIGFILM",
+
     message:
       "✅ NIGFILM BOT & WEB API suna aiki!",
   });
 });
 
-// =================================
-// API HEALTH CHECK
-// =================================
+app.get(
+  "/api/health",
+  (req, res) => {
+    return res.status(200).json({
+      success: true,
+      service:
+        "NIGFILM API",
 
-app.get("/api/health", (req, res) => {
-  return res.status(200).json({
-    success: true,
-    service: "NIGFILM API",
-    database: "PostgreSQL",
-    status: "online",
-  });
-});
+      database:
+        "PostgreSQL",
 
-// =================================
-// PAYMENT SUCCESS PAGE
-// =================================
+      status:
+        "online",
+    });
+  }
+);
+
+// ======================================================
+// TELEGRAM PAYMENT SUCCESS PAGE
+// ======================================================
 
 app.get(
   "/payment-success",
@@ -508,107 +1943,113 @@ app.get(
 <!DOCTYPE html>
 
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
+<meta charset="UTF-8" />
 
-  <title>Payment Successful</title>
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
 
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
+<title>
+Payment Successful
+</title>
 
-      display: flex;
-      align-items: center;
-      justify-content: center;
+<style>
 
-      background: #0b0b0d;
-      color: white;
+body {
+  margin: 0;
+  min-height: 100vh;
 
-      font-family:
-        Arial,
-        sans-serif;
-    }
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    .card {
-      width: 90%;
-      max-width: 450px;
+  background: #0b0b0d;
+  color: white;
 
-      padding: 32px;
+  font-family:
+    Arial,
+    sans-serif;
+}
 
-      border-radius: 20px;
+.card {
+  width: 90%;
+  max-width: 450px;
 
-      background: #18181b;
+  padding: 32px;
 
-      text-align: center;
+  border-radius: 20px;
 
-      box-shadow:
-        0 20px 50px
-        rgba(0, 0, 0, 0.35);
-    }
+  background: #18181b;
 
-    .icon {
-      font-size: 58px;
-    }
+  text-align: center;
 
-    h1 {
-      color: #22c55e;
-    }
+  box-shadow:
+    0 20px 50px
+    rgba(0, 0, 0, 0.35);
+}
 
-    p {
-      color: #d4d4d8;
-      line-height: 1.7;
-    }
+.icon {
+  font-size: 58px;
+}
 
-    a {
-      display: inline-block;
+h1 {
+  color: #22c55e;
+}
 
-      margin-top: 16px;
+p {
+  color: #d4d4d8;
+  line-height: 1.7;
+}
 
-      padding: 13px 24px;
+a {
+  display: inline-block;
 
-      border-radius: 12px;
+  margin-top: 16px;
 
-      background: #e50914;
+  padding: 13px 24px;
 
-      color: white;
+  border-radius: 12px;
 
-      text-decoration: none;
+  background: #d4af37;
 
-      font-weight: bold;
-    }
-  </style>
+  color: #080808;
+
+  text-decoration: none;
+
+  font-weight: bold;
+}
+
+</style>
+
 </head>
 
 <body>
-  <div class="card">
 
-    <div class="icon">
-      ✅
-    </div>
+<div class="card">
 
-    <h1>
-      Payment Successful
-    </h1>
+<div class="icon">
+✅
+</div>
 
-    <p>
-      An karɓi biyan kuɗinka cikin nasara.
-      Idan ka saya ta Telegram,
-      ka koma bot domin karɓar film ɗinka.
-    </p>
+<h1>
+Payment Successful
+</h1>
 
-    <a
-      href="https://t.me/Nigfilm_bot"
-    >
-      Buɗe NIGFILM BOT
-    </a>
+<p>
+An karɓi biyan kuɗinka cikin nasara.
+Ka koma Telegram domin karɓar film ɗinka.
+</p>
 
-  </div>
+<a href="https://t.me/Nigfilm_bot">
+Buɗe NIGFILM BOT
+</a>
+
+</div>
+
 </body>
 
 </html>
@@ -630,9 +2071,11 @@ app.post(
         ];
 
       if (
-        typeof signature !== "string" ||
+        typeof signature !==
+          "string" ||
         !req.rawBody ||
-        !process.env.PAYSTACK_SECRET_KEY
+        !process.env
+          .PAYSTACK_SECRET_KEY
       ) {
         console.log(
           "❌ Missing Paystack signature, raw body or secret key"
@@ -641,13 +2084,15 @@ app.post(
         return res.sendStatus(400);
       }
 
-      const calculatedHash = crypto
-        .createHmac(
-          "sha512",
-          process.env.PAYSTACK_SECRET_KEY
-        )
-        .update(req.rawBody)
-        .digest("hex");
+      const calculatedHash =
+        crypto
+          .createHmac(
+            "sha512",
+            process.env
+              .PAYSTACK_SECRET_KEY
+          )
+          .update(req.rawBody)
+          .digest("hex");
 
       if (
         !securelyCompareHashes(
@@ -662,7 +2107,8 @@ app.post(
         return res.sendStatus(401);
       }
 
-      const event = req.body;
+      const event =
+        req.body;
 
       if (
         event?.event !==
@@ -672,10 +2118,14 @@ app.post(
       }
 
       const reference =
-        event?.data?.reference;
+        String(
+          event?.data?.reference ||
+            ""
+        );
 
       const metadata =
-        event?.data?.metadata || {};
+        event?.data?.metadata ||
+        {};
 
       if (!reference) {
         console.log(
@@ -690,6 +2140,54 @@ app.post(
         reference
       );
 
+      // ==================================================
+      // WEB APP PAYMENT
+      // ==================================================
+
+      const webOrder =
+        await prisma.webOrder.findUnique({
+          where: {
+            paymentReference:
+              reference,
+          },
+        });
+
+      if (
+        webOrder ||
+        metadata.type ===
+          "web_film_purchase"
+      ) {
+        const result =
+          await processWebFilmPayment({
+            reference,
+
+            paidAmount:
+              Number(
+                event?.data?.amount
+              ),
+          });
+
+        if (!result.success) {
+          console.error(
+            "❌ WEB PAYMENT PROCESS FAILED:",
+            result.message
+          );
+
+          return res.sendStatus(400);
+        }
+
+        console.log(
+          "✅ WEB PAYMENT PROCESSED:",
+          reference
+        );
+
+        return res.sendStatus(200);
+      }
+
+      // ==================================================
+      // TELEGRAM PAYMENT
+      // ==================================================
+
       const order =
         await prisma.order.findUnique({
           where: {
@@ -700,20 +2198,22 @@ app.post(
 
       if (!order) {
         console.log(
-          "❌ Order not found:",
+          "❌ Telegram/Web Order not found:",
           reference
         );
 
         return res.sendStatus(200);
       }
 
-      // Paystack amount yana cikin KOBO
-      const paidAmount = Number(
-        event?.data?.amount
-      );
+      const paidAmount =
+        Number(
+          event?.data?.amount
+        );
 
       const expectedAmount =
-        Number(order.amount) * 100;
+        Number(
+          order.amount
+        ) * 100;
 
       if (
         !Number.isFinite(
@@ -735,7 +2235,8 @@ app.post(
       }
 
       if (
-        order.status === "paid"
+        order.status ===
+        "paid"
       ) {
         console.log(
           "ℹ️ Order already processed:",
@@ -762,9 +2263,12 @@ app.post(
       try {
         await bot.telegram.sendMessage(
           order.telegramId,
+
           "✅ An tabbatar da biyan kuɗinka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT ❤️"
         );
-      } catch (messageError) {
+      } catch (
+        messageError
+      ) {
         console.error(
           "PAYMENT CONFIRMATION MESSAGE ERROR:",
           messageError
@@ -772,7 +2276,7 @@ app.post(
       }
 
       console.log(
-        "✅ Payment processed successfully:",
+        "✅ TELEGRAM PAYMENT PROCESSED:",
         reference
       );
 
@@ -788,9 +2292,267 @@ app.post(
   }
 );
 
-// =================================
-// PROCESS SINGLE FILM PAYMENT
-// =================================
+// ======================================================
+// PROCESS WEB FILM PAYMENT
+// ======================================================
+
+async function processWebFilmPayment({
+  reference,
+  paidAmount,
+}) {
+  try {
+    const order =
+      await prisma.webOrder.findUnique({
+        where: {
+          paymentReference:
+            reference,
+        },
+      });
+
+    if (!order) {
+      return {
+        success: false,
+        message:
+          "Ba a samu WebOrder ɗin payment ba.",
+      };
+    }
+
+    const expectedAmount =
+      Number(order.amount) * 100;
+
+    if (
+      !Number.isFinite(
+        paidAmount
+      ) ||
+      paidAmount !==
+        expectedAmount
+    ) {
+      console.error(
+        "❌ WEB PAYMENT AMOUNT MISMATCH:",
+        {
+          reference,
+          paidAmount,
+          expectedAmount,
+        }
+      );
+
+      return {
+        success: false,
+        message:
+          "Adadin kuɗin da aka biya bai dace da farashin film ba.",
+      };
+    }
+
+    if (
+      order.status ===
+      "paid"
+    ) {
+      return {
+        success: true,
+        alreadyProcessed: true,
+      };
+    }
+
+    const film =
+      await prisma.film.findUnique({
+        where: {
+          id: order.filmId,
+        },
+      });
+
+    if (!film) {
+      return {
+        success: false,
+        message:
+          "Ba a samu film ɗin order ba.",
+      };
+    }
+
+    await prisma.$transaction(
+      async (tx) => {
+        const currentOrder =
+          await tx.webOrder.findUnique({
+            where: {
+              id: order.id,
+            },
+          });
+
+        if (
+          !currentOrder ||
+          currentOrder.status ===
+            "paid"
+        ) {
+          return;
+        }
+
+        const existingPurchase =
+          await tx.webPurchase.findUnique({
+            where: {
+              webUserId_filmId: {
+                webUserId:
+                  order.webUserId,
+
+                filmId:
+                  order.filmId,
+              },
+            },
+          });
+
+        if (!existingPurchase) {
+          await tx.webPurchase.create({
+            data: {
+              webUserId:
+                order.webUserId,
+
+              filmId:
+                order.filmId,
+
+              orderId:
+                order.id,
+            },
+          });
+        }
+
+        await tx.webOrder.update({
+          where: {
+            id: order.id,
+          },
+
+          data: {
+            status: "paid",
+          },
+        });
+      }
+    );
+
+    console.log(
+      "✅ WEB PURCHASE CREATED:",
+      {
+        webUserId:
+          order.webUserId,
+
+        filmId:
+          order.filmId,
+
+        reference,
+      }
+    );
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error(
+      "❌ PROCESS WEB PAYMENT ERROR:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "An samu matsala wajen adana WebPurchase.",
+    };
+  }
+}
+
+// ======================================================
+// VERIFY PAYSTACK TRANSACTION
+// ======================================================
+
+async function verifyPaystackTransaction(
+  reference
+) {
+  try {
+    if (
+      !process.env
+        .PAYSTACK_SECRET_KEY
+    ) {
+      return {
+        success: false,
+        message:
+          "PAYSTACK_SECRET_KEY babu.",
+      };
+    }
+
+    const response =
+      await fetch(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(
+          reference
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          },
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (
+      !response.ok ||
+      !data?.status ||
+      data?.data?.status !==
+        "success"
+    ) {
+      console.error(
+        "❌ PAYSTACK VERIFY FAILED:",
+        data
+      );
+
+      return {
+        success: false,
+
+        message:
+          data?.message ||
+          "Payment bai samu tabbaci ba.",
+      };
+    }
+
+    if (
+      String(
+        data.data.reference
+      ) !==
+      String(reference)
+    ) {
+      return {
+        success: false,
+        message:
+          "Payment reference bai dace ba.",
+      };
+    }
+
+    return {
+      success: true,
+
+      amount:
+        Number(
+          data.data.amount
+        ),
+
+      data:
+        data.data,
+    };
+  } catch (error) {
+    console.error(
+      "❌ VERIFY PAYSTACK ERROR:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "An kasa tabbatar da payment daga Paystack.",
+    };
+  }
+}
+
+// ======================================================
+// PROCESS SINGLE TELEGRAM FILM PAYMENT
+// ======================================================
 
 async function processSingleFilmPayment({
   order,
@@ -819,7 +2581,8 @@ async function processSingleFilmPayment({
 
       if (
         !currentOrder ||
-        currentOrder.status === "paid"
+        currentOrder.status ===
+          "paid"
       ) {
         return;
       }
@@ -874,7 +2637,9 @@ async function processSingleFilmPayment({
           "Ga film ɗinka, ka ji daɗin kallo.",
       }
     );
-  } catch (deliveryError) {
+  } catch (
+    deliveryError
+  ) {
     console.error(
       "SINGLE FILM DELIVERY ERROR:",
       deliveryError
@@ -883,15 +2648,16 @@ async function processSingleFilmPayment({
     await bot.telegram
       .sendMessage(
         order.telegramId,
+
         "⚠️ An tabbatar da payment amma tura video ta samu matsala.\n\nKa shiga My Movies domin sake sauke film ɗin."
       )
       .catch(() => {});
   }
 }
 
-// =================================
-// PROCESS CART PAYMENT
-// =================================
+// ======================================================
+// PROCESS TELEGRAM CART PAYMENT
+// ======================================================
 
 async function processCartPayment({
   order,
@@ -899,11 +2665,9 @@ async function processCartPayment({
 }) {
   let filmIds = [];
 
-  // =================================
-  // FILM IDS FROM ORDER DATABASE
-  // =================================
-
-  if (order.cartFilmIds) {
+  if (
+    order.cartFilmIds
+  ) {
     try {
       const parsedFilmIds =
         JSON.parse(
@@ -930,12 +2694,9 @@ async function processCartPayment({
     }
   }
 
-  // =================================
-  // FALLBACK — PAYSTACK METADATA ARRAY
-  // =================================
-
   if (
-    filmIds.length === 0 &&
+    filmIds.length ===
+      0 &&
     Array.isArray(
       metadata?.filmIds
     )
@@ -948,12 +2709,9 @@ async function processCartPayment({
         );
   }
 
-  // =================================
-  // FALLBACK — PAYSTACK JSON STRING
-  // =================================
-
   if (
-    filmIds.length === 0 &&
+    filmIds.length ===
+      0 &&
     typeof metadata?.filmIds ===
       "string"
   ) {
@@ -986,7 +2744,6 @@ async function processCartPayment({
     }
   }
 
-  // Remove duplicates
   filmIds = [
     ...new Set(filmIds),
   ];
@@ -1027,7 +2784,8 @@ async function processCartPayment({
 
       if (
         !currentOrder ||
-        currentOrder.status === "paid"
+        currentOrder.status ===
+          "paid"
       ) {
         return;
       }
@@ -1087,10 +2845,6 @@ async function processCartPayment({
     }
   );
 
-  // =================================
-  // DELIVER FILMS
-  // =================================
-
   for (
     const film of films
   ) {
@@ -1113,7 +2867,9 @@ async function processCartPayment({
             500
           )
       );
-    } catch (deliveryError) {
+    } catch (
+      deliveryError
+    ) {
       console.error(
         `CART DELIVERY ERROR — FILM ${film.id}:`,
         deliveryError
@@ -1122,9 +2878,93 @@ async function processCartPayment({
   }
 }
 
-// =================================
-// SECURE HASH COMPARISON
-// =================================
+// ======================================================
+// WEB AUTH HELPERS
+// ======================================================
+
+function normalizePhone(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "");
+}
+
+function hashPassword(
+  password
+) {
+  const salt =
+    crypto
+      .randomBytes(16)
+      .toString("hex");
+
+  const hash =
+    crypto
+      .scryptSync(
+        password,
+        salt,
+        64
+      )
+      .toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(
+  password,
+  passwordHash
+) {
+  try {
+    const [
+      salt,
+      savedHash,
+    ] =
+      String(
+        passwordHash || ""
+      ).split(":");
+
+    if (
+      !salt ||
+      !savedHash
+    ) {
+      return false;
+    }
+
+    const generatedHash =
+      crypto.scryptSync(
+        password,
+        salt,
+        64
+      );
+
+    const savedHashBuffer =
+      Buffer.from(
+        savedHash,
+        "hex"
+      );
+
+    if (
+      generatedHash.length !==
+      savedHashBuffer.length
+    ) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(
+      generatedHash,
+      savedHashBuffer
+    );
+  } catch {
+    return false;
+  }
+}
+
+// ======================================================
+// PAYSTACK HASH COMPARISON
+// ======================================================
 
 function securelyCompareHashes(
   firstHash,
@@ -1159,76 +2999,254 @@ function securelyCompareHashes(
   }
 }
 
-// =================================
-// START SERVER
-// =================================
+// ======================================================
+// WEB PAYMENT HTML
+// ======================================================
 
-const server = app.listen(
-  PORT,
-  async () => {
-    console.log(
-      `🌐 NIGFILM server yana aiki a port ${PORT}`
+function buildWebPaymentPage({
+  success,
+  title,
+  message,
+}) {
+  const icon =
+    success ? "✅" : "❌";
+
+  const headingColor =
+    success
+      ? "#d4af37"
+      : "#ef4444";
+
+  return `
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8" />
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
+
+<title>
+${escapeHtml(title)}
+</title>
+
+<style>
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: #070707;
+  color: white;
+
+  font-family:
+    Arial,
+    sans-serif;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+
+  padding: 35px 25px;
+
+  text-align: center;
+
+  background: #121212;
+
+  border: 1px solid #292929;
+  border-radius: 22px;
+
+  box-shadow:
+    0 20px 60px
+    rgba(0, 0, 0, 0.45);
+}
+
+.icon {
+  font-size: 60px;
+}
+
+h1 {
+  margin: 15px 0 10px;
+
+  color:
+    ${headingColor};
+}
+
+p {
+  color: #aaaaaa;
+
+  line-height: 1.7;
+}
+
+a {
+  display: inline-block;
+
+  margin-top: 22px;
+
+  padding: 14px 22px;
+
+  background: #d4af37;
+  color: #080808;
+
+  border-radius: 11px;
+
+  text-decoration: none;
+
+  font-weight: 900;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="icon">
+${icon}
+</div>
+
+<h1>
+${escapeHtml(title)}
+</h1>
+
+<p>
+${escapeHtml(message)}
+</p>
+
+<a href="${escapeHtml(WEB_APP_URL)}">
+Komawa NIGFILM
+</a>
+
+</div>
+
+</body>
+
+</html>
+  `;
+}
+
+function escapeHtml(
+  value
+) {
+  return String(
+    value || ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
     );
+}
 
-    try {
-      await bot.telegram.setWebhook(
-        TELEGRAM_WEBHOOK_URL
-      );
+// ======================================================
+// START SERVER
+// ======================================================
 
+const server =
+  app.listen(
+    PORT,
+    async () => {
       console.log(
-        "✅ Telegram Webhook an saita:",
-        TELEGRAM_WEBHOOK_URL
+        `🌐 NIGFILM server yana aiki a port ${PORT}`
       );
-    } catch (error) {
-      console.error(
-        "❌ SET TELEGRAM WEBHOOK ERROR:",
-        error
-      );
+
+      try {
+        await bot.telegram.setWebhook(
+          TELEGRAM_WEBHOOK_URL
+        );
+
+        console.log(
+          "✅ Telegram Webhook an saita:",
+          TELEGRAM_WEBHOOK_URL
+        );
+      } catch (error) {
+        console.error(
+          "❌ SET TELEGRAM WEBHOOK ERROR:",
+          error
+        );
+      }
     }
-  }
-);
+  );
 
 console.log(
   "🤖 NIGFILM BOT & WEB API started successfully."
 );
 
-// =================================
+// ======================================================
 // GRACEFUL SHUTDOWN
-// =================================
+// ======================================================
 
-let isShuttingDown = false;
+let isShuttingDown =
+  false;
 
 async function gracefulShutdown(
   signal
 ) {
-  if (isShuttingDown) {
+  if (
+    isShuttingDown
+  ) {
     return;
   }
 
-  isShuttingDown = true;
+  isShuttingDown =
+    true;
 
   console.log(
     `🛑 Ana rufe server saboda ${signal}...`
   );
 
-  server.close(async () => {
-    try {
-      await prisma.$disconnect();
+  server.close(
+    async () => {
+      try {
+        await prisma.$disconnect();
 
-      console.log(
-        "✅ Prisma da server sun rufe lafiya."
-      );
+        console.log(
+          "✅ Prisma da server sun rufe lafiya."
+        );
 
-      process.exit(0);
-    } catch (error) {
-      console.error(
-        "❌ SHUTDOWN ERROR:",
-        error
-      );
+        process.exit(0);
+      } catch (error) {
+        console.error(
+          "❌ SHUTDOWN ERROR:",
+          error
+        );
 
-      process.exit(1);
+        process.exit(1);
+      }
     }
-  });
+  );
 
   setTimeout(() => {
     console.error(

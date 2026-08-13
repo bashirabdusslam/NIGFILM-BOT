@@ -2703,7 +2703,7 @@ app.get(
             : 0;
 
       console.log(
-        "ðŸ° BUNNY STATUS:",
+        "🎬❌ BUNNY STATUS:",
         {
           filmId,
           bunnyVideoId:
@@ -3348,6 +3348,110 @@ app.post(
         message:
           "An samu matsala wajen upload credentials.",
       });
+    }
+  }
+);
+// ======================================================
+// TELEGRAM PURCHASE DOWNLOAD
+// ======================================================
+
+app.get(
+  "/api/telegram/movies/:filmId/download",
+  async (req, res) => {
+    try {
+      const filmId = Number(
+        req.params.filmId
+      );
+
+      const telegramId = String(
+        req.query.telegramId || ""
+      ).trim();
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !telegramId
+      ) {
+        return res
+          .status(400)
+          .send("Invalid request.");
+      }
+
+      const purchase =
+        await prisma.purchase.findFirst({
+          where: {
+            telegramId,
+            filmId,
+          },
+
+          include: {
+            film: true,
+          },
+        });
+
+      if (!purchase) {
+        return res
+          .status(403)
+          .send(
+            "Ba ka sayi wannan film ba."
+          );
+      }
+
+      const film =
+        purchase.film;
+
+      if (!film?.bunnyVideoId) {
+        return res
+          .status(404)
+          .send(
+            "Download bai samu ba."
+          );
+      }
+
+      const hostname =
+        process.env
+          .BUNNY_STREAM_CDN_HOSTNAME;
+
+      if (!hostname) {
+        console.error(
+          "BUNNY_STREAM_CDN_HOSTNAME missing"
+        );
+
+        return res
+          .status(500)
+          .send(
+            "Download config bai cika ba."
+          );
+      }
+
+      const cleanHostname =
+        hostname
+          .replace(
+            /^https?:\/\//,
+            ""
+          )
+          .replace(
+            /\/+$/,
+            ""
+          );
+
+      const downloadUrl =
+        `https://${cleanHostname}/${film.bunnyVideoId}/play_720p.mp4`;
+
+      return res.redirect(
+        downloadUrl
+      );
+    } catch (error) {
+      console.error(
+        "TELEGRAM DOWNLOAD ERROR:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          "An samu matsala wajen download."
+        );
     }
   }
 );
@@ -4015,7 +4119,7 @@ async function verifyPaystackTransaction(
     };
   } catch (error) {
     console.error(
-      "âŒ VERIFY PAYSTACK ERROR:",
+      " VERIFY PAYSTACK ERROR:",
       error
     );
 
@@ -4026,7 +4130,6 @@ async function verifyPaystackTransaction(
     };
   }
 }
-
 // ======================================================
 // PROCESS SINGLE TELEGRAM FILM PAYMENT
 // ======================================================
@@ -4058,8 +4161,7 @@ async function processSingleFilmPayment({
 
       if (
         !currentOrder ||
-        currentOrder.status ===
-          "paid"
+        currentOrder.status === "paid"
       ) {
         return;
       }
@@ -4103,20 +4205,90 @@ async function processSingleFilmPayment({
   );
 
   try {
-    await bot.telegram.sendVideo(
+    // =================================
+    // NEW BUNNY FILM
+    // =================================
+
+    if (
+      film.bunnyVideoId &&
+      film.webVideoUrl
+    ) {
+      const baseUrl =
+        process.env.PUBLIC_BASE_URL ||
+        "https://nigfilm-bot.onrender.com";
+
+      const downloadUrl =
+        `${baseUrl}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(
+          order.telegramId
+        )}`;
+
+      await bot.telegram.sendMessage(
+        order.telegramId,
+
+        `✅ PAYMENT CONFIRMED\n\n` +
+          `🎬 ${film.title}\n\n` +
+          `An tabbatar da biyan kuɗinka cikin nasara.\n\n` +
+          `Za ka iya kallon film ɗin ko sauke shi.`,
+
+        {
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.url(
+                "▶️ Watch Movie",
+                film.webVideoUrl
+              ),
+            ],
+            [
+              Markup.button.url(
+                "⬇️ Download Movie",
+                downloadUrl
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "🎬 My Movies",
+                "my_movies"
+              ),
+            ],
+          ]),
+        }
+      );
+
+      return;
+    }
+
+    // =================================
+    // OLD TELEGRAM FILM
+    // =================================
+
+    if (film.videoFileId) {
+      await bot.telegram.sendVideo(
+        order.telegramId,
+        film.videoFileId,
+        {
+          caption:
+            `✅ PAYMENT CONFIRMED\n\n` +
+            `🎬 ${film.title}\n\n` +
+            `Na gode da siyan film.\n` +
+            `Ga film ɗinka, ka ji daɗin kallo.`,
+        }
+      );
+
+      return;
+    }
+
+    // =================================
+    // NO VIDEO SOURCE
+    // =================================
+
+    await bot.telegram.sendMessage(
       order.telegramId,
-      film.videoFileId,
-      {
-        caption:
-          `ðŸŽ‰ PAYMENT CONFIRMED\n\n` +
-          `ðŸŽ¬ ${film.title}\n\n` +
-          "Na gode da siyan film.\n" +
-          "Ga film É—inka, ka ji daÉ—in kallo.",
-      }
+
+      `✅ Payment ya tabbata.\n\n` +
+        `⚠️ Amma "${film.title}" bai samu video source ba tukuna.\n\n` +
+        `Ka tuntubi admin.`
     );
-  } catch (
-    deliveryError
-  ) {
+  } catch (deliveryError) {
     console.error(
       "SINGLE FILM DELIVERY ERROR:",
       deliveryError
@@ -4126,12 +4298,11 @@ async function processSingleFilmPayment({
       .sendMessage(
         order.telegramId,
 
-        "âš ï¸ An tabbatar da payment amma tura video ta samu matsala.\n\nKa shiga My Movies domin sake sauke film É—in."
+        "⚠️ Payment ya tabbata amma an samu matsala wajen baka film ɗin.\n\nKa shiga My Movies ko ka tuntubi admin."
       )
       .catch(() => {});
   }
 }
-
 // ======================================================
 // PROCESS TELEGRAM CART PAYMENT
 // ======================================================
@@ -4142,9 +4313,11 @@ async function processCartPayment({
 }) {
   let filmIds = [];
 
-  if (
-    order.cartFilmIds
-  ) {
+  // =================================
+  // GET FILM IDS FROM ORDER
+  // =================================
+
+  if (order.cartFilmIds) {
     try {
       const parsedFilmIds =
         JSON.parse(
@@ -4171,9 +4344,12 @@ async function processCartPayment({
     }
   }
 
+  // =================================
+  // FALLBACK: METADATA ARRAY
+  // =================================
+
   if (
-    filmIds.length ===
-      0 &&
+    filmIds.length === 0 &&
     Array.isArray(
       metadata?.filmIds
     )
@@ -4186,9 +4362,12 @@ async function processCartPayment({
         );
   }
 
+  // =================================
+  // FALLBACK: METADATA STRING
+  // =================================
+
   if (
-    filmIds.length ===
-      0 &&
+    filmIds.length === 0 &&
     typeof metadata?.filmIds ===
       "string"
   ) {
@@ -4221,6 +4400,10 @@ async function processCartPayment({
     }
   }
 
+  // =================================
+  // REMOVE DUPLICATES
+  // =================================
+
   filmIds = [
     ...new Set(filmIds),
   ];
@@ -4232,6 +4415,10 @@ async function processCartPayment({
       `Babu film IDs a cart order ${order.id}`
     );
   }
+
+  // =================================
+  // GET FILMS
+  // =================================
 
   const films =
     await prisma.film.findMany({
@@ -4246,9 +4433,13 @@ async function processCartPayment({
     films.length === 0
   ) {
     throw new Error(
-      `Ba a samu cart films na order ${order.id}`
+      `Ba a samu films na cart order ${order.id} ba.`
     );
   }
+
+  // =================================
+  // SAVE PURCHASES
+  // =================================
 
   await prisma.$transaction(
     async (tx) => {
@@ -4299,6 +4490,10 @@ async function processCartPayment({
         }
       }
 
+      // =================================
+      // REMOVE PURCHASED FILMS FROM CART
+      // =================================
+
       await tx.cart.deleteMany({
         where: {
           telegramId:
@@ -4309,6 +4504,10 @@ async function processCartPayment({
           },
         },
       });
+
+      // =================================
+      // MARK ORDER AS PAID
+      // =================================
 
       await tx.order.update({
         where: {
@@ -4322,21 +4521,99 @@ async function processCartPayment({
     }
   );
 
+  // =================================
+  // DELIVER FILMS
+  // =================================
+
   for (
     const film of films
   ) {
     try {
-      await bot.telegram.sendVideo(
-        order.telegramId,
-        film.videoFileId,
-        {
-          caption:
-            `ðŸŽ‰ PAYMENT CONFIRMED\n\n` +
-            `ðŸŽ¬ ${film.title}\n\n` +
-            "Ga film É—inka, ka ji daÉ—in kallo.",
-        }
-      );
+      // =================================
+      // NEW BUNNY STREAM FILM
+      // =================================
 
+      if (
+        film.bunnyVideoId &&
+        film.webVideoUrl
+      ) {
+        const baseUrl =
+          process.env.PUBLIC_BASE_URL ||
+          "https://nigfilm-bot.onrender.com";
+
+        const downloadUrl =
+          `${baseUrl}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(
+            order.telegramId
+          )}`;
+
+        await bot.telegram.sendMessage(
+          order.telegramId,
+
+          `✅ PAYMENT CONFIRMED\n\n` +
+            `🎬 ${film.title}\n\n` +
+            `An tabbatar da biyan kuɗinka cikin nasara.\n\n` +
+            `Za ka iya kallon film ɗin ko sauke shi zuwa na'urarka.`,
+
+          {
+            ...Markup.inlineKeyboard([
+              [
+                Markup.button.url(
+                  "▶️ Watch Movie",
+                  film.webVideoUrl
+                ),
+              ],
+              [
+                Markup.button.url(
+                  "⬇️ Download Movie",
+                  downloadUrl
+                ),
+              ],
+              [
+                Markup.button.callback(
+                  "🎬 My Movies",
+                  "my_movies"
+                ),
+              ],
+            ]),
+          }
+        );
+      }
+
+      // =================================
+      // OLD TELEGRAM FILM
+      // =================================
+
+      else if (
+        film.videoFileId
+      ) {
+        await bot.telegram.sendVideo(
+          order.telegramId,
+          film.videoFileId,
+          {
+            caption:
+              `✅ PAYMENT CONFIRMED\n\n` +
+              `🎬 ${film.title}\n\n` +
+              `Na gode da siyan film.\n` +
+              `Ga film ɗinka, ka ji daɗin kallo.`,
+          }
+        );
+      }
+
+      // =================================
+      // NO VIDEO SOURCE
+      // =================================
+
+      else {
+        await bot.telegram.sendMessage(
+          order.telegramId,
+
+          `✅ Payment na "${film.title}" ya tabbata.\n\n` +
+            `⚠️ Amma wannan film bai samu video source ba tukuna.\n\n` +
+            `Ka tuntubi admin.`
+        );
+      }
+
+      // Small delay between cart films
       await new Promise(
         (resolve) =>
           setTimeout(
@@ -4348,54 +4625,33 @@ async function processCartPayment({
       deliveryError
     ) {
       console.error(
-        `CART DELIVERY ERROR â€” FILM ${film.id}:`,
+        `CART DELIVERY ERROR — FILM ${film.id}:`,
         deliveryError
       );
+
+      await bot.telegram
+        .sendMessage(
+          order.telegramId,
+
+          `⚠️ Payment na "${film.title}" ya tabbata, amma an samu matsala wajen baka film ɗin.\n\n` +
+            `Ka shiga My Movies ko ka tuntubi admin.`
+        )
+        .catch(() => {});
     }
   }
-}
-// =================================
-// WEB SESSION HELPERS
-// =================================
 
-function createSessionToken() {
-  return crypto
-    .randomBytes(48)
-    .toString("hex");
-}
+  console.log(
+    "✅ TELEGRAM CART PAYMENT DELIVERED:",
+    {
+      orderId:
+        order.id,
 
-function hashSessionToken(token) {
-  return crypto
-    .createHash("sha256")
-    .update(String(token))
-    .digest("hex");
-}
+      telegramId:
+        order.telegramId,
 
-async function createWebSession(webUserId) {
-  const token =
-    createSessionToken();
-
-  const tokenHash =
-    hashSessionToken(token);
-
-  const expiresAt =
-    new Date(
-      Date.now() +
-        7 * 24 * 60 * 60 * 1000
-    );
-
-  await prisma.webSession.create({
-    data: {
-      webUserId,
-      tokenHash,
-      expiresAt,
-    },
-  });
-
-  return {
-    token,
-    expiresAt,
-  };
+      filmIds,
+    }
+  );
 }
 // ======================================================
 // WEB AUTH HELPERS

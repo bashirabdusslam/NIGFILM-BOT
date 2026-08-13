@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as tus from "tus-js-client";
 import "./App.css";
 
@@ -79,6 +79,65 @@ function App() {
     selectedFilm,
     setSelectedFilm,
   ] = useState(null);
+
+  const navigationReadyRef = useRef(false);
+
+  function pageState(nextPage, film = null) {
+    return {
+      nigfilm: true,
+      page: nextPage,
+      filmId: film?.id ? Number(film.id) : null,
+    };
+  }
+
+  function findFilmById(filmId) {
+    const id = Number(filmId);
+    if (!Number.isInteger(id)) return null;
+
+    const purchased = myMovies.find((item) => {
+      const movie = normalizeFilm(item);
+      return Number(movie?.id) === id;
+    });
+
+    if (purchased) return normalizeFilm(purchased);
+
+    return films.find((film) => Number(film?.id) === id) || null;
+  }
+
+  function applyHistoryState(state) {
+    const nextPage = state?.page || "home";
+
+    if (nextPage === "details") {
+      const movie = findFilmById(state?.filmId);
+
+      if (movie) {
+        setSelectedFilm(movie);
+        setPage("details");
+      } else {
+        setSelectedFilm(null);
+        setPage("home");
+      }
+    } else {
+      setSelectedFilm(null);
+      setPage(nextPage);
+    }
+
+    setVideoError("");
+    setPaymentError("");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function navigateTo(nextPage, film = null, { replace = false } = {}) {
+    const state = pageState(nextPage, film);
+
+    if (replace) {
+      window.history.replaceState(state, "", window.location.href);
+    } else {
+      window.history.pushState(state, "", window.location.href);
+    }
+
+    applyHistoryState(state);
+  }
 
   // ===================================================
   // FILMS
@@ -208,6 +267,40 @@ function App() {
     }
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) {
+      navigationReadyRef.current = false;
+      return;
+    }
+
+    if (!navigationReadyRef.current) {
+      window.history.replaceState(
+        pageState("home"),
+        "",
+        window.location.href
+      );
+      navigationReadyRef.current = true;
+    }
+
+    const handlePopState = (event) => {
+      if (event.state?.nigfilm) {
+        applyHistoryState(event.state);
+        return;
+      }
+
+      // Prevent an accidental first Back from immediately leaving NIGFILM.
+      const homeState = pageState("home");
+      window.history.pushState(homeState, "", window.location.href);
+      applyHistoryState(homeState);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [user?.id, films, myMovies]);
+
   // ===================================================
   // FILM NORMALIZER
   // ===================================================
@@ -324,84 +417,56 @@ function App() {
   // ===================================================
 
   function goHome() {
-    setPage("home");
-    setSelectedFilm(null);
-    setVideoError("");
-    setPaymentError("");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    navigateTo("home");
   }
 
   function goSearch() {
-    setPage("home");
-    setSelectedFilm(null);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    navigateTo("home");
 
     setTimeout(() => {
       document
-        .querySelector(
-          ".search-box input"
-        )
+        .querySelector(".search-box input")
         ?.focus();
     }, 300);
   }
 
   function openFilm(film) {
-    const movie =
-      normalizeFilm(film);
+    const movie = normalizeFilm(film);
+    if (!movie) return;
 
-    setSelectedFilm(movie);
-
-    setPage("details");
-
-    setPaymentError("");
-    setVideoError("");
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    navigateTo("details", movie);
   }
 
   function openProfile() {
-    setPage("profile");
-
-    setSelectedFilm(null);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    navigateTo("profile");
   }
 
-  function openAdminUpload() {
-    if (
-      user?.role !== "ADMIN"
-    ) {
+  function openMyMovies() {
+    navigateTo("myMovies");
+    loadMyMovies(false);
+  }
+
+  function goBack() {
+    if (window.history.state?.nigfilm) {
+      window.history.back();
       return;
     }
 
-    setPage("adminUpload");
-    setSelectedFilm(null);
+    navigateTo("home", null, { replace: true });
+  }
+
+  function openAdminUpload() {
+    if (user?.role !== "ADMIN") {
+      return;
+    }
 
     setUploadError("");
     setUploadSuccess("");
     setUploadProgress(0);
-
     setBunnyStatus(null);
     setBunnyStatusError("");
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    navigateTo("adminUpload");
   }
 
   // ===================================================
@@ -653,6 +718,13 @@ function App() {
     setAuthMode("login");
     setPage("home");
 
+    navigationReadyRef.current = false;
+    window.history.replaceState(
+      null,
+      "",
+      window.location.href
+    );
+
     setAdminFilmId("");
     setAdminVideoFile(null);
 
@@ -672,14 +744,8 @@ function App() {
     }
 
     if (changePage) {
-      setPage("myMovies");
-
-      setSelectedFilm(null);
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      openMyMovies();
+      return;
     }
 
     try {
@@ -1799,13 +1865,9 @@ function App() {
           <button
             type="button"
             className="back-button"
-            onClick={() => {
-              if (purchased) {
-                loadMyMovies();
-              } else {
-                goHome();
-              }
-            }}
+            onClick={
+              goBack
+            }
           >
             ← Back
           </button>
@@ -1976,8 +2038,8 @@ function App() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() =>
-                    loadMyMovies()
+                  onClick={
+                    openMyMovies
                   }
                 >
                   🎬 My Movies
@@ -2008,7 +2070,7 @@ function App() {
           goHome={goHome}
           goSearch={goSearch}
           loadMyMovies={
-            loadMyMovies
+            openMyMovies
           }
           openProfile={
             openProfile
@@ -2123,7 +2185,7 @@ function App() {
           goHome={goHome}
           goSearch={goSearch}
           loadMyMovies={
-            loadMyMovies
+            openMyMovies
           }
           openProfile={
             openProfile
@@ -2644,7 +2706,7 @@ function App() {
           goHome={goHome}
           goSearch={goSearch}
           loadMyMovies={
-            loadMyMovies
+            openMyMovies
           }
           openProfile={
             openProfile
@@ -2711,8 +2773,8 @@ function App() {
                 <button
                   type="button"
                   className="buy-now-button"
-                  onClick={() =>
-                    loadMyMovies()
+                  onClick={
+                    openMyMovies
                   }
                 >
                   🎬 My Movies
@@ -2760,7 +2822,7 @@ function App() {
           goHome={goHome}
           goSearch={goSearch}
           loadMyMovies={
-            loadMyMovies
+            openMyMovies
           }
           openProfile={
             openProfile

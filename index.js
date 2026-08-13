@@ -3377,6 +3377,10 @@ app.get(
           .send("Invalid request.");
       }
 
+      // =================================
+      // VERIFY PURCHASE
+      // =================================
+
       const purchase =
         await prisma.purchase.findFirst({
           where: {
@@ -3412,9 +3416,13 @@ app.get(
         process.env
           .BUNNY_STREAM_CDN_HOSTNAME;
 
-      if (!hostname) {
+      const tokenKey =
+        process.env
+          .BUNNY_STREAM_TOKEN_KEY;
+
+      if (!hostname || !tokenKey) {
         console.error(
-          "BUNNY_STREAM_CDN_HOSTNAME missing"
+          "Bunny download config missing"
         );
 
         return res
@@ -3426,20 +3434,47 @@ app.get(
 
       const cleanHostname =
         hostname
-          .replace(
-            /^https?:\/\//,
-            ""
-          )
-          .replace(
-            /\/+$/,
-            ""
-          );
+          .replace(/^https?:\/\//, "")
+          .replace(/\/+$/, "");
 
-      const downloadUrl =
-        `https://${cleanHostname}/${film.bunnyVideoId}/play_720p.mp4`;
+      // =================================
+      // MP4 PATH
+      // =================================
+
+      const filePath =
+        `/${film.bunnyVideoId}/play_720p.mp4`;
+
+      // Token zai yi aiki na awa 1
+      const expires =
+        Math.floor(
+          Date.now() / 1000
+        ) + 60 * 60;
+
+      // =================================
+      // BUNNY CDN TOKEN
+      // =================================
+
+      const tokenBase =
+        tokenKey +
+        filePath +
+        expires;
+
+      const hash =
+        crypto
+          .createHash("sha256")
+          .update(tokenBase)
+          .digest("base64")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
+
+      const signedUrl =
+        `https://${cleanHostname}${filePath}` +
+        `?token=${hash}` +
+        `&expires=${expires}`;
 
       return res.redirect(
-        downloadUrl
+        signedUrl
       );
     } catch (error) {
       console.error(
@@ -3451,6 +3486,183 @@ app.get(
         .status(500)
         .send(
           "An samu matsala wajen download."
+        );
+    }
+  }
+);
+// ======================================================
+// TELEGRAM WATCH PAGE
+// ======================================================
+
+app.get(
+  "/telegram/watch/:filmId",
+  async (req, res) => {
+    try {
+      const filmId = Number(
+        req.params.filmId
+      );
+
+      const telegramId = String(
+        req.query.telegramId || ""
+      ).trim();
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !telegramId
+      ) {
+        return res
+          .status(400)
+          .send("Invalid request.");
+      }
+
+      const purchase =
+        await prisma.purchase.findFirst({
+          where: {
+            telegramId,
+            filmId,
+          },
+
+          include: {
+            film: true,
+          },
+        });
+
+      if (!purchase) {
+        return res
+          .status(403)
+          .send(
+            "Ba ka sayi wannan film ba."
+          );
+      }
+
+      const film =
+        purchase.film;
+
+      if (!film?.webVideoUrl) {
+        return res
+          .status(404)
+          .send(
+            "Film player bai samu ba."
+          );
+      }
+
+      return res.status(200).send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>${escapeHtml(film.title)}</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      background: #000;
+      color: white;
+
+      font-family:
+        Arial,
+        sans-serif;
+    }
+
+    .page {
+      min-height: 100vh;
+
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 16px;
+
+      background: #0b0b0b;
+
+      border-bottom:
+        1px solid #222;
+    }
+
+    .brand {
+      color: #d4af37;
+
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .title {
+      margin-top: 8px;
+
+      font-size: 16px;
+      color: #ddd;
+    }
+
+    .player {
+      flex: 1;
+
+      min-height: 70vh;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+
+      min-height: 70vh;
+
+      border: 0;
+
+      background: #000;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page">
+
+    <div class="header">
+      <div class="brand">
+        NIGFILM
+      </div>
+
+      <div class="title">
+        🎬 ${escapeHtml(film.title)}
+      </div>
+    </div>
+
+    <div class="player">
+      <iframe
+        src="${escapeHtml(film.webVideoUrl)}"
+        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+        allowfullscreen
+      ></iframe>
+    </div>
+
+  </div>
+
+</body>
+</html>
+      `);
+    } catch (error) {
+      console.error(
+        "TELEGRAM WATCH PAGE ERROR:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          "An samu matsala wajen buɗe film."
         );
     }
   }
@@ -4233,10 +4445,15 @@ async function processSingleFilmPayment({
         {
           ...Markup.inlineKeyboard([
             [
-              Markup.button.url(
-                "▶️ Watch Movie",
-                film.webVideoUrl
-              ),
+              Markup.button.webApp(
+  "▶️ Watch Movie",
+  `${
+    process.env.PUBLIC_BASE_URL ||
+    "https://nigfilm-bot.onrender.com"
+  }/telegram/watch/${film.id}?telegramId=${encodeURIComponent(
+    order.telegramId
+  )}`
+)
             ],
             [
               Markup.button.url(
@@ -4557,10 +4774,15 @@ async function processCartPayment({
           {
             ...Markup.inlineKeyboard([
               [
-                Markup.button.url(
-                  "▶️ Watch Movie",
-                  film.webVideoUrl
-                ),
+                Markup.button.webApp(
+  "▶️ Watch Movie",
+  `${
+    process.env.PUBLIC_BASE_URL ||
+    "https://nigfilm-bot.onrender.com"
+  }/telegram/watch/${film.id}?telegramId=${encodeURIComponent(
+    order.telegramId
+  )}`
+)
               ],
               [
                 Markup.button.url(

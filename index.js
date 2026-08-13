@@ -3565,7 +3565,10 @@ app.get(
         ) ||
           "video/mp4"
       );
-
+     res.setHeader(
+  "Access-Control-Allow-Origin",
+  "https://web.telegram.org"
+);
       res.setHeader(
         "Content-Disposition",
         `attachment; filename="${safeTitle}.mp4"`
@@ -3846,6 +3849,266 @@ app.get(
         .status(500)
         .send(
           "An samu matsala wajen buɗe film."
+        );
+    }
+  }
+);
+// ======================================================
+// TELEGRAM DOWNLOAD MINI APP
+// ======================================================
+
+app.get(
+  "/telegram/download/:filmId",
+  async (req, res) => {
+    try {
+      const filmId = Number(req.params.filmId);
+
+      const telegramId = String(
+        req.query.telegramId || ""
+      ).trim();
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !telegramId
+      ) {
+        return res
+          .status(400)
+          .send("Invalid request.");
+      }
+
+      const purchase =
+        await prisma.purchase.findFirst({
+          where: {
+            telegramId,
+            filmId,
+          },
+
+          include: {
+            film: true,
+          },
+        });
+
+      if (!purchase?.film) {
+        return res
+          .status(403)
+          .send(
+            "Ba ka mallaki wannan film ba."
+          );
+      }
+
+      const film = purchase.film;
+
+      if (!film.bunnyVideoId) {
+        return res
+          .status(404)
+          .send(
+            "Download bai samu ba."
+          );
+      }
+
+      const baseUrl =
+        process.env.PUBLIC_BASE_URL ||
+        "https://nigfilm-bot.onrender.com";
+
+      const downloadUrl =
+        `${baseUrl}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(
+          telegramId
+        )}`;
+
+      const safeTitle = String(
+        film.title || `NIGFILM-${film.id}`
+      )
+        .replace(/[<>:"/\\|?*]/g, "")
+        .trim();
+
+      return res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Download Movie</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      background: #080808;
+      color: #fff;
+
+      font-family:
+        Arial,
+        sans-serif;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 480px;
+
+      padding: 28px;
+
+      text-align: center;
+
+      background: #121212;
+
+      border:
+        1px solid #292929;
+
+      border-radius: 22px;
+    }
+
+    h1 {
+      color: #d4af37;
+    }
+
+    p {
+      color: #bbb;
+
+      line-height: 1.6;
+    }
+
+    button {
+      width: 100%;
+
+      padding: 15px;
+
+      margin-top: 15px;
+
+      border: 0;
+      border-radius: 12px;
+
+      background: #d4af37;
+      color: #080808;
+
+      font-size: 16px;
+      font-weight: 800;
+
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 15px;
+
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <h1>
+      🎬 NIGFILM
+    </h1>
+
+    <h2>
+      ${escapeHtml(film.title)}
+    </h2>
+
+    <p>
+      Danna maballin da ke ƙasa domin
+      sauke film ɗin zuwa na'urarka.
+    </p>
+
+    <button
+      id="downloadButton"
+      type="button"
+    >
+      ⬇️ Download Movie
+    </button>
+
+    <div id="status"></div>
+
+  </div>
+
+<script>
+  const tg =
+    window.Telegram?.WebApp;
+
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  const button =
+    document.getElementById(
+      "downloadButton"
+    );
+
+  const status =
+    document.getElementById(
+      "status"
+    );
+
+  button.addEventListener(
+    "click",
+    () => {
+      if (
+        !tg ||
+        typeof tg.downloadFile !==
+          "function"
+      ) {
+        status.textContent =
+          "Telegram ɗinka bai goyi bayan native download ba.";
+
+        return;
+      }
+
+      status.textContent =
+        "Ana shirya download...";
+
+      tg.downloadFile(
+        {
+          url: ${JSON.stringify(downloadUrl)},
+          file_name: ${JSON.stringify(
+            `${safeTitle}.mp4`
+          )},
+        },
+
+        (accepted) => {
+          status.textContent =
+            accepted
+              ? "✅ Download ya fara."
+              : "An soke download.";
+        }
+      );
+    }
+  );
+</script>
+
+</body>
+</html>
+      `);
+    } catch (error) {
+      console.error(
+        "TELEGRAM DOWNLOAD PAGE ERROR:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          "An samu matsala wajen buɗe download."
         );
     }
   }
@@ -4638,10 +4901,12 @@ async function processSingleFilmPayment({
               ),
             ],
             [
-              Markup.button.url(
-                "⬇️ Download Movie",
-                downloadUrl
-              ),
+              Markup.button.webApp(
+  "⬇️ Download Movie",
+  `${baseUrl}/telegram/download/${film.id}?telegramId=${encodeURIComponent(
+    order.telegramId
+  )}`
+)
             ],
             [
               Markup.button.callback(
@@ -4967,10 +5232,12 @@ async function processCartPayment({
                 ),
               ],
               [
-                Markup.button.url(
-                  "⬇️ Download Movie",
-                  downloadUrl
-                ),
+                Markup.button.webApp(
+  "⬇️ Download Movie",
+  `${baseUrl}/telegram/download/${film.id}?telegramId=${encodeURIComponent(
+    order.telegramId
+  )}`
+)
               ],
               [
                 Markup.button.callback(

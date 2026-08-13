@@ -4342,6 +4342,7 @@ async function verifyPaystackTransaction(
     };
   }
 }
+
 // ======================================================
 // PROCESS SINGLE TELEGRAM FILM PAYMENT
 // ======================================================
@@ -4383,7 +4384,6 @@ async function processSingleFilmPayment({
           where: {
             telegramId:
               order.telegramId,
-
             filmId:
               film.id,
           },
@@ -4394,10 +4394,8 @@ async function processSingleFilmPayment({
           data: {
             telegramId:
               order.telegramId,
-
             filmId:
               film.id,
-
             orderId:
               order.id,
           },
@@ -4408,7 +4406,6 @@ async function processSingleFilmPayment({
         where: {
           id: order.id,
         },
-
         data: {
           status: "paid",
         },
@@ -4418,7 +4415,7 @@ async function processSingleFilmPayment({
 
   try {
     // =================================
-    // NEW BUNNY FILM
+    // NEW BUNNY STREAM FILM
     // =================================
 
     if (
@@ -4429,8 +4426,15 @@ async function processSingleFilmPayment({
         process.env.PUBLIC_BASE_URL ||
         "https://nigfilm-bot.onrender.com";
 
+      const watchUrl =
+        `${baseUrl}/telegram/watch/${film.id}` +
+        `?telegramId=${encodeURIComponent(
+          order.telegramId
+        )}`;
+
       const downloadUrl =
-        `${baseUrl}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(
+        `${baseUrl}/api/telegram/movies/${film.id}/download` +
+        `?telegramId=${encodeURIComponent(
           order.telegramId
         )}`;
 
@@ -4440,20 +4444,15 @@ async function processSingleFilmPayment({
         `✅ PAYMENT CONFIRMED\n\n` +
           `🎬 ${film.title}\n\n` +
           `An tabbatar da biyan kuɗinka cikin nasara.\n\n` +
-          `Za ka iya kallon film ɗin ko sauke shi.`,
+          `Za ka iya kallon film ɗin ko sauke shi zuwa na'urarka.`,
 
         {
           ...Markup.inlineKeyboard([
             [
               Markup.button.webApp(
-  "▶️ Watch Movie",
-  `${
-    process.env.PUBLIC_BASE_URL ||
-    "https://nigfilm-bot.onrender.com"
-  }/telegram/watch/${film.id}?telegramId=${encodeURIComponent(
-    order.telegramId
-  )}`
-)
+                "▶️ Watch Movie",
+                watchUrl
+              ),
             ],
             [
               Markup.button.url(
@@ -4515,11 +4514,13 @@ async function processSingleFilmPayment({
       .sendMessage(
         order.telegramId,
 
-        "⚠️ Payment ya tabbata amma an samu matsala wajen baka film ɗin.\n\nKa shiga My Movies ko ka tuntubi admin."
+        `⚠️ Payment ya tabbata amma an samu matsala wajen baka film ɗin.\n\n` +
+          `Ka shiga My Movies ko ka tuntubi admin.`
       )
       .catch(() => {});
   }
 }
+
 // ======================================================
 // PROCESS TELEGRAM CART PAYMENT
 // ======================================================
@@ -4683,7 +4684,6 @@ async function processCartPayment({
             where: {
               telegramId:
                 order.telegramId,
-
               filmId:
                 film.id,
             },
@@ -4696,10 +4696,8 @@ async function processCartPayment({
             data: {
               telegramId:
                 order.telegramId,
-
               filmId:
                 film.id,
-
               orderId:
                 order.id,
             },
@@ -4730,7 +4728,6 @@ async function processCartPayment({
         where: {
           id: order.id,
         },
-
         data: {
           status: "paid",
         },
@@ -4758,8 +4755,15 @@ async function processCartPayment({
           process.env.PUBLIC_BASE_URL ||
           "https://nigfilm-bot.onrender.com";
 
+        const watchUrl =
+          `${baseUrl}/telegram/watch/${film.id}` +
+          `?telegramId=${encodeURIComponent(
+            order.telegramId
+          )}`;
+
         const downloadUrl =
-          `${baseUrl}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(
+          `${baseUrl}/api/telegram/movies/${film.id}/download` +
+          `?telegramId=${encodeURIComponent(
             order.telegramId
           )}`;
 
@@ -4775,14 +4779,9 @@ async function processCartPayment({
             ...Markup.inlineKeyboard([
               [
                 Markup.button.webApp(
-  "▶️ Watch Movie",
-  `${
-    process.env.PUBLIC_BASE_URL ||
-    "https://nigfilm-bot.onrender.com"
-  }/telegram/watch/${film.id}?telegramId=${encodeURIComponent(
-    order.telegramId
-  )}`
-)
+                  "▶️ Watch Movie",
+                  watchUrl
+                ),
               ],
               [
                 Markup.button.url(
@@ -4835,7 +4834,6 @@ async function processCartPayment({
         );
       }
 
-      // Small delay between cart films
       await new Promise(
         (resolve) =>
           setTimeout(
@@ -4867,10 +4865,8 @@ async function processCartPayment({
     {
       orderId:
         order.id,
-
       telegramId:
         order.telegramId,
-
       filmIds,
     }
   );

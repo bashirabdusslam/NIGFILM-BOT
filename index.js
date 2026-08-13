@@ -3408,9 +3408,13 @@ app.get(
         return res
           .status(404)
           .send(
-            "Download bai samu ba."
+            "Ba a samu video ɗin wannan film ba."
           );
       }
+
+      // =================================
+      // BUNNY CONFIG
+      // =================================
 
       const hostname =
         process.env
@@ -3420,9 +3424,12 @@ app.get(
         process.env
           .BUNNY_STREAM_TOKEN_KEY;
 
-      if (!hostname || !tokenKey) {
+      if (
+        !hostname ||
+        !tokenKey
+      ) {
         console.error(
-          "Bunny download config missing"
+          "BUNNY DOWNLOAD CONFIG MISSING"
         );
 
         return res
@@ -3434,32 +3441,40 @@ app.get(
 
       const cleanHostname =
         hostname
-          .replace(/^https?:\/\//, "")
-          .replace(/\/+$/, "");
+          .replace(
+            /^https?:\/\//,
+            ""
+          )
+          .replace(
+            /\/+$/,
+            ""
+          );
 
       // =================================
-      // MP4 PATH
+      // MP4 FILE
       // =================================
+      //
+      // Idan video ɗin ba shi da 720p,
+      // daga baya za mu sa automatic
+      // resolution detection.
+      //
 
       const filePath =
         `/${film.bunnyVideoId}/play_720p.mp4`;
 
-      // Token zai yi aiki na awa 1
+      // Signed URL expires in 1 hour
       const expires =
         Math.floor(
           Date.now() / 1000
-        ) + 60 * 60;
-
-      // =================================
-      // BUNNY CDN TOKEN
-      // =================================
+        ) +
+        60 * 60;
 
       const tokenBase =
         tokenKey +
         filePath +
         expires;
 
-      const hash =
+      const token =
         crypto
           .createHash("sha256")
           .update(tokenBase)
@@ -3468,25 +3483,193 @@ app.get(
           .replace(/\//g, "_")
           .replace(/=/g, "");
 
-      const signedUrl =
+      const bunnyUrl =
         `https://${cleanHostname}${filePath}` +
-        `?token=${hash}` +
+        `?token=${token}` +
         `&expires=${expires}`;
 
-      return res.redirect(
-        signedUrl
+      // =================================
+      // SUPPORT RESUME / RANGE
+      // =================================
+
+      const requestHeaders = {};
+
+      const range =
+        req.headers.range;
+
+      if (range) {
+        requestHeaders.Range =
+          range;
+      }
+
+      // =================================
+      // FETCH FROM BUNNY
+      // =================================
+
+      const bunnyResponse =
+        await fetch(
+          bunnyUrl,
+          {
+            headers:
+              requestHeaders,
+          }
+        );
+
+      if (
+        !bunnyResponse.ok &&
+        bunnyResponse.status !==
+          206
+      ) {
+        console.error(
+          "BUNNY DOWNLOAD FETCH ERROR:",
+          bunnyResponse.status
+        );
+
+        return res
+          .status(
+            bunnyResponse.status
+          )
+          .send(
+            "An kasa ɗauko film daga server."
+          );
+      }
+
+      // =================================
+      // DOWNLOAD FILE NAME
+      // =================================
+
+      const safeTitle =
+        String(
+          film.title ||
+          `NIGFILM-${film.id}`
+        )
+          .replace(
+            /[<>:"/\\|?*\x00-\x1F]/g,
+            ""
+          )
+          .trim() ||
+        `NIGFILM-${film.id}`;
+
+      // =================================
+      // FORCE DOWNLOAD
+      // =================================
+
+      res.status(
+        bunnyResponse.status
       );
+
+      res.setHeader(
+        "Content-Type",
+        bunnyResponse.headers.get(
+          "content-type"
+        ) ||
+          "video/mp4"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${safeTitle}.mp4"`
+      );
+
+      const contentLength =
+        bunnyResponse.headers.get(
+          "content-length"
+        );
+
+      if (contentLength) {
+        res.setHeader(
+          "Content-Length",
+          contentLength
+        );
+      }
+
+      const contentRange =
+        bunnyResponse.headers.get(
+          "content-range"
+        );
+
+      if (contentRange) {
+        res.setHeader(
+          "Content-Range",
+          contentRange
+        );
+      }
+
+      const acceptRanges =
+        bunnyResponse.headers.get(
+          "accept-ranges"
+        );
+
+      if (acceptRanges) {
+        res.setHeader(
+          "Accept-Ranges",
+          acceptRanges
+        );
+      } else {
+        res.setHeader(
+          "Accept-Ranges",
+          "bytes"
+        );
+      }
+
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store"
+      );
+
+      if (
+        !bunnyResponse.body
+      ) {
+        return res
+          .status(502)
+          .end();
+      }
+
+      // =================================
+      // STREAM — BA BUFFER BA
+      // =================================
+
+      const stream =
+        Readable.fromWeb(
+          bunnyResponse.body
+        );
+
+      stream.on(
+        "error",
+        (error) => {
+          console.error(
+            "DOWNLOAD STREAM ERROR:",
+            error
+          );
+
+          if (!res.headersSent) {
+            res.sendStatus(500);
+          } else {
+            res.destroy(
+              error
+            );
+          }
+        }
+      );
+
+      stream.pipe(res);
     } catch (error) {
       console.error(
         "TELEGRAM DOWNLOAD ERROR:",
         error
       );
 
-      return res
-        .status(500)
-        .send(
-          "An samu matsala wajen download."
-        );
+      if (
+        !res.headersSent
+      ) {
+        return res
+          .status(500)
+          .send(
+            "An samu matsala wajen sauke film."
+          );
+      }
+
+      return res.end();
     }
   }
 );

@@ -61,7 +61,7 @@ model Film {
 
   // Telegram
   posterFileId String?
-  videoFileId  String
+  videoFileId  String?
 
   // Web App
   webVideoUrl  String?

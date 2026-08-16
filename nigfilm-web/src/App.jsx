@@ -379,19 +379,6 @@ function App() {
   ] = useState("");
 
   // ===================================================
-  // ADMIN - ADD NEW FILM
-  // ===================================================
-
-  const [adminNewTitle, setAdminNewTitle] = useState("");
-  const [adminNewDescription, setAdminNewDescription] = useState("");
-  const [adminNewCategory, setAdminNewCategory] = useState("");
-  const [adminNewPrice, setAdminNewPrice] = useState("");
-  const [adminNewFeatured, setAdminNewFeatured] = useState(false);
-  const [adminCreatingFilm, setAdminCreatingFilm] = useState(false);
-  const [adminCreateError, setAdminCreateError] = useState("");
-  const [adminCreateSuccess, setAdminCreateSuccess] = useState("");
-
-  // ===================================================
   // ADMIN BUNNY UPLOAD
   // ===================================================
 
@@ -757,22 +744,6 @@ function App() {
     setAdminManageSuccess("");
 
     navigateTo("adminManageFilms");
-  }
-
-  function openAdminAddFilm() {
-    if (user?.role !== "ADMIN") {
-      return;
-    }
-
-    setAdminNewTitle("");
-    setAdminNewDescription("");
-    setAdminNewCategory("");
-    setAdminNewPrice("");
-    setAdminNewFeatured(false);
-    setAdminCreateError("");
-    setAdminCreateSuccess("");
-
-    navigateTo("adminAddFilm");
   }
 
   // ===================================================
@@ -1735,124 +1706,6 @@ function App() {
         error?.message ||
           "An samu matsala wajen upload."
       );
-    }
-  }
-
-  // ===================================================
-  // ADMIN - CREATE NEW FILM
-  // ===================================================
-
-  async function createAdminFilm() {
-    const title = adminNewTitle.trim();
-    const description = adminNewDescription.trim();
-    const category = adminNewCategory.trim();
-    const price = Number(adminNewPrice);
-
-    if (!title) {
-      setAdminCreateError(
-        language === "HAUSA"
-          ? "Ka rubuta sunan film."
-          : "Enter the movie title."
-      );
-      return;
-    }
-
-    if (!description) {
-      setAdminCreateError(
-        language === "HAUSA"
-          ? "Ka rubuta bayanin film."
-          : "Enter the movie description."
-      );
-      return;
-    }
-
-    if (!category) {
-      setAdminCreateError(
-        language === "HAUSA"
-          ? "Ka rubuta category."
-          : "Enter a category."
-      );
-      return;
-    }
-
-    if (!Number.isInteger(price) || price < 0) {
-      setAdminCreateError(
-        language === "HAUSA"
-          ? "Ka saka price mai kyau."
-          : "Enter a valid whole-number price."
-      );
-      return;
-    }
-
-    try {
-      setAdminCreatingFilm(true);
-      setAdminCreateError("");
-      setAdminCreateSuccess("");
-
-      const response = await fetch(`${API_URL}/api/admin/films`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getSessionToken()}`,
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          category,
-          price,
-          featured: adminNewFeatured,
-        }),
-      });
-
-      const data = await readJson(response);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            (language === "HAUSA"
-              ? "An kasa ƙirƙirar sabon film."
-              : "Could not create the new movie.")
-        );
-      }
-
-      const createdFilm = normalizeFilm(data?.film);
-
-      if (!createdFilm?.id) {
-        throw new Error(
-          language === "HAUSA"
-            ? "Backend bai dawo da sabon film ɗin ba."
-            : "The backend did not return the new movie."
-        );
-      }
-
-      setFilms((currentFilms) => {
-        const withoutDuplicate = currentFilms.filter(
-          (film) => Number(film.id) !== Number(createdFilm.id)
-        );
-        return [createdFilm, ...withoutDuplicate];
-      });
-
-      setAdminFilmId(String(createdFilm.id));
-      setAdminCreateSuccess(
-        language === "HAUSA"
-          ? `✅ An ƙirƙiri "${createdFilm.title}". Ana buɗe wurin upload...`
-          : `✅ "${createdFilm.title}" was created. Opening uploads...`
-      );
-
-      setTimeout(() => {
-        openAdminUpload();
-        setAdminFilmId(String(createdFilm.id));
-      }, 700);
-    } catch (error) {
-      console.error("ADMIN CREATE FILM ERROR:", error);
-      setAdminCreateError(
-        error?.message ||
-          (language === "HAUSA"
-            ? "An samu matsala wajen ƙirƙirar film."
-            : "There was a problem creating the movie.")
-      );
-    } finally {
-      setAdminCreatingFilm(false);
     }
   }
 
@@ -3133,7 +2986,6 @@ function App() {
   if (
     (
       page === "adminUpload" ||
-      page === "adminAddFilm" ||
       page === "adminManageFilms"
     ) &&
     user?.role !== "ADMIN"
@@ -3169,173 +3021,6 @@ function App() {
               >
                 ← Home
               </button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // ===================================================
-  // ADMIN ADD NEW FILM PAGE
-  // ===================================================
-
-  if (page === "adminAddFilm") {
-    const isHausa = language === "HAUSA";
-
-    return (
-      <div className="app">
-        {header}
-
-        <main className="movie-details">
-          <button
-            type="button"
-            className="back-button"
-            onClick={openProfile}
-          >
-            {isHausa ? "← Komawa Profile" : "← Back to Profile"}
-          </button>
-
-          <div className="movie-details-card">
-            <div
-              className="details-content"
-              style={{ gridColumn: "1 / -1" }}
-            >
-              <p className="small-title">NIGFILM ADMIN</p>
-              <h2>➕ {isHausa ? "Ƙara Sabon Film" : "Add New Movie"}</h2>
-
-              <p className="details-description">
-                {isHausa
-                  ? "Cika bayanan film ɗin. Bayan an ajiye shi, za a kai ka wurin saka trailer da cikakken video."
-                  : "Enter the movie details. After saving, you will continue to the trailer and full-video uploads."}
-              </p>
-
-              <div className="admin-upload-field">
-                <label htmlFor="admin-new-title">
-                  🎬 {isHausa ? "Sunan Film" : "Movie Title"}
-                </label>
-                <input
-                  id="admin-new-title"
-                  type="text"
-                  value={adminNewTitle}
-                  placeholder={isHausa ? "Misali: Labarina" : "Example: My Story"}
-                  disabled={adminCreatingFilm}
-                  onChange={(event) => setAdminNewTitle(event.target.value)}
-                />
-              </div>
-
-              <div className="admin-upload-field">
-                <label htmlFor="admin-new-description">
-                  📝 {isHausa ? "Bayanin Film" : "Description"}
-                </label>
-                <textarea
-                  id="admin-new-description"
-                  rows={6}
-                  value={adminNewDescription}
-                  placeholder={
-                    isHausa
-                      ? "Rubuta taƙaitaccen bayani game da film..."
-                      : "Write a short description of the movie..."
-                  }
-                  disabled={adminCreatingFilm}
-                  onChange={(event) =>
-                    setAdminNewDescription(event.target.value)
-                  }
-                />
-              </div>
-
-              <div className="admin-upload-field">
-                <label htmlFor="admin-new-category">
-                  🎭 {isHausa ? "Rukuni/Category" : "Category"}
-                </label>
-                <input
-                  id="admin-new-category"
-                  type="text"
-                  list="nigfilm-category-options"
-                  value={adminNewCategory}
-                  placeholder="Hausa, India, American, Series..."
-                  disabled={adminCreatingFilm}
-                  onChange={(event) => setAdminNewCategory(event.target.value)}
-                />
-                <datalist id="nigfilm-category-options">
-                  <option value="Hausa" />
-                  <option value="India Hausa" />
-                  <option value="American" />
-                  <option value="Series" />
-                </datalist>
-              </div>
-
-              <div className="admin-upload-field">
-                <label htmlFor="admin-new-price">
-                  💰 {isHausa ? "Farashi (₦)" : "Price (₦)"}
-                </label>
-                <input
-                  id="admin-new-price"
-                  type="number"
-                  min="0"
-                  step="1"
-                  inputMode="numeric"
-                  value={adminNewPrice}
-                  placeholder="200"
-                  disabled={adminCreatingFilm}
-                  onChange={(event) => setAdminNewPrice(event.target.value)}
-                />
-              </div>
-
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  margin: "18px 0",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={adminNewFeatured}
-                  disabled={adminCreatingFilm}
-                  onChange={(event) =>
-                    setAdminNewFeatured(event.target.checked)
-                  }
-                />
-                ⭐ {isHausa ? "Nuna shi a Featured Movies" : "Show in Featured Movies"}
-              </label>
-
-              {adminCreateError && (
-                <div className="auth-error">❌ {adminCreateError}</div>
-              )}
-
-              {adminCreateSuccess && (
-                <div className="admin-upload-success">
-                  {adminCreateSuccess}
-                </div>
-              )}
-
-              <div className="details-actions">
-                <button
-                  type="button"
-                  className="buy-now-button"
-                  disabled={adminCreatingFilm}
-                  onClick={createAdminFilm}
-                >
-                  {adminCreatingFilm
-                    ? isHausa
-                      ? "💾 Ana Ajiyewa..."
-                      : "💾 Saving..."
-                    : isHausa
-                      ? "💾 Ajiye, Sai Upload"
-                      : "💾 Save and Continue to Upload"}
-                </button>
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  disabled={adminCreatingFilm}
-                  onClick={openProfile}
-                >
-                  {isHausa ? "Soke" : "Cancel"}
-                </button>
-              </div>
             </div>
           </div>
         </main>
@@ -4431,19 +4116,6 @@ function App() {
                   "ADMIN" && (
                   <button
                     type="button"
-                    className="buy-now-button"
-                    onClick={
-                      openAdminAddFilm
-                    }
-                  >
-                    ➕ {language === "HAUSA" ? "Ƙara Sabon Film" : "Add New Movie"}
-                  </button>
-                )}
-
-                {user?.role ===
-                  "ADMIN" && (
-                  <button
-                    type="button"
                     className="secondary-button"
                     onClick={
                       openAdminUpload
@@ -5432,4 +5104,4 @@ async function readJson(
   }
 }
 
-export default App;s
+export default App;

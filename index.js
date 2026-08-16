@@ -2090,6 +2090,405 @@ app.get(
     }
   }
 );
+// ======================================================
+// ADMIN - GET ALL FILMS FOR MANAGEMENT
+// ======================================================
+
+app.get(
+  "/api/admin/films",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const films =
+        await prisma.film.findMany({
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            price: true,
+
+            posterFileId: true,
+            posterUrl: true,
+
+            bunnyVideoId: true,
+            webVideoUrl: true,
+
+            featured: true,
+
+            trailerEnabled: true,
+            trailerUrl: true,
+            trailerBunnyVideoId: true,
+
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      const result =
+        films.map((film) => ({
+          ...film,
+
+          posterUrl:
+            film.posterUrl ||
+            `/api/films/${film.id}/poster`,
+        }));
+
+      return res.status(200).json({
+        success: true,
+        count: result.length,
+        films: result,
+      });
+    } catch (error) {
+      console.error(
+        "❌ ADMIN GET FILMS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ɗauko fina-finai na Admin.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - UPDATE FILM
+// ======================================================
+
+app.patch(
+  "/api/admin/films/:filmId",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId =
+        Number(req.params.filmId);
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Film ID bai dace ba.",
+        });
+      }
+
+      const existingFilm =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      if (!existingFilm) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
+
+      const title =
+        req.body?.title !== undefined
+          ? String(
+              req.body.title
+            ).trim()
+          : undefined;
+
+      const description =
+        req.body?.description !==
+        undefined
+          ? String(
+              req.body.description
+            ).trim()
+          : undefined;
+
+      const category =
+        req.body?.category !== undefined
+          ? String(
+              req.body.category
+            ).trim()
+          : undefined;
+
+      let price;
+
+      if (
+        req.body?.price !== undefined
+      ) {
+        price =
+          Number(req.body.price);
+
+        if (
+          !Number.isInteger(price) ||
+          price < 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Price bai dace ba.",
+          });
+        }
+      }
+
+      let featured;
+
+      if (
+        req.body?.featured !== undefined
+      ) {
+        if (
+          typeof req.body.featured !==
+          "boolean"
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Featured ya zama true ko false.",
+          });
+        }
+
+        featured =
+          req.body.featured;
+      }
+
+      if (
+        title !== undefined &&
+        title.length < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Title ba zai zama empty ba.",
+        });
+      }
+
+      if (
+        description !== undefined &&
+        description.length < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Description ba zai zama empty ba.",
+        });
+      }
+
+      if (
+        category !== undefined &&
+        category.length < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Category ba zai zama empty ba.",
+        });
+      }
+
+      const data = {};
+
+      if (title !== undefined) {
+        data.title = title;
+      }
+
+      if (
+        description !== undefined
+      ) {
+        data.description =
+          description;
+      }
+
+      if (category !== undefined) {
+        data.category = category;
+      }
+
+      if (price !== undefined) {
+        data.price = price;
+      }
+
+      if (featured !== undefined) {
+        data.featured =
+          featured;
+      }
+
+      if (
+        Object.keys(data).length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Babu wani bayani da aka turo domin update.",
+        });
+      }
+
+      const updatedFilm =
+        await prisma.film.update({
+          where: {
+            id: filmId,
+          },
+
+          data,
+
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            price: true,
+
+            posterFileId: true,
+            posterUrl: true,
+
+            bunnyVideoId: true,
+            webVideoUrl: true,
+
+            featured: true,
+
+            trailerEnabled: true,
+            trailerUrl: true,
+            trailerBunnyVideoId: true,
+
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "An gyara film cikin nasara.",
+
+        film: {
+          ...updatedFilm,
+
+          posterUrl:
+            updatedFilm.posterUrl ||
+            `/api/films/${updatedFilm.id}/poster`,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ ADMIN UPDATE FILM ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen gyara film.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - FEATURED ON / OFF
+// ======================================================
+
+app.patch(
+  "/api/admin/films/:filmId/featured",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId =
+        Number(req.params.filmId);
+
+      const featured =
+        req.body?.featured;
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Film ID bai dace ba.",
+        });
+      }
+
+      if (
+        typeof featured !==
+        "boolean"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Featured ya zama true ko false.",
+        });
+      }
+
+      const existingFilm =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      if (!existingFilm) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan film ba.",
+        });
+      }
+
+      const film =
+        await prisma.film.update({
+          where: {
+            id: filmId,
+          },
+
+          data: {
+            featured,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            featured: true,
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          featured
+            ? "An saka film a Featured."
+            : "An cire film daga Featured.",
+
+        film,
+      });
+    } catch (error) {
+      console.error(
+        "❌ ADMIN FEATURED ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen canza Featured.",
+      });
+    }
+  }
+);
 // =================================
 // REQUIRE ADMIN
 // =================================

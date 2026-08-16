@@ -477,6 +477,118 @@ app.get(
   }
 );
 // ======================================================
+// WEB AUTH HELPERS
+// ======================================================
+
+function normalizePhone(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/-/g, "");
+}
+
+function hashPassword(password) {
+  const salt = crypto
+    .randomBytes(16)
+    .toString("hex");
+
+  const hash = crypto
+    .scryptSync(
+      String(password),
+      salt,
+      64
+    )
+    .toString("hex");
+
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, passwordHash) {
+  try {
+    const [salt, savedHash] =
+      String(passwordHash || "").split(":");
+
+    if (!salt || !savedHash) {
+      return false;
+    }
+
+    const generatedHash =
+      crypto.scryptSync(
+        String(password),
+        salt,
+        64
+      );
+
+    const savedHashBuffer =
+      Buffer.from(savedHash, "hex");
+
+    if (
+      generatedHash.length !==
+      savedHashBuffer.length
+    ) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(
+      generatedHash,
+      savedHashBuffer
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hashSessionToken(token) {
+  return crypto
+    .createHash("sha256")
+    .update(String(token || ""))
+    .digest("hex");
+}
+
+async function createWebSession(webUserId) {
+  const userId = Number(webUserId);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    throw new Error(
+      "Invalid Web User ID for session."
+    );
+  }
+
+  const token = crypto
+    .randomBytes(48)
+    .toString("hex");
+
+  const tokenHash =
+    hashSessionToken(token);
+
+  const expiresAt = new Date(
+    Date.now() +
+      30 * 24 * 60 * 60 * 1000
+  );
+
+  await prisma.webSession.deleteMany({
+    where: {
+      webUserId: userId,
+      expiresAt: {
+        lt: new Date(),
+      },
+    },
+  });
+
+  await prisma.webSession.create({
+    data: {
+      webUserId: userId,
+      tokenHash,
+      expiresAt,
+    },
+  });
+
+  return {
+    token,
+    expiresAt,
+  };
+}
+// ======================================================
 // REGISTER
 // ======================================================
 
@@ -5321,68 +5433,11 @@ async function processCartPayment({
     }
   );
 }
+
 // ======================================================
 // WEB SESSION HELPERS
 // ======================================================
 
-function hashSessionToken(token) {
-  return crypto
-    .createHash("sha256")
-    .update(String(token || ""))
-    .digest("hex");
-}
-
-async function createWebSession(webUserId) {
-  const userId = Number(webUserId);
-
-  if (
-    !Number.isInteger(userId) ||
-    userId <= 0
-  ) {
-    throw new Error(
-      "Invalid Web User ID for session."
-    );
-  }
-
-  // Random secure token
-  const token = crypto
-    .randomBytes(48)
-    .toString("hex");
-
-  const tokenHash =
-    hashSessionToken(token);
-
-  // Session zai yi kwanaki 30
-  const expiresAt = new Date(
-    Date.now() +
-      30 * 24 * 60 * 60 * 1000
-  );
-
-  // Goge expired sessions na wannan user
-  await prisma.webSession.deleteMany({
-    where: {
-      webUserId: userId,
-
-      expiresAt: {
-        lt: new Date(),
-      },
-    },
-  });
-
-  // Create new session
-  await prisma.webSession.create({
-    data: {
-      webUserId: userId,
-      tokenHash,
-      expiresAt,
-    },
-  });
-
-  return {
-    token,
-    expiresAt,
-  };
-}
 // ======================================================
 // PAYSTACK HASH COMPARISON
 // ======================================================

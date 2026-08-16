@@ -4106,7 +4106,6 @@ function MovieRow({
     </section>
   );
 }
-
 function TrailerRow({
   title,
   films,
@@ -4116,6 +4115,8 @@ function TrailerRow({
   trailerPlayerUrl,
   trailerLabel,
 }) {
+  const [previewId, setPreviewId] = useState(null);
+
   if (!Array.isArray(films) || films.length === 0) {
     return null;
   }
@@ -4128,27 +4129,93 @@ function TrailerRow({
       </div>
 
       <div className="trailer-row">
-        {films.map((film) => (
-          <article className="trailer-card" key={film.id}>
-            <div className="trailer-thumb">
-              <img
-                src={posterSrc(film)}
-                alt={film.title}
-                loading="lazy"
-                onError={handlePosterError}
-              />
-              <button type="button" onClick={() => openFilm(film)}>
-                ▶ {trailerLabel}
-              </button>
-            </div>
-            <strong>{film.title}</strong>
-          </article>
-        ))}
+        {films.map((film) => {
+          const trailerUrl = trailerPlayerUrl(film);
+          const previewing =
+            Number(previewId) === Number(film.id);
+
+          return (
+            <article
+              className={`trailer-card ${
+                previewing ? "is-previewing" : ""
+              }`}
+              key={film.id}
+              onMouseEnter={() => {
+                if (trailerUrl) {
+                  setPreviewId(film.id);
+                }
+              }}
+              onMouseLeave={() => {
+                setPreviewId(null);
+              }}
+            >
+              <div
+                className="trailer-thumb"
+                onClick={() => {
+                  if (!trailerUrl) {
+                    openFilm(film);
+                    return;
+                  }
+
+                  setPreviewId((current) =>
+                    Number(current) === Number(film.id)
+                      ? null
+                      : film.id
+                  );
+                }}
+              >
+                {!previewing ? (
+                  <>
+                    <img
+                      src={posterSrc(film)}
+                      alt={film.title}
+                      loading="lazy"
+                      onError={handlePosterError}
+                    />
+
+                    <div className="trailer-preview-overlay">
+                      <span className="trailer-preview-play">
+                        ▶
+                      </span>
+
+                      <span className="trailer-preview-text">
+                        {trailerLabel}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <iframe
+                    className="trailer-auto-preview"
+                    src={`${trailerUrl}${
+                      trailerUrl.includes("?") ? "&" : "?"
+                    }autoplay=true&muted=true`}
+                    title={`${film.title} trailer preview`}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+
+              <div className="trailer-card-bottom">
+                <strong>{film.title}</strong>
+
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openFilm(film);
+                  }}
+                >
+                  Duba Film →
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
 }
-
 // =====================================================
 // MOVIE GRID
 // =====================================================

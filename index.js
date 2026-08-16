@@ -2489,6 +2489,160 @@ app.patch(
     }
   }
 );
+// ======================================================
+// ADMIN - ADD NEW FILM
+// ======================================================
+
+app.post(
+  "/api/admin/films",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const title =
+        String(
+          req.body?.title || ""
+        ).trim();
+
+      const description =
+        String(
+          req.body?.description || ""
+        ).trim();
+
+      const category =
+        String(
+          req.body?.category || ""
+        ).trim();
+
+      const price =
+        Number(
+          req.body?.price
+        );
+
+      const featured =
+        req.body?.featured === true;
+
+      // =================================
+      // VALIDATION
+      // =================================
+
+      if (!title) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka sunan film.",
+        });
+      }
+
+      if (!description) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka description.",
+        });
+      }
+
+      if (!category) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka category.",
+        });
+      }
+
+      if (
+        !Number.isInteger(price) ||
+        price < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka price mai kyau.",
+        });
+      }
+
+      // =================================
+      // CREATE FILM
+      // =================================
+
+      const film =
+        await prisma.film.create({
+          data: {
+            title,
+            description,
+            category,
+            price,
+            featured,
+
+            // Za mu saka poster/video daga baya
+            posterFileId: null,
+            posterUrl: null,
+
+            bunnyVideoId: null,
+            webVideoUrl: null,
+
+            trailerEnabled: false,
+            trailerUrl: null,
+            trailerBunnyVideoId: null,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            price: true,
+
+            posterFileId: true,
+            posterUrl: true,
+
+            bunnyVideoId: true,
+            webVideoUrl: true,
+
+            featured: true,
+
+            trailerEnabled: true,
+            trailerUrl: true,
+            trailerBunnyVideoId: true,
+
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+      console.log(
+        "✅ ADMIN FILM CREATED:",
+        film.id,
+        film.title
+      );
+
+      return res.status(201).json({
+        success: true,
+
+        message:
+          "An ƙirƙiri sabon film cikin nasara.",
+
+        film: {
+          ...film,
+
+          posterUrl:
+            film.posterUrl ||
+            `/api/films/${film.id}/poster`,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ ADMIN CREATE FILM ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen ƙirƙirar sabon film.",
+      });
+    }
+  }
+);
 // =================================
 // REQUIRE ADMIN
 // =================================

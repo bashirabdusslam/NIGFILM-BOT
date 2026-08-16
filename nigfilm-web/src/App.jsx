@@ -14,6 +14,97 @@ const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
   "726332";
 
+const UI_TEXT = {
+  HAUSA: {
+    search: "Nemo fina-finai...",
+    categories: "Rukuni",
+    discover: "GANO",
+    latestMovies: "Sabbin Fina-finai",
+    trailers: "Tallan Fina-finai",
+    featured: "Zaɓaɓɓun Fina-finai",
+    hausaMovies: "Fina-finan Hausa",
+    indiaMovies: "India Fassara",
+    americanMovies: "Fina-finan Amurka",
+    series: "Series",
+    browseMovies: "Duba Fina-finai",
+    home: "Gida",
+    searchNav: "Nema",
+    myMovies: "Fina-finaina",
+    profile: "Profile",
+    welcome: "Barka",
+    goodMorning: "Barka da Safiya",
+    goodAfternoon: "Barka da Rana",
+    goodEvening: "Barka da Dare",
+    watchMovie: "Kalli Film",
+    viewMovie: "Duba Film",
+    buyNow: "Saya Yanzu",
+    download: "Sauke",
+    theme: "Theme",
+    language: "Harshe",
+    blackGold: "Black & Gold",
+    whiteGold: "White & Gold",
+    english: "English",
+    hausa: "Hausa",
+    accountSettings: "Saitunan Account",
+    trailer: "Kalli Trailer",
+    noTrailer: "Babu trailer a wannan film tukuna.",
+    premiumCinema: "Fina-finai masu kyau a hannunka.",
+  },
+  ENGLISH: {
+    search: "Search movies...",
+    categories: "Categories",
+    discover: "DISCOVER",
+    latestMovies: "Latest Movies",
+    trailers: "Movie Trailers",
+    featured: "Featured Movies",
+    hausaMovies: "Hausa Movies",
+    indiaMovies: "India Dubbed",
+    americanMovies: "American Movies",
+    series: "Series",
+    browseMovies: "Browse Movies",
+    home: "Home",
+    searchNav: "Search",
+    myMovies: "My Movies",
+    profile: "Profile",
+    welcome: "Welcome",
+    goodMorning: "Good Morning",
+    goodAfternoon: "Good Afternoon",
+    goodEvening: "Good Evening",
+    watchMovie: "Watch Movie",
+    viewMovie: "View Movie",
+    buyNow: "Buy Now",
+    download: "Download",
+    theme: "Theme",
+    language: "Language",
+    blackGold: "Black & Gold",
+    whiteGold: "White & Gold",
+    english: "English",
+    hausa: "Hausa",
+    accountSettings: "Account Settings",
+    trailer: "Watch Trailer",
+    noTrailer: "No trailer is available for this movie yet.",
+    premiumCinema: "Premium movies in your hands.",
+  },
+};
+
+const FALLBACK_POSTER =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stop-color="#17191f"/>
+          <stop offset="1" stop-color="#07080b"/>
+        </linearGradient>
+      </defs>
+      <rect width="600" height="900" fill="url(#g)"/>
+      <circle cx="300" cy="390" r="85" fill="#d4af37" opacity="0.18"/>
+      <polygon points="278,340 278,440 365,390" fill="#d4af37"/>
+      <text x="300" y="560" text-anchor="middle" fill="#d4af37" font-family="Arial" font-size="38" font-weight="700">NIGFILM</text>
+      <text x="300" y="610" text-anchor="middle" fill="#8b8e96" font-family="Arial" font-size="20">Movie Poster</text>
+    </svg>
+  `);
+
 // =====================================================
 // APP
 // =====================================================
@@ -67,6 +158,46 @@ function App() {
 
   const [authError, setAuthError] =
     useState("");
+
+  // ===================================================
+  // LANGUAGE + THEME
+  // ===================================================
+
+  const [language, setLanguage] = useState(() =>
+    localStorage.getItem("nigfilm_language") || "HAUSA"
+  );
+
+  const [theme, setTheme] = useState(() =>
+    localStorage.getItem("nigfilm_theme") || "BLACK_GOLD"
+  );
+
+  const t = (key) =>
+    UI_TEXT[language]?.[key] ||
+    UI_TEXT.ENGLISH[key] ||
+    key;
+
+  useEffect(() => {
+    localStorage.setItem("nigfilm_language", language);
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("nigfilm_theme", theme);
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  function timeGreeting() {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return t("goodMorning");
+    }
+
+    if (hour >= 12 && hour < 17) {
+      return t("goodAfternoon");
+    }
+
+    return t("goodEvening");
+  }
 
   // ===================================================
   // PAGE
@@ -410,6 +541,33 @@ function App() {
     }
 
     return "";
+  }
+
+
+  function trailerPlayerUrl(film) {
+    if (!film || film.trailerEnabled === false) {
+      return "";
+    }
+
+    if (film.trailerUrl) {
+      return film.trailerUrl;
+    }
+
+    if (film.trailerBunnyVideoId) {
+      return (
+        `https://player.mediadelivery.net/embed/` +
+        `${BUNNY_LIBRARY_ID}/` +
+        `${film.trailerBunnyVideoId}`
+      );
+    }
+
+    return "";
+  }
+
+  function handlePosterError(event) {
+    if (event.currentTarget.src !== FALLBACK_POSTER) {
+      event.currentTarget.src = FALLBACK_POSTER;
+    }
   }
 
   // ===================================================
@@ -1808,8 +1966,7 @@ function App() {
     <header className="header">
       <div>
         <p className="welcome">
-          Welcome,{" "}
-          {user.fullName}
+          {timeGreeting()}, {user.fullName}
         </p>
 
         <h1>
@@ -1817,16 +1974,42 @@ function App() {
         </h1>
       </div>
 
-      <button
-        type="button"
-        className="profile"
-        title="Profile"
-        onClick={
-          openProfile
-        }
-      >
-        👤
-      </button>
+      <div className="header-actions">
+        <button
+          type="button"
+          className="mini-control"
+          title={t("language")}
+          onClick={() =>
+            setLanguage((current) =>
+              current === "HAUSA" ? "ENGLISH" : "HAUSA"
+            )
+          }
+        >
+          {language === "HAUSA" ? "HA" : "EN"}
+        </button>
+
+        <button
+          type="button"
+          className="mini-control"
+          title={t("theme")}
+          onClick={() =>
+            setTheme((current) =>
+              current === "BLACK_GOLD" ? "WHITE_GOLD" : "BLACK_GOLD"
+            )
+          }
+        >
+          {theme === "BLACK_GOLD" ? "☾" : "☀"}
+        </button>
+
+        <button
+          type="button"
+          className="profile"
+          title={t("profile")}
+          onClick={openProfile}
+        >
+          👤
+        </button>
+      </div>
     </header>
   );
 
@@ -1882,6 +2065,7 @@ function App() {
                   movie.title
                 }
                 className="details-poster"
+                onError={handlePosterError}
               />
 
               <span className="details-price-badge">
@@ -1925,6 +2109,25 @@ function App() {
                 {movie.description ||
                   "Babu cikakken bayanin wannan film tukuna."}
               </p>
+
+              {trailerPlayerUrl(movie) && (
+                <div className="trailer-panel">
+                  <div className="trailer-panel-heading">
+                    <span>🎞️</span>
+                    <strong>{t("trailer")}</strong>
+                  </div>
+
+                  <div className="bunny-player trailer-player">
+                    <iframe
+                      src={trailerPlayerUrl(movie)}
+                      title={`${movie.title} trailer`}
+                      loading="lazy"
+                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+              )}
 
               {purchased &&
                 playerUrl && (
@@ -2176,6 +2379,7 @@ function App() {
                   openFilm
                 }
                 purchased
+                handlePosterError={handlePosterError}
               />
             )}
         </section>
@@ -2769,6 +2973,52 @@ function App() {
                 My Movies ɗinka.
               </p>
 
+              <div className="preference-panel">
+                <h3>⚙️ {t("accountSettings")}</h3>
+
+                <div className="preference-grid">
+                  <div className="preference-card">
+                    <span>{t("language")}</span>
+                    <div className="segmented-control">
+                      <button
+                        type="button"
+                        className={language === "HAUSA" ? "active" : ""}
+                        onClick={() => setLanguage("HAUSA")}
+                      >
+                        Hausa
+                      </button>
+                      <button
+                        type="button"
+                        className={language === "ENGLISH" ? "active" : ""}
+                        onClick={() => setLanguage("ENGLISH")}
+                      >
+                        English
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="preference-card">
+                    <span>{t("theme")}</span>
+                    <div className="segmented-control">
+                      <button
+                        type="button"
+                        className={theme === "BLACK_GOLD" ? "active" : ""}
+                        onClick={() => setTheme("BLACK_GOLD")}
+                      >
+                        Black & Gold
+                      </button>
+                      <button
+                        type="button"
+                        className={theme === "WHITE_GOLD" ? "active" : ""}
+                        onClick={() => setTheme("WHITE_GOLD")}
+                      >
+                        White & Gold
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="details-actions">
                 <button
                   type="button"
@@ -2848,7 +3098,7 @@ function App() {
 
           <input
             type="text"
-            placeholder="Search movies..."
+            placeholder={t("search")}
             value={search}
             onChange={(
               event
@@ -2869,14 +3119,15 @@ function App() {
           </span>
 
           <h2>
-            Watch the movies
-            <br />
-            you love.
+            {language === "HAUSA" ? (
+              <>Kalli fina-finan<br />da kake so.</>
+            ) : (
+              <>Watch the movies<br />you love.</>
+            )}
           </h2>
 
           <p>
-            Hausa • India Fassara •
-            American • Series
+            {t("premiumCinema")}
           </p>
 
           <button
@@ -2894,7 +3145,7 @@ function App() {
                 );
             }}
           >
-            🎬 Browse Movies
+            🎬 {t("browseMovies")}
           </button>
         </div>
       </section>
@@ -2902,7 +3153,7 @@ function App() {
       <section className="section">
         <div className="section-heading">
           <h2>
-            Categories
+            {t("categories")}
           </h2>
         </div>
 
@@ -2968,13 +3219,13 @@ function App() {
         <div className="section-heading">
           <div>
             <p className="small-title">
-              DISCOVER
+              {t("discover")}
             </p>
 
             <h2>
               {activeCategory ===
               "All"
-                ? "Latest Movies"
+                ? t("latestMovies")
                 : activeCategory}
             </h2>
           </div>
@@ -3030,20 +3281,98 @@ function App() {
 
         {!filmsLoading &&
           !filmsError &&
-          filteredFilms.length >
-            0 && (
-            <MovieGrid
-              films={
-                filteredFilms
+          filteredFilms.length > 0 &&
+          (search.trim() || activeCategory !== "All") && (
+            <MovieRow
+              films={filteredFilms}
+              posterSrc={posterSrc}
+              openFilm={openFilm}
+              handlePosterError={handlePosterError}
+              label={
+                activeCategory === "All"
+                  ? t("latestMovies")
+                  : activeCategory
               }
-              posterSrc={
-                posterSrc
-              }
-              openFilm={
-                openFilm
-              }
-              purchased={false}
             />
+          )}
+
+        {!filmsLoading &&
+          !filmsError &&
+          !search.trim() &&
+          activeCategory === "All" && (
+            <div className="streaming-rows">
+              {films.some((film) => film.featured) && (
+                <MovieRow
+                  title={t("featured")}
+                  films={films.filter((film) => film.featured)}
+                  posterSrc={posterSrc}
+                  openFilm={openFilm}
+                  handlePosterError={handlePosterError}
+                />
+              )}
+
+              {films.some((film) => trailerPlayerUrl(film)) && (
+                <TrailerRow
+                  title={t("trailers")}
+                  films={films.filter((film) => trailerPlayerUrl(film))}
+                  posterSrc={posterSrc}
+                  openFilm={openFilm}
+                  handlePosterError={handlePosterError}
+                  trailerPlayerUrl={trailerPlayerUrl}
+                  trailerLabel={t("trailer")}
+                />
+              )}
+
+              <MovieRow
+                title={t("latestMovies")}
+                films={films.slice(0, 18)}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={handlePosterError}
+              />
+
+              <MovieRow
+                title={t("hausaMovies")}
+                films={films.filter((film) =>
+                  String(film.category || "").toLowerCase().includes("hausa")
+                )}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={handlePosterError}
+              />
+
+              <MovieRow
+                title={t("indiaMovies")}
+                films={films.filter((film) => {
+                  const category = String(film.category || "").toLowerCase();
+                  return category.includes("india") || category.includes("indian");
+                })}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={handlePosterError}
+              />
+
+              <MovieRow
+                title={t("americanMovies")}
+                films={films.filter((film) => {
+                  const category = String(film.category || "").toLowerCase();
+                  return category.includes("american") || category.includes("america");
+                })}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={handlePosterError}
+              />
+
+              <MovieRow
+                title={t("series")}
+                films={films.filter((film) =>
+                  String(film.category || "").toLowerCase().includes("series")
+                )}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={handlePosterError}
+              />
+            </div>
           )}
       </section>
 
@@ -3063,6 +3392,106 @@ function App() {
 }
 
 // =====================================================
+// HORIZONTAL MOVIE ROW
+// =====================================================
+
+function MovieRow({
+  title,
+  label,
+  films,
+  posterSrc,
+  openFilm,
+  handlePosterError,
+}) {
+  if (!Array.isArray(films) || films.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="movie-row-section">
+      {(title || label) && (
+        <div className="row-heading">
+          <h3>{title || label}</h3>
+          <span>{films.length}</span>
+        </div>
+      )}
+
+      <div className="movie-row">
+        {films.map((film) => (
+          <article className="row-card" key={film.id}>
+            <button
+              type="button"
+              className="row-poster-button"
+              onClick={() => openFilm(film)}
+            >
+              <img
+                src={posterSrc(film)}
+                alt={film.title}
+                loading="lazy"
+                onError={handlePosterError}
+              />
+
+              <span className="row-price">
+                ₦{Number(film.price || 0).toLocaleString()}
+              </span>
+
+              <span className="row-play">▶</span>
+            </button>
+
+            <div className="row-card-info">
+              <strong>{film.title}</strong>
+              <span>{film.category || "Movie"}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TrailerRow({
+  title,
+  films,
+  posterSrc,
+  openFilm,
+  handlePosterError,
+  trailerPlayerUrl,
+  trailerLabel,
+}) {
+  if (!Array.isArray(films) || films.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="movie-row-section trailer-row-section">
+      <div className="row-heading">
+        <h3>🎞️ {title}</h3>
+        <span>{films.length}</span>
+      </div>
+
+      <div className="trailer-row">
+        {films.map((film) => (
+          <article className="trailer-card" key={film.id}>
+            <div className="trailer-thumb">
+              <img
+                src={posterSrc(film)}
+                alt={film.title}
+                loading="lazy"
+                onError={handlePosterError}
+              />
+              <button type="button" onClick={() => openFilm(film)}>
+                ▶ {trailerLabel}
+              </button>
+            </div>
+            <strong>{film.title}</strong>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// =====================================================
 // MOVIE GRID
 // =====================================================
 
@@ -3071,6 +3500,7 @@ function MovieGrid({
   posterSrc,
   openFilm,
   purchased,
+  handlePosterError,
 }) {
   return (
     <div className="movie-grid">
@@ -3118,6 +3548,7 @@ function MovieGrid({
                   }
                   className="poster"
                   loading="lazy"
+                  onError={handlePosterError}
                 />
 
                 {!purchased && (

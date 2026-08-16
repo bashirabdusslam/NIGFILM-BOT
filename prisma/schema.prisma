@@ -25,14 +25,28 @@ enum WebUserRole {
   ADMIN
 }
 
+enum AppLanguage {
+  HAUSA
+  ENGLISH
+}
+
+enum AppTheme {
+  BLACK_GOLD
+  WHITE_GOLD
+}
+
 model WebUser {
   id           Int         @id @default(autoincrement())
   fullName     String
   phone        String      @unique
   passwordHash String
   role         WebUserRole @default(USER)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+
+  language AppLanguage @default(HAUSA)
+  theme    AppTheme    @default(BLACK_GOLD)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   webPurchases WebPurchase[]
   webOrders    WebOrder[]
@@ -59,14 +73,29 @@ model Film {
   category    String
   price       Int
 
-  // Telegram
+  // Telegram poster
   posterFileId String?
-  videoFileId  String?
 
-  // Web App
-  webVideoUrl  String?
+  // Permanent web/app poster
+  posterUrl String?
+
+  // Old Telegram video
+  videoFileId String?
+
+  // Bunny full movie
   bunnyVideoId String?
-  createdAt    DateTime @default(now())
+  webVideoUrl  String?
+
+  // Trailer
+  trailerBunnyVideoId String?
+  trailerUrl          String?
+  trailerEnabled      Boolean @default(false)
+
+  // Home/featured display
+  featured Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   carts     Cart[]
   orders    Order[]
@@ -74,6 +103,10 @@ model Film {
 
   webOrders    WebOrder[]
   webPurchases WebPurchase[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([featured])
 }
 
 model Order {
@@ -91,11 +124,14 @@ model Order {
   bankName                String?
   virtualAccountReference String?
 
-  film      Film       @relation(fields: [filmId], references: [id])
-  user      User       @relation(fields: [telegramId], references: [telegramId])
+  film Film @relation(fields: [filmId], references: [id])
+  user User @relation(fields: [telegramId], references: [telegramId])
+
   purchases Purchase[]
 
   @@index([telegramId])
+  @@index([filmId])
+  @@index([status])
 }
 
 model WebOrder {
@@ -113,6 +149,8 @@ model WebOrder {
   webPurchases WebPurchase[]
 
   @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
 }
 
 model Purchase {
@@ -127,6 +165,8 @@ model Purchase {
   user  User  @relation(fields: [telegramId], references: [telegramId])
 
   @@index([telegramId])
+  @@index([filmId])
+  @@index([orderId])
 }
 
 model WebPurchase {
@@ -142,6 +182,8 @@ model WebPurchase {
 
   @@unique([webUserId, filmId])
   @@index([webUserId])
+  @@index([filmId])
+  @@index([orderId])
 }
 
 model AdminSession {
@@ -162,6 +204,7 @@ model Cart {
 
   @@unique([telegramId, filmId])
   @@index([telegramId])
+  @@index([filmId])
 }
 
 model UserSession {

@@ -128,7 +128,6 @@ registerBunnyFilmHandler();
 // ======================================================
 // NIGFILM WEB API
 // ======================================================
-
 // ======================================================
 // GET ALL FILMS
 // ======================================================
@@ -146,10 +145,19 @@ app.get("/api/films", async (req, res) => {
         description: true,
         category: true,
         price: true,
+
         posterFileId: true,
+        posterUrl: true,
 
         bunnyVideoId: true,
-webVideoUrl: true,
+        webVideoUrl: true,
+
+        featured: true,
+
+        trailerEnabled: true,
+        trailerUrl: true,
+        trailerBunnyVideoId: true,
+
         createdAt: true,
       },
     });
@@ -158,6 +166,7 @@ webVideoUrl: true,
       ...film,
 
       posterUrl:
+        film.posterUrl ||
         `/api/films/${film.id}/poster`,
     }));
 
@@ -168,14 +177,14 @@ webVideoUrl: true,
     });
   } catch (error) {
     console.error(
-      "âŒ GET FILMS API ERROR:",
+      "❌ GET FILMS API ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
       message:
-        "An samu matsala wajen É—auko fina-finai.",
+        "An samu matsala wajen ɗauko fina-finai.",
     });
   }
 });
@@ -214,7 +223,19 @@ app.get(
             description: true,
             category: true,
             price: true,
+
             posterFileId: true,
+            posterUrl: true,
+
+            bunnyVideoId: true,
+            webVideoUrl: true,
+
+            featured: true,
+
+            trailerEnabled: true,
+            trailerUrl: true,
+            trailerBunnyVideoId: true,
+
             createdAt: true,
           },
         });
@@ -234,24 +255,24 @@ app.get(
           ...film,
 
           posterUrl:
+            film.posterUrl ||
             `/api/films/${film.id}/poster`,
         },
       });
     } catch (error) {
       console.error(
-        "âŒ GET SINGLE FILM API ERROR:",
+        "❌ GET SINGLE FILM API ERROR:",
         error
       );
 
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko film.",
+          "An samu matsala wajen ɗauko film.",
       });
     }
   }
 );
-
 // ======================================================
 // GET CATEGORIES
 // ======================================================
@@ -1658,17 +1679,27 @@ app.get(
 
           include: {
             film: {
-              select: {
-                id: true,
-                title: true,
-                description: true,
-                category: true,
-                price: true,
-                posterFileId: true,
-                bunnyVideoId: true,
-                webVideoUrl: true,
-                createdAt: true,
-              },
+            select: {
+  id: true,
+  title: true,
+  description: true,
+  category: true,
+  price: true,
+
+  posterFileId: true,
+  posterUrl: true,
+
+  bunnyVideoId: true,
+  webVideoUrl: true,
+
+  featured: true,
+
+  trailerEnabled: true,
+  trailerUrl: true,
+  trailerBunnyVideoId: true,
+
+  createdAt: true,
+},
             },
           },
         });
@@ -1679,7 +1710,8 @@ app.get(
             ...purchase.film,
 
             posterUrl:
-              `/api/films/${purchase.film.id}/poster`,
+  purchase.film.posterUrl ||
+  `/api/films/${purchase.film.id}/poster`,
           })
         );
 
@@ -1697,7 +1729,7 @@ app.get(
       return res.status(500).json({
         success: false,
         message:
-          "An samu matsala wajen É—auko My Movies.",
+          "An samu matsala wajen dauko My Movies.",
       });
     }
   }

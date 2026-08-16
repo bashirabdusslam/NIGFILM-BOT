@@ -4116,6 +4116,32 @@ function TrailerRow({
   trailerLabel,
 }) {
   const [previewId, setPreviewId] = useState(null);
+  const hoverTimerRef = useRef(null);
+
+  function startPreview(film) {
+    const trailerUrl = trailerPlayerUrl(film);
+
+    if (!trailerUrl) {
+      return;
+    }
+
+    clearTimeout(hoverTimerRef.current);
+
+    hoverTimerRef.current = setTimeout(() => {
+      setPreviewId(film.id);
+    }, 650);
+  }
+
+  function stopPreview() {
+    clearTimeout(hoverTimerRef.current);
+    setPreviewId(null);
+  }
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
 
   if (!Array.isArray(films) || films.length === 0) {
     return null;
@@ -4131,6 +4157,7 @@ function TrailerRow({
       <div className="trailer-row">
         {films.map((film) => {
           const trailerUrl = trailerPlayerUrl(film);
+
           const previewing =
             Number(previewId) === Number(film.id);
 
@@ -4140,14 +4167,8 @@ function TrailerRow({
                 previewing ? "is-previewing" : ""
               }`}
               key={film.id}
-              onMouseEnter={() => {
-                if (trailerUrl) {
-                  setPreviewId(film.id);
-                }
-              }}
-              onMouseLeave={() => {
-                setPreviewId(null);
-              }}
+              onMouseEnter={() => startPreview(film)}
+              onMouseLeave={stopPreview}
             >
               <div
                 className="trailer-thumb"
@@ -4156,6 +4177,8 @@ function TrailerRow({
                     openFilm(film);
                     return;
                   }
+
+                  clearTimeout(hoverTimerRef.current);
 
                   setPreviewId((current) =>
                     Number(current) === Number(film.id)
@@ -4170,6 +4193,7 @@ function TrailerRow({
                       src={posterSrc(film)}
                       alt={film.title}
                       loading="lazy"
+                      decoding="async"
                       onError={handlePosterError}
                     />
 
@@ -4190,6 +4214,7 @@ function TrailerRow({
                       trailerUrl.includes("?") ? "&" : "?"
                     }autoplay=true&muted=true`}
                     title={`${film.title} trailer preview`}
+                    loading="lazy"
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
                   />
@@ -4203,6 +4228,12 @@ function TrailerRow({
                   type="button"
                   onClick={(event) => {
                     event.stopPropagation();
+
+                    clearTimeout(
+                      hoverTimerRef.current
+                    );
+
+                    setPreviewId(null);
                     openFilm(film);
                   }}
                 >

@@ -357,6 +357,50 @@ function App() {
   ] = useState("");
 
   // ===================================================
+  // ADMIN TRAILER UPLOAD
+  // ===================================================
+
+  const [
+    trailerVideoFile,
+    setTrailerVideoFile,
+  ] = useState(null);
+
+  const [
+    trailerUploading,
+    setTrailerUploading,
+  ] = useState(false);
+
+  const [
+    trailerUploadProgress,
+    setTrailerUploadProgress,
+  ] = useState(0);
+
+  const [
+    trailerUploadError,
+    setTrailerUploadError,
+  ] = useState("");
+
+  const [
+    trailerUploadSuccess,
+    setTrailerUploadSuccess,
+  ] = useState("");
+
+  const [
+    trailerStatus,
+    setTrailerStatus,
+  ] = useState(null);
+
+  const [
+    trailerStatusLoading,
+    setTrailerStatusLoading,
+  ] = useState(false);
+
+  const [
+    trailerStatusError,
+    setTrailerStatusError,
+  ] = useState("");
+
+  // ===================================================
   // BUNNY STATUS
   // ===================================================
 
@@ -623,6 +667,14 @@ function App() {
     setUploadProgress(0);
     setBunnyStatus(null);
     setBunnyStatusError("");
+
+    setTrailerVideoFile(null);
+    setTrailerUploading(false);
+    setTrailerUploadProgress(0);
+    setTrailerUploadError("");
+    setTrailerUploadSuccess("");
+    setTrailerStatus(null);
+    setTrailerStatusError("");
 
     navigateTo("adminUpload");
   }
@@ -1591,6 +1643,331 @@ function App() {
   }
 
   // ===================================================
+  // ADMIN - LOAD TRAILER STATUS
+  // ===================================================
+
+  async function loadTrailerStatus(filmId) {
+    const id = Number(filmId);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      setTrailerStatus(null);
+      return;
+    }
+
+    try {
+      setTrailerStatusLoading(true);
+      setTrailerStatusError("");
+
+      const response = await fetch(
+        `${API_URL}/api/admin/bunny/trailer-status/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${getSessionToken()}`,
+          },
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa duba trailer status."
+        );
+      }
+
+      setTrailerStatus(
+        data?.trailer || null
+      );
+    } catch (error) {
+      console.error(
+        "TRAILER STATUS ERROR:",
+        error
+      );
+
+      setTrailerStatus(null);
+      setTrailerStatusError(
+        error?.message ||
+          "An samu matsala wajen duba trailer status."
+      );
+    } finally {
+      setTrailerStatusLoading(false);
+    }
+  }
+
+  // ===================================================
+  // ADMIN - UPLOAD / REPLACE TRAILER
+  // ===================================================
+
+  async function uploadTrailerToBunny() {
+    const filmId = Number(adminFilmId);
+
+    if (!Number.isInteger(filmId) || filmId <= 0) {
+      setTrailerUploadError(
+        "Ka zaɓi film da farko."
+      );
+      return;
+    }
+
+    if (!trailerVideoFile) {
+      setTrailerUploadError(
+        "Ka zaɓi trailer video da za a upload."
+      );
+      return;
+    }
+
+    try {
+      setTrailerUploading(true);
+      setTrailerUploadProgress(0);
+      setTrailerUploadError("");
+      setTrailerUploadSuccess("");
+
+      const selected = films.find(
+        (film) =>
+          Number(film.id) === filmId
+      );
+
+      const replacing = Boolean(
+        selected?.trailerBunnyVideoId
+      );
+
+      const endpoint = replacing
+        ? "/api/admin/bunny/prepare-trailer-replace"
+        : "/api/admin/bunny/prepare-trailer-upload";
+
+      const response = await fetch(
+        `${API_URL}${endpoint}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getSessionToken()}`,
+          },
+          body: JSON.stringify({ filmId }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa shirya trailer upload."
+        );
+      }
+
+      const uploadInfo = data?.upload;
+
+      if (
+        !uploadInfo?.endpoint ||
+        !uploadInfo?.libraryId ||
+        !uploadInfo?.videoId ||
+        !uploadInfo?.authorizationSignature ||
+        !uploadInfo?.authorizationExpire
+      ) {
+        throw new Error(
+          "Backend bai dawo da cikakken trailer upload credentials ba."
+        );
+      }
+
+      const upload = new tus.Upload(
+        trailerVideoFile,
+        {
+          endpoint: uploadInfo.endpoint,
+          retryDelays: [
+            0,
+            3000,
+            5000,
+            10000,
+            20000,
+          ],
+          headers: {
+            AuthorizationSignature:
+              uploadInfo.authorizationSignature,
+            AuthorizationExpire:
+              uploadInfo.authorizationExpire,
+            VideoId: uploadInfo.videoId,
+            LibraryId: uploadInfo.libraryId,
+          },
+          metadata: {
+            filetype:
+              trailerVideoFile.type ||
+              "video/mp4",
+            title:
+              trailerVideoFile.name,
+          },
+          onError(error) {
+            console.error(
+              "TRAILER TUS UPLOAD ERROR:",
+              error
+            );
+            setTrailerUploading(false);
+            setTrailerUploadError(
+              error?.message ||
+                "Trailer upload bai yi nasara ba."
+            );
+          },
+          onProgress(
+            bytesUploaded,
+            bytesTotal
+          ) {
+            const percentage =
+              bytesTotal > 0
+                ? (
+                    (bytesUploaded /
+                      bytesTotal) *
+                    100
+                  ).toFixed(1)
+                : 0;
+
+            setTrailerUploadProgress(
+              Number(percentage)
+            );
+          },
+          onSuccess: async () => {
+            try {
+              const completeResponse =
+                await fetch(
+                  `${API_URL}/api/admin/bunny/trailer-upload-complete`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                      Authorization:
+                        `Bearer ${getSessionToken()}`,
+                    },
+                    body: JSON.stringify({
+                      filmId,
+                    }),
+                  }
+                );
+
+              const completeData =
+                await readJson(
+                  completeResponse
+                );
+
+              if (!completeResponse.ok) {
+                throw new Error(
+                  completeData?.message ||
+                    "Trailer ya upload amma an kasa kunna shi."
+                );
+              }
+
+              setTrailerUploadProgress(100);
+              setTrailerUploadSuccess(
+                replacing
+                  ? "✅ An maye gurbin trailer cikin nasara."
+                  : "✅ Trailer ya shiga Bunny Stream kuma an kunna shi."
+              );
+              setTrailerVideoFile(null);
+
+              await loadFilms();
+              await loadTrailerStatus(
+                filmId
+              );
+            } catch (error) {
+              console.error(
+                "TRAILER COMPLETE ERROR:",
+                error
+              );
+              setTrailerUploadError(
+                error?.message ||
+                  "Trailer ya upload amma an samu matsala wajen kammalawa."
+              );
+            } finally {
+              setTrailerUploading(false);
+            }
+          },
+        }
+      );
+
+      const previousUploads =
+        await upload.findPreviousUploads();
+
+      if (previousUploads.length > 0) {
+        upload.resumeFromPreviousUpload(
+          previousUploads[0]
+        );
+      }
+
+      upload.start();
+    } catch (error) {
+      console.error(
+        "ADMIN TRAILER UPLOAD ERROR:",
+        error
+      );
+      setTrailerUploading(false);
+      setTrailerUploadError(
+        error?.message ||
+          "An samu matsala wajen trailer upload."
+      );
+    }
+  }
+
+  // ===================================================
+  // ADMIN - ENABLE / DISABLE TRAILER
+  // ===================================================
+
+  async function toggleTrailerEnabled() {
+    const filmId = Number(adminFilmId);
+
+    if (!Number.isInteger(filmId) || filmId <= 0) {
+      return;
+    }
+
+    try {
+      setTrailerUploadError("");
+      setTrailerUploadSuccess("");
+
+      const enabled =
+        !Boolean(trailerStatus?.enabled);
+
+      const response = await fetch(
+        `${API_URL}/api/admin/films/${filmId}/trailer-enabled`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getSessionToken()}`,
+          },
+          body: JSON.stringify({
+            enabled,
+          }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa canza trailer status."
+        );
+      }
+
+      setTrailerUploadSuccess(
+        enabled
+          ? "✅ An kunna trailer."
+          : "✅ An kashe trailer."
+      );
+
+      await loadFilms();
+      await loadTrailerStatus(filmId);
+    } catch (error) {
+      console.error(
+        "TOGGLE TRAILER ERROR:",
+        error
+      );
+      setTrailerUploadError(
+        error?.message ||
+          "An samu matsala wajen canza trailer status."
+      );
+    }
+  }
+
+  // ===================================================
   // FILTER FILMS
   // ===================================================
 
@@ -2541,8 +2918,30 @@ function App() {
                       ""
                     );
 
+                    setTrailerVideoFile(
+                      null
+                    );
+                    setTrailerUploadProgress(
+                      0
+                    );
+                    setTrailerUploadError(
+                      ""
+                    );
+                    setTrailerUploadSuccess(
+                      ""
+                    );
+                    setTrailerStatus(
+                      null
+                    );
+                    setTrailerStatusError(
+                      ""
+                    );
+
                     if (filmId) {
                       loadBunnyStatus(
+                        filmId
+                      );
+                      loadTrailerStatus(
                         filmId
                       );
                     }
@@ -2894,12 +3293,271 @@ function App() {
                 </button>
               </div>
 
+              <div
+                style={{
+                  marginTop: "34px",
+                  paddingTop: "28px",
+                  borderTop:
+                    "1px solid var(--border)",
+                }}
+              >
+                <p className="small-title">
+                  MOVIE TRAILER
+                </p>
+
+                <h2
+                  style={{
+                    fontSize: "24px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  🎞️ Trailer Manager
+                </h2>
+
+                <p className="details-description">
+                  Upload ɗin trailer daban yake da full movie. Bayan ya gama,
+                  trailer zai bayyana kai tsaye a sashen Tallan Fina-finai.
+                </p>
+
+                {selectedAdminFilm && (
+                  <div className="admin-selected-film">
+                    <div style={{ width: "100%" }}>
+                      <small>TRAILER STATUS</small>
+
+                      {trailerStatusLoading && (
+                        <p>
+                          🔄 Ana duba trailer status...
+                        </p>
+                      )}
+
+                      {!trailerStatusLoading &&
+                        trailerStatus && (
+                          <>
+                            <p>
+                              Trailer: {" "}
+                              {trailerStatus.connected
+                                ? "✅ Connected"
+                                : "⏳ No Trailer"}
+                            </p>
+
+                            {trailerStatus.connected && (
+                              <>
+                                <p>
+                                  Status: {" "}
+                                  <strong>
+                                    {trailerStatus.ready
+                                      ? "✅ Ready"
+                                      : trailerStatus.failed
+                                        ? "❌ Failed"
+                                        : trailerStatus.label ||
+                                          "Unknown"}
+                                  </strong>
+                                </p>
+
+                                <p>
+                                  Visible on App: {" "}
+                                  {trailerStatus.enabled
+                                    ? "✅ Enabled"
+                                    : "🚫 Disabled"}
+                                </p>
+
+                                <p>
+                                  Processing: {" "}
+                                  {Number(
+                                    trailerStatus.progress || 0
+                                  ).toFixed(0)}%
+                                </p>
+
+                                {trailerStatus.resolutions
+                                  ?.length > 0 && (
+                                  <p>
+                                    Resolutions: {" "}
+                                    {trailerStatus.resolutions.join(
+                                      ", "
+                                    )}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
+
+                      {trailerStatusError && (
+                        <p className="admin-status-error">
+                          ❌ {trailerStatusError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedAdminFilm && (
+                  <div className="details-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={
+                        trailerStatusLoading ||
+                        trailerUploading
+                      }
+                      onClick={() =>
+                        loadTrailerStatus(
+                          selectedAdminFilm.id
+                        )
+                      }
+                    >
+                      {trailerStatusLoading
+                        ? "🔄 Checking..."
+                        : "🔄 Refresh Trailer Status"}
+                    </button>
+
+                    {trailerStatus?.connected && (
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={trailerUploading}
+                        onClick={toggleTrailerEnabled}
+                      >
+                        {trailerStatus.enabled
+                          ? "🚫 Disable Trailer"
+                          : "✅ Enable Trailer"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="admin-upload-field">
+                  <label htmlFor="admin-trailer-video">
+                    🎞️ Select Trailer Video
+                  </label>
+
+                  <input
+                    id="admin-trailer-video"
+                    type="file"
+                    accept="video/*,.mp4,.mkv,.mov,.avi"
+                    disabled={
+                      trailerUploading ||
+                      !adminFilmId
+                    }
+                    onChange={(event) => {
+                      const file =
+                        event.target.files?.[0] ||
+                        null;
+
+                      setTrailerVideoFile(file);
+                      setTrailerUploadProgress(0);
+                      setTrailerUploadError("");
+                      setTrailerUploadSuccess("");
+                    }}
+                  />
+                </div>
+
+                {trailerVideoFile && (
+                  <div className="admin-file-info">
+                    <strong>
+                      🎞️ {trailerVideoFile.name}
+                    </strong>
+
+                    <span>
+                      {formatFileSize(
+                        trailerVideoFile.size
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {(trailerUploading ||
+                  trailerUploadProgress > 0) && (
+                  <div className="admin-progress">
+                    <div className="admin-progress-top">
+                      <span>
+                        {trailerUploading
+                          ? "🎞️ Uploading Trailer..."
+                          : "Trailer Upload"}
+                      </span>
+
+                      <strong>
+                        {trailerUploadProgress.toFixed(
+                          1
+                        )}%
+                      </strong>
+                    </div>
+
+                    <div className="admin-progress-track">
+                      <div
+                        className="admin-progress-bar"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            trailerUploadProgress
+                          )}%`,
+                        }}
+                      />
+                    </div>
+
+                    {trailerUploading && (
+                      <small>
+                        Kada ka rufe wannan page har trailer upload ya gama.
+                      </small>
+                    )}
+                  </div>
+                )}
+
+                {trailerUploadError && (
+                  <div className="auth-error">
+                    ❌ {trailerUploadError}
+                  </div>
+                )}
+
+                {trailerUploadSuccess && (
+                  <div className="admin-upload-success">
+                    {trailerUploadSuccess}
+                  </div>
+                )}
+
+                <div className="details-actions">
+                  <button
+                    type="button"
+                    className="buy-now-button"
+                    disabled={
+                      trailerUploading ||
+                      uploading ||
+                      !adminFilmId ||
+                      !trailerVideoFile
+                    }
+                    onClick={() => {
+                      if (
+                        selectedAdminFilm
+                          ?.trailerBunnyVideoId
+                      ) {
+                        const confirmed =
+                          window.confirm(
+                            `Kana tabbatar kana son maye gurbin trailer na "${selectedAdminFilm.title}"?`
+                          );
+
+                        if (!confirmed) {
+                          return;
+                        }
+                      }
+
+                      uploadTrailerToBunny();
+                    }}
+                  >
+                    {trailerUploading
+                      ? `🎞️ Uploading ${trailerUploadProgress.toFixed(
+                          1
+                        )}%`
+                      : selectedAdminFilm
+                            ?.trailerBunnyVideoId
+                        ? "♻️ Replace Trailer"
+                        : "🎞️ Upload Trailer"}
+                  </button>
+                </div>
+              </div>
+
               <div className="movie-security-note">
-                🔒 Video zai tafi kai
-                tsaye daga browser zuwa
-                Bunny Stream. Bunny API
-                Key ba zai shiga
-                frontend ba.
+                🔒 Full movie da trailer duka za su tafi kai tsaye daga browser
+                zuwa Bunny Stream. Bunny API Key ba zai shiga frontend ba.
               </div>
             </div>
           </div>

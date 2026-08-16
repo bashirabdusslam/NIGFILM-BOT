@@ -2931,6 +2931,709 @@ app.get(
   }
 );
 // ======================================================
+// ADMIN - PREPARE TRAILER UPLOAD
+// ======================================================
+
+app.post(
+  "/api/admin/bunny/prepare-trailer-upload",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId = Number(req.body?.filmId);
+
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({
+          success: false,
+          message: "Bunny Stream config bai cika ba.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+
+        select: {
+          id: true,
+          title: true,
+          trailerBunnyVideoId: true,
+          trailerUrl: true,
+          trailerEnabled: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (film.trailerBunnyVideoId) {
+        return res.status(409).json({
+          success: false,
+          alreadyExists: true,
+          message:
+            "Wannan film yana da trailer. Yi amfani da Replace Trailer.",
+        });
+      }
+
+      // Create a fresh Bunny video for trailer
+      const bunnyResponse = await fetch(
+        `https://video.bunnycdn.com/library/${libraryId}/videos`,
+        {
+          method: "POST",
+
+          headers: {
+            AccessKey: apiKey,
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            title: `${film.title} - TRAILER`,
+          }),
+        }
+      );
+
+      const bunnyData =
+        await bunnyResponse.json();
+
+      if (
+        !bunnyResponse.ok ||
+        !bunnyData?.guid
+      ) {
+        console.error(
+          "❌ BUNNY TRAILER CREATE ERROR:",
+          bunnyData
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa ƙirƙirar trailer a Bunny Stream.",
+        });
+      }
+
+      const trailerBunnyVideoId =
+        bunnyData.guid;
+
+      const trailerUrl =
+        `https://player.mediadelivery.net/embed/` +
+        `${libraryId}/` +
+        `${trailerBunnyVideoId}`;
+
+      // Store video ID, but do NOT publish until upload succeeds
+      await prisma.film.update({
+        where: {
+          id: filmId,
+        },
+
+        data: {
+          trailerBunnyVideoId,
+          trailerUrl,
+          trailerEnabled: false,
+        },
+      });
+
+      // Create TUS signature
+      const expirationTime =
+        Math.floor(Date.now() / 1000) +
+        6 * 60 * 60;
+
+      const signatureString =
+        `${libraryId}` +
+        `${apiKey}` +
+        `${expirationTime}` +
+        `${trailerBunnyVideoId}`;
+
+      const signature =
+        crypto
+          .createHash("sha256")
+          .update(signatureString)
+          .digest("hex");
+
+      console.log(
+        "✅ TRAILER UPLOAD PREPARED:",
+        {
+          filmId,
+          trailerBunnyVideoId,
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+
+        film: {
+          id: film.id,
+          title: film.title,
+        },
+
+        upload: {
+          endpoint:
+            "https://video.bunnycdn.com/tusupload",
+
+          libraryId:
+            String(libraryId),
+
+          videoId:
+            trailerBunnyVideoId,
+
+          authorizationSignature:
+            signature,
+
+          authorizationExpire:
+            String(expirationTime),
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ PREPARE TRAILER UPLOAD ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen shirya trailer upload.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - TRAILER UPLOAD COMPLETE
+// ======================================================
+
+app.post(
+  "/api/admin/bunny/trailer-upload-complete",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId = Number(req.body?.filmId);
+
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+
+        select: {
+          id: true,
+          title: true,
+          trailerBunnyVideoId: true,
+          trailerUrl: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (!film.trailerBunnyVideoId) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Trailer Bunny Video ID bai samu ba.",
+        });
+      }
+
+      const updatedFilm =
+        await prisma.film.update({
+          where: {
+            id: filmId,
+          },
+
+          data: {
+            trailerEnabled: true,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            trailerBunnyVideoId: true,
+            trailerUrl: true,
+            trailerEnabled: true,
+          },
+        });
+
+      console.log(
+        "✅ TRAILER ENABLED:",
+        filmId
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Trailer upload ya gama kuma an kunna shi.",
+        film: updatedFilm,
+      });
+    } catch (error) {
+      console.error(
+        "❌ TRAILER COMPLETE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen kammala trailer.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - PREPARE TRAILER REPLACE
+// ======================================================
+
+app.post(
+  "/api/admin/bunny/prepare-trailer-replace",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId = Number(req.body?.filmId);
+
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({
+          success: false,
+          message: "Bunny Stream config bai cika ba.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+
+        select: {
+          id: true,
+          title: true,
+          trailerBunnyVideoId: true,
+          trailerUrl: true,
+          trailerEnabled: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (!film.trailerBunnyVideoId) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Wannan film bai da trailer. Ka fara Upload Trailer.",
+        });
+      }
+
+      // Confirm trailer exists in Bunny
+      const bunnyResponse = await fetch(
+        `https://video.bunnycdn.com/library/${libraryId}/videos/${film.trailerBunnyVideoId}`,
+        {
+          headers: {
+            AccessKey: apiKey,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!bunnyResponse.ok) {
+        const errorText =
+          await bunnyResponse.text();
+
+        console.error(
+          "❌ TRAILER REPLACE CHECK ERROR:",
+          bunnyResponse.status,
+          errorText
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa tabbatar da existing trailer a Bunny.",
+        });
+      }
+
+      const expirationTime =
+        Math.floor(Date.now() / 1000) +
+        6 * 60 * 60;
+
+      const signatureString =
+        `${libraryId}` +
+        `${apiKey}` +
+        `${expirationTime}` +
+        `${film.trailerBunnyVideoId}`;
+
+      const signature =
+        crypto
+          .createHash("sha256")
+          .update(signatureString)
+          .digest("hex");
+
+      return res.status(200).json({
+        success: true,
+
+        film: {
+          id: film.id,
+          title: film.title,
+        },
+
+        upload: {
+          endpoint:
+            "https://video.bunnycdn.com/tusupload",
+
+          libraryId:
+            String(libraryId),
+
+          videoId:
+            film.trailerBunnyVideoId,
+
+          authorizationSignature:
+            signature,
+
+          authorizationExpire:
+            String(expirationTime),
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ PREPARE TRAILER REPLACE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen shirya Replace Trailer.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - TRAILER STATUS
+// ======================================================
+
+app.get(
+  "/api/admin/bunny/trailer-status/:filmId",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId =
+        Number(req.params.filmId);
+
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+
+        select: {
+          id: true,
+          title: true,
+          trailerBunnyVideoId: true,
+          trailerUrl: true,
+          trailerEnabled: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (!film.trailerBunnyVideoId) {
+        return res.status(200).json({
+          success: true,
+
+          trailer: {
+            connected: false,
+            enabled: false,
+            videoId: null,
+            statusCode: null,
+            label: "No Trailer",
+            progress: 0,
+            ready: false,
+            playable: false,
+            failed: false,
+            resolutions: [],
+          },
+        });
+      }
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      if (!libraryId || !apiKey) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "Bunny Stream config bai cika ba.",
+        });
+      }
+
+      const bunnyResponse = await fetch(
+        `https://video.bunnycdn.com/library/${libraryId}/videos/${film.trailerBunnyVideoId}`,
+        {
+          headers: {
+            AccessKey: apiKey,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!bunnyResponse.ok) {
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa duba trailer a Bunny Stream.",
+        });
+      }
+
+      const video =
+        await bunnyResponse.json();
+
+      const statusCode =
+        Number(video.status);
+
+      const labels = {
+        0: "Created",
+        1: "Uploaded",
+        2: "Processing",
+        3: "Ready",
+        4: "Playable",
+        5: "Failed",
+        6: "Uploading",
+        7: "Queued",
+        8: "Failed",
+      };
+
+      const ready =
+        statusCode === 3;
+
+      const playable =
+        statusCode === 3 ||
+        statusCode === 4;
+
+      const failed =
+        statusCode === 5 ||
+        statusCode === 8;
+
+      const progress =
+        Number.isFinite(
+          Number(video.encodeProgress)
+        )
+          ? Math.max(
+              0,
+              Math.min(
+                100,
+                Number(
+                  video.encodeProgress
+                )
+              )
+            )
+          : ready
+            ? 100
+            : 0;
+
+      const resolutions =
+        String(
+          video.availableResolutions ||
+            ""
+        )
+          .split(",")
+          .map((item) =>
+            item.trim()
+          )
+          .filter(Boolean);
+
+      return res.status(200).json({
+        success: true,
+
+        trailer: {
+          connected: true,
+
+          enabled:
+            Boolean(
+              film.trailerEnabled
+            ),
+
+          videoId:
+            film.trailerBunnyVideoId,
+
+          trailerUrl:
+            film.trailerUrl,
+
+          statusCode,
+
+          label:
+            labels[statusCode] ||
+            `Status ${statusCode}`,
+
+          progress,
+          ready,
+          playable,
+          failed,
+          resolutions,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "❌ TRAILER STATUS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen duba trailer status.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// ADMIN - ENABLE / DISABLE TRAILER
+// ======================================================
+
+app.patch(
+  "/api/admin/films/:filmId/trailer-enabled",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const filmId =
+        Number(req.params.filmId);
+
+      const enabled =
+        req.body?.enabled === true;
+
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+
+        select: {
+          id: true,
+          trailerBunnyVideoId: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu wannan film ba.",
+        });
+      }
+
+      if (
+        enabled &&
+        !film.trailerBunnyVideoId
+      ) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Ba za a kunna trailer ba saboda babu trailer da aka upload.",
+        });
+      }
+
+      const updated =
+        await prisma.film.update({
+          where: {
+            id: filmId,
+          },
+
+          data: {
+            trailerEnabled:
+              enabled,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            trailerEnabled: true,
+            trailerBunnyVideoId: true,
+            trailerUrl: true,
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+        message: enabled
+          ? "An kunna trailer."
+          : "An kashe trailer.",
+        film: updated,
+      });
+    } catch (error) {
+      console.error(
+        "❌ TRAILER ENABLE/DISABLE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen canza trailer status.",
+      });
+    }
+  }
+);
+// ======================================================
 // ADMIN BUNNY UPLOAD PAGE
 // ======================================================
 

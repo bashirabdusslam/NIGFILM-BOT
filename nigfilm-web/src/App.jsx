@@ -4119,6 +4119,7 @@ function TrailerRow({
 
   const hoverTimerRef = useRef(null);
   const sectionRef = useRef(null);
+  const cardRefs = useRef(new Map());
 
   // ===================================================
   // LIGHT BUNNY PRECONNECT
@@ -4127,17 +4128,13 @@ function TrailerRow({
   useEffect(() => {
     const section = sectionRef.current;
 
-    if (!section) {
-      return;
-    }
+    if (!section) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
 
-        if (!entry?.isIntersecting) {
-          return;
-        }
+        if (!entry?.isIntersecting) return;
 
         const origins = [
           "https://player.mediadelivery.net",
@@ -4150,12 +4147,9 @@ function TrailerRow({
               `link[data-nigfilm-preconnect="${origin}"]`
             );
 
-          if (alreadyExists) {
-            return;
-          }
+          if (alreadyExists) return;
 
-          const link =
-            document.createElement("link");
+          const link = document.createElement("link");
 
           link.rel = "preconnect";
           link.href = origin;
@@ -4173,10 +4167,7 @@ function TrailerRow({
       },
       {
         root: null,
-
-        // Fara warming kafin section ya bayyana sosai
         rootMargin: "250px 0px",
-
         threshold: 0.01,
       }
     );
@@ -4189,29 +4180,81 @@ function TrailerRow({
   }, []);
 
   // ===================================================
-  // START PREVIEW
+  // STOP PREVIEW IF CARD LEAVES SCREEN
   // ===================================================
 
-  function startPreview(film) {
-    const trailerUrl =
-      trailerPlayerUrl(film);
-
-    if (!trailerUrl) {
+  useEffect(() => {
+    if (!previewId) {
       return;
     }
 
-    clearTimeout(
-      hoverTimerRef.current
-    );
+    const card =
+      cardRefs.current.get(
+        String(previewId)
+      );
 
-    hoverTimerRef.current =
-      setTimeout(() => {
-        setPreviewId(
-          film.id
-        );
-      }, 650);
+    if (!card) {
+      return;
+    }
+
+    const observer =
+      new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+
+          if (
+            !entry?.isIntersecting ||
+            entry.intersectionRatio < 0.35
+          ) {
+            clearTimeout(
+              hoverTimerRef.current
+            );
+
+            setPreviewId(null);
+          }
+        },
+        {
+          threshold: [
+            0,
+            0.35,
+            0.5,
+            1,
+          ],
+        }
+      );
+
+    observer.observe(card);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [previewId]);
+
+  // ===================================================
+  // START PREVIEW
+  // ===================================================
+function startPreview(film) {
+  const trailerUrl =
+    trailerPlayerUrl(film);
+
+  if (!trailerUrl) {
+    return;
   }
 
+  clearTimeout(
+    hoverTimerRef.current
+  );
+
+  // Stop any currently playing preview first
+  setPreviewId(null);
+
+  hoverTimerRef.current =
+    setTimeout(() => {
+      setPreviewId(
+        film.id
+      );
+    }, 650);
+}
   // ===================================================
   // STOP PREVIEW
   // ===================================================
@@ -4265,11 +4308,28 @@ function TrailerRow({
 
           return (
             <article
+              ref={(node) => {
+                const key =
+                  String(film.id);
+
+                if (node) {
+                  cardRefs.current.set(
+                    key,
+                    node
+                  );
+                } else {
+                  cardRefs.current.delete(
+                    key
+                  );
+                }
+              }}
+
               className={`trailer-card ${
                 previewing
                   ? "is-previewing"
                   : ""
               }`}
+
               key={film.id}
 
               onMouseEnter={() =>
@@ -4286,7 +4346,6 @@ function TrailerRow({
                 onClick={() => {
                   if (!trailerUrl) {
                     openFilm(film);
-
                     return;
                   }
 
@@ -4306,18 +4365,10 @@ function TrailerRow({
                 {!previewing ? (
                   <>
                     <img
-                      src={
-                        posterSrc(film)
-                      }
-
-                      alt={
-                        film.title
-                      }
-
+                      src={posterSrc(film)}
+                      alt={film.title}
                       loading="lazy"
-
                       decoding="async"
-
                       onError={
                         handlePosterError
                       }
@@ -4329,9 +4380,7 @@ function TrailerRow({
                       </span>
 
                       <span className="trailer-preview-text">
-                        {
-                          trailerLabel
-                        }
+                        {trailerLabel}
                       </span>
                     </div>
                   </>
@@ -4340,9 +4389,7 @@ function TrailerRow({
                     className="trailer-auto-preview"
 
                     src={`${trailerUrl}${
-                      trailerUrl.includes(
-                        "?"
-                      )
+                      trailerUrl.includes("?")
                         ? "&"
                         : "?"
                     }autoplay=true&muted=true`}
@@ -4366,22 +4413,16 @@ function TrailerRow({
                 <button
                   type="button"
 
-                  onClick={(
-                    event
-                  ) => {
+                  onClick={(event) => {
                     event.stopPropagation();
 
                     clearTimeout(
                       hoverTimerRef.current
                     );
 
-                    setPreviewId(
-                      null
-                    );
+                    setPreviewId(null);
 
-                    openFilm(
-                      film
-                    );
+                    openFilm(film);
                   }}
                 >
                   Duba Film →

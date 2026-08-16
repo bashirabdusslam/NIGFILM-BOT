@@ -8,7 +8,7 @@ import "./App.css";
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:3000";
+   "https://nigfilm-bot.onrender.com";
 
 const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
@@ -1993,7 +1993,7 @@ function App() {
                     }
                   >
                     {paymentLoading
-                      ? "Ana buɗe Paystack..."
+                      ? "Opening Paystack..."
                       : "💳 Buy Now"}
                   </button>
                 ) : (
@@ -2113,7 +2113,7 @@ function App() {
               <div className="loader" />
 
               <p>
-                Ana ɗauko fina-finanka...
+                Loading your movies...
               </p>
             </div>
           )}
@@ -2135,7 +2135,7 @@ function App() {
                     )
                   }
                 >
-                  Sake gwadawa
+                  Try Again.
                 </button>
               </div>
             )}
@@ -2992,8 +2992,8 @@ function App() {
             <div className="loader" />
 
             <p>
-              Ana ɗauko
-              fina-finai...
+              Loading movies…
+        
             </p>
           </div>
         )}
@@ -3011,7 +3011,7 @@ function App() {
                   loadFilms
                 }
               >
-                Sake gwadawa
+                Try Again.
               </button>
             </div>
           )}

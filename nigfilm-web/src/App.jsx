@@ -4116,85 +4116,211 @@ function TrailerRow({
   trailerLabel,
 }) {
   const [previewId, setPreviewId] = useState(null);
+
   const hoverTimerRef = useRef(null);
+  const sectionRef = useRef(null);
+
+  // ===================================================
+  // LIGHT BUNNY PRECONNECT
+  // ===================================================
+
+  useEffect(() => {
+    const section = sectionRef.current;
+
+    if (!section) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        const origins = [
+          "https://player.mediadelivery.net",
+          "https://video.bunnycdn.com",
+        ];
+
+        origins.forEach((origin) => {
+          const alreadyExists =
+            document.head.querySelector(
+              `link[data-nigfilm-preconnect="${origin}"]`
+            );
+
+          if (alreadyExists) {
+            return;
+          }
+
+          const link =
+            document.createElement("link");
+
+          link.rel = "preconnect";
+          link.href = origin;
+          link.crossOrigin = "anonymous";
+
+          link.setAttribute(
+            "data-nigfilm-preconnect",
+            origin
+          );
+
+          document.head.appendChild(link);
+        });
+
+        observer.disconnect();
+      },
+      {
+        root: null,
+
+        // Fara warming kafin section ya bayyana sosai
+        rootMargin: "250px 0px",
+
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(section);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  // ===================================================
+  // START PREVIEW
+  // ===================================================
 
   function startPreview(film) {
-    const trailerUrl = trailerPlayerUrl(film);
+    const trailerUrl =
+      trailerPlayerUrl(film);
 
     if (!trailerUrl) {
       return;
     }
 
-    clearTimeout(hoverTimerRef.current);
+    clearTimeout(
+      hoverTimerRef.current
+    );
 
-    hoverTimerRef.current = setTimeout(() => {
-      setPreviewId(film.id);
-    }, 650);
+    hoverTimerRef.current =
+      setTimeout(() => {
+        setPreviewId(
+          film.id
+        );
+      }, 650);
   }
 
+  // ===================================================
+  // STOP PREVIEW
+  // ===================================================
+
   function stopPreview() {
-    clearTimeout(hoverTimerRef.current);
+    clearTimeout(
+      hoverTimerRef.current
+    );
+
     setPreviewId(null);
   }
 
   useEffect(() => {
     return () => {
-      clearTimeout(hoverTimerRef.current);
+      clearTimeout(
+        hoverTimerRef.current
+      );
     };
   }, []);
 
-  if (!Array.isArray(films) || films.length === 0) {
+  if (
+    !Array.isArray(films) ||
+    films.length === 0
+  ) {
     return null;
   }
 
   return (
-    <section className="movie-row-section trailer-row-section">
+    <section
+      ref={sectionRef}
+      className="movie-row-section trailer-row-section"
+    >
       <div className="row-heading">
-        <h3>🎞️ {title}</h3>
-        <span>{films.length}</span>
+        <h3>
+          🎞️ {title}
+        </h3>
+
+        <span>
+          {films.length}
+        </span>
       </div>
 
       <div className="trailer-row">
         {films.map((film) => {
-          const trailerUrl = trailerPlayerUrl(film);
+          const trailerUrl =
+            trailerPlayerUrl(film);
 
           const previewing =
-            Number(previewId) === Number(film.id);
+            Number(previewId) ===
+            Number(film.id);
 
           return (
             <article
               className={`trailer-card ${
-                previewing ? "is-previewing" : ""
+                previewing
+                  ? "is-previewing"
+                  : ""
               }`}
               key={film.id}
-              onMouseEnter={() => startPreview(film)}
-              onMouseLeave={stopPreview}
+
+              onMouseEnter={() =>
+                startPreview(film)
+              }
+
+              onMouseLeave={
+                stopPreview
+              }
             >
               <div
                 className="trailer-thumb"
+
                 onClick={() => {
                   if (!trailerUrl) {
                     openFilm(film);
+
                     return;
                   }
 
-                  clearTimeout(hoverTimerRef.current);
+                  clearTimeout(
+                    hoverTimerRef.current
+                  );
 
-                  setPreviewId((current) =>
-                    Number(current) === Number(film.id)
-                      ? null
-                      : film.id
+                  setPreviewId(
+                    (current) =>
+                      Number(current) ===
+                      Number(film.id)
+                        ? null
+                        : film.id
                   );
                 }}
               >
                 {!previewing ? (
                   <>
                     <img
-                      src={posterSrc(film)}
-                      alt={film.title}
+                      src={
+                        posterSrc(film)
+                      }
+
+                      alt={
+                        film.title
+                      }
+
                       loading="lazy"
+
                       decoding="async"
-                      onError={handlePosterError}
+
+                      onError={
+                        handlePosterError
+                      }
                     />
 
                     <div className="trailer-preview-overlay">
@@ -4203,38 +4329,59 @@ function TrailerRow({
                       </span>
 
                       <span className="trailer-preview-text">
-                        {trailerLabel}
+                        {
+                          trailerLabel
+                        }
                       </span>
                     </div>
                   </>
                 ) : (
                   <iframe
                     className="trailer-auto-preview"
+
                     src={`${trailerUrl}${
-                      trailerUrl.includes("?") ? "&" : "?"
+                      trailerUrl.includes(
+                        "?"
+                      )
+                        ? "&"
+                        : "?"
                     }autoplay=true&muted=true`}
+
                     title={`${film.title} trailer preview`}
-                    loading="lazy"
+
+                    loading="eager"
+
                     allow="autoplay; encrypted-media; picture-in-picture"
+
                     allowFullScreen
                   />
                 )}
               </div>
 
               <div className="trailer-card-bottom">
-                <strong>{film.title}</strong>
+                <strong>
+                  {film.title}
+                </strong>
 
                 <button
                   type="button"
-                  onClick={(event) => {
+
+                  onClick={(
+                    event
+                  ) => {
                     event.stopPropagation();
 
                     clearTimeout(
                       hoverTimerRef.current
                     );
 
-                    setPreviewId(null);
-                    openFilm(film);
+                    setPreviewId(
+                      null
+                    );
+
+                    openFilm(
+                      film
+                    );
                   }}
                 >
                   Duba Film →

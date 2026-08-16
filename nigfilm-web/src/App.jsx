@@ -325,6 +325,60 @@ function App() {
   ] = useState("");
 
   // ===================================================
+  // ADMIN - MANAGE FILMS
+  // ===================================================
+
+  const [
+    adminEditingFilm,
+    setAdminEditingFilm,
+  ] = useState(null);
+
+  const [
+    adminEditTitle,
+    setAdminEditTitle,
+  ] = useState("");
+
+  const [
+    adminEditDescription,
+    setAdminEditDescription,
+  ] = useState("");
+
+  const [
+    adminEditCategory,
+    setAdminEditCategory,
+  ] = useState("");
+
+  const [
+    adminEditPrice,
+    setAdminEditPrice,
+  ] = useState("");
+
+  const [
+    adminEditFeatured,
+    setAdminEditFeatured,
+  ] = useState(false);
+
+  const [
+    adminFilmSearch,
+    setAdminFilmSearch,
+  ] = useState("");
+
+  const [
+    adminSavingFilm,
+    setAdminSavingFilm,
+  ] = useState(false);
+
+  const [
+    adminManageError,
+    setAdminManageError,
+  ] = useState("");
+
+  const [
+    adminManageSuccess,
+    setAdminManageSuccess,
+  ] = useState("");
+
+  // ===================================================
   // ADMIN BUNNY UPLOAD
   // ===================================================
 
@@ -677,6 +731,19 @@ function App() {
     setTrailerStatusError("");
 
     navigateTo("adminUpload");
+  }
+
+  function openAdminManageFilms() {
+    if (user?.role !== "ADMIN") {
+      return;
+    }
+
+    setAdminEditingFilm(null);
+    setAdminFilmSearch("");
+    setAdminManageError("");
+    setAdminManageSuccess("");
+
+    navigateTo("adminManageFilms");
   }
 
   // ===================================================
@@ -1639,6 +1706,142 @@ function App() {
         error?.message ||
           "An samu matsala wajen upload."
       );
+    }
+  }
+
+  // ===================================================
+  // ADMIN - OPEN FILM EDITOR
+  // ===================================================
+
+  function openAdminFilmEditor(film) {
+    if (!film?.id) {
+      return;
+    }
+
+    setAdminEditingFilm(film);
+    setAdminEditTitle(film.title || "");
+    setAdminEditDescription(film.description || "");
+    setAdminEditCategory(film.category || "");
+    setAdminEditPrice(String(film.price ?? ""));
+    setAdminEditFeatured(Boolean(film.featured));
+    setAdminManageError("");
+    setAdminManageSuccess("");
+  }
+
+  // ===================================================
+  // ADMIN - CLOSE FILM EDITOR
+  // ===================================================
+
+  function closeAdminFilmEditor() {
+    if (adminSavingFilm) {
+      return;
+    }
+
+    setAdminEditingFilm(null);
+    setAdminEditTitle("");
+    setAdminEditDescription("");
+    setAdminEditCategory("");
+    setAdminEditPrice("");
+    setAdminEditFeatured(false);
+    setAdminManageError("");
+    setAdminManageSuccess("");
+  }
+
+  // ===================================================
+  // ADMIN - SAVE FILM CHANGES
+  // ===================================================
+
+  async function saveAdminFilmChanges() {
+    if (!adminEditingFilm?.id) {
+      setAdminManageError("Ka zaɓi film da za ka gyara.");
+      return;
+    }
+
+    const title = adminEditTitle.trim();
+    const description = adminEditDescription.trim();
+    const category = adminEditCategory.trim();
+    const price = Number(adminEditPrice);
+
+    if (!title) {
+      setAdminManageError("Ka rubuta sunan film.");
+      return;
+    }
+
+    if (!description) {
+      setAdminManageError("Ka rubuta bayanin film.");
+      return;
+    }
+
+    if (!category) {
+      setAdminManageError("Ka rubuta category.");
+      return;
+    }
+
+    if (!Number.isInteger(price) || price < 0) {
+      setAdminManageError("Ka saka price mai kyau.");
+      return;
+    }
+
+    try {
+      setAdminSavingFilm(true);
+      setAdminManageError("");
+      setAdminManageSuccess("");
+
+      const response = await fetch(
+        `${API_URL}/api/admin/films/${adminEditingFilm.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getSessionToken()}`,
+          },
+          body: JSON.stringify({
+            title,
+            description,
+            category,
+            price,
+            featured: adminEditFeatured,
+          }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(data?.message || "An kasa gyara film.");
+      }
+
+      const updatedFilm = normalizeFilm(data?.film);
+
+      if (updatedFilm) {
+        setFilms((currentFilms) =>
+          currentFilms.map((film) =>
+            Number(film.id) === Number(updatedFilm.id)
+              ? { ...film, ...updatedFilm }
+              : film
+          )
+        );
+
+        setAdminEditingFilm(updatedFilm);
+        setAdminEditTitle(updatedFilm.title || "");
+        setAdminEditDescription(updatedFilm.description || "");
+        setAdminEditCategory(updatedFilm.category || "");
+        setAdminEditPrice(String(updatedFilm.price ?? ""));
+        setAdminEditFeatured(Boolean(updatedFilm.featured));
+      } else {
+        await loadFilms();
+      }
+
+      setAdminManageSuccess(
+        data?.message || "✅ An gyara film cikin nasara."
+      );
+    } catch (error) {
+      console.error("ADMIN SAVE FILM ERROR:", error);
+      setAdminManageError(
+        error?.message || "An samu matsala wajen gyara film."
+      );
+    } finally {
+      setAdminSavingFilm(false);
     }
   }
 
@@ -2781,7 +2984,10 @@ function App() {
   // ===================================================
 
   if (
-    page === "adminUpload" &&
+    (
+      page === "adminUpload" ||
+      page === "adminManageFilms"
+    ) &&
     user?.role !== "ADMIN"
   ) {
     return (
@@ -2815,6 +3021,214 @@ function App() {
               >
                 ← Home
               </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ===================================================
+  // ADMIN MANAGE FILMS PAGE
+  // ===================================================
+
+  if (page === "adminManageFilms") {
+    const adminFilteredFilms = films.filter((film) => {
+      const query = adminFilmSearch.trim().toLowerCase();
+
+      if (!query) {
+        return true;
+      }
+
+      return (
+        String(film.title || "").toLowerCase().includes(query) ||
+        String(film.category || "").toLowerCase().includes(query) ||
+        String(film.description || "").toLowerCase().includes(query)
+      );
+    });
+
+    return (
+      <div className="app">
+        {header}
+
+        <main className="movie-details">
+          <button
+            type="button"
+            className="back-button"
+            onClick={openProfile}
+          >
+            ← Back to Profile
+          </button>
+
+          <div className="movie-details-card">
+            <div
+              className="details-content"
+              style={{ gridColumn: "1 / -1" }}
+            >
+              <p className="small-title">NIGFILM ADMIN</p>
+              <h2>🎬 Manage Films</h2>
+
+              <p className="details-description">
+                Gyara title, description, category, price da Featured status na
+                fina-finai.
+              </p>
+
+              <div className="admin-upload-field">
+                <label htmlFor="admin-film-search">🔎 Search Movies</label>
+                <input
+                  id="admin-film-search"
+                  type="text"
+                  value={adminFilmSearch}
+                  placeholder="Search by title, category..."
+                  onChange={(event) => setAdminFilmSearch(event.target.value)}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "12px",
+                  marginTop: "20px",
+                }}
+              >
+                {adminFilteredFilms.map((film) => (
+                  <div key={film.id} className="admin-selected-film">
+                    <img
+                      src={posterSrc(film)}
+                      alt={film.title}
+                      onError={handlePosterError}
+                    />
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h3>{film.title}</h3>
+                      <p>
+                        {film.category || "Movie"} · ₦
+                        {Number(film.price || 0).toLocaleString()}
+                      </p>
+                      <p>{film.featured ? "⭐ Featured" : "Not Featured"}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => openAdminFilmEditor(film)}
+                    >
+                      ✏️ Edit
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {adminFilteredFilms.length === 0 && (
+                <div className="status">
+                  <p>Ba a samu film ba.</p>
+                </div>
+              )}
+
+              {adminEditingFilm && (
+                <div
+                  style={{
+                    marginTop: "30px",
+                    paddingTop: "25px",
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  <p className="small-title">EDIT MOVIE</p>
+                  <h2 style={{ fontSize: "24px" }}>
+                    ✏️ {adminEditingFilm.title}
+                  </h2>
+
+                  <div className="admin-upload-field">
+                    <label>Movie Title</label>
+                    <input
+                      type="text"
+                      value={adminEditTitle}
+                      onChange={(event) => setAdminEditTitle(event.target.value)}
+                    />
+                  </div>
+
+                  <div className="admin-upload-field">
+                    <label>Description</label>
+                    <textarea
+                      value={adminEditDescription}
+                      rows={5}
+                      onChange={(event) =>
+                        setAdminEditDescription(event.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-upload-field">
+                    <label>Category</label>
+                    <input
+                      type="text"
+                      value={adminEditCategory}
+                      onChange={(event) =>
+                        setAdminEditCategory(event.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-upload-field">
+                    <label>Price (₦)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={adminEditPrice}
+                      onChange={(event) => setAdminEditPrice(event.target.value)}
+                    />
+                  </div>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      margin: "18px 0",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={adminEditFeatured}
+                      onChange={(event) =>
+                        setAdminEditFeatured(event.target.checked)
+                      }
+                    />
+                    ⭐ Show in Featured Movies
+                  </label>
+
+                  {adminManageError && (
+                    <div className="auth-error">❌ {adminManageError}</div>
+                  )}
+
+                  {adminManageSuccess && (
+                    <div className="admin-upload-success">
+                      {adminManageSuccess}
+                    </div>
+                  )}
+
+                  <div className="details-actions">
+                    <button
+                      type="button"
+                      className="buy-now-button"
+                      disabled={adminSavingFilm}
+                      onClick={saveAdminFilmChanges}
+                    >
+                      {adminSavingFilm ? "💾 Saving..." : "💾 Save Changes"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={adminSavingFilm}
+                      onClick={closeAdminFilmEditor}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </main>
@@ -3708,6 +4122,19 @@ function App() {
                     }
                   >
                     ⚙️ Admin Upload
+                  </button>
+                )}
+
+                {user?.role ===
+                  "ADMIN" && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={
+                      openAdminManageFilms
+                    }
+                  >
+                    🎬 Manage Films
                   </button>
                 )}
 

@@ -1475,35 +1475,52 @@ app.get(
           message: "Film ID ko Web User ID bai dace ba.",
         });
       }
-
       // =================================
-      // VERIFY PURCHASE
-      // =================================
+// VERIFY MOVIE ACCESS
+// PURCHASE OR ACTIVE PREMIUM
+// =================================
 
-      const purchase =
-        await prisma.webPurchase.findUnique({
-          where: {
-            webUserId_filmId: {
-              webUserId,
-              filmId,
-            },
-          },
+const purchase =
+  await prisma.webPurchase.findUnique({
+    where: {
+      webUserId_filmId: {
+        webUserId,
+        filmId,
+      },
+    },
+  });
 
-          include: {
-            film: true,
-          },
-        });
+const activePremium =
+  await hasActivePremium(
+    webUserId
+  );
 
-      if (!purchase) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Ba ka sayi wannan film ba.",
-        });
-      }
+if (!purchase && !activePremium) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Sai ka sayi wannan film ko ka kunna Premium.",
+  });
+}
 
-      const film = purchase.film;
+// =================================
+// GET FILM
+// =================================
 
+const film =
+  await prisma.film.findUnique({
+    where: {
+      id: filmId,
+    },
+  });
+
+if (!film) {
+  return res.status(404).json({
+    success: false,
+    message:
+      "Ba a samu wannan film ba.",
+  });
+}
       if (!film?.videoFileId) {
         return res.status(404).json({
           success: false,
@@ -1867,27 +1884,31 @@ app.get(
             "Film ID ko User ID bai dace ba.",
         });
       }
-
       // =================================
-      // VERIFY PURCHASE
-      // =================================
+// VERIFY MOVIE ACCESS
+// PURCHASE OR ACTIVE PREMIUM
+// =================================
 
-      const purchase =
-        await prisma.webPurchase.findFirst({
-          where: {
-            webUserId,
-            filmId,
-          },
-        });
+const purchase =
+  await prisma.webPurchase.findFirst({
+    where: {
+      webUserId,
+      filmId,
+    },
+  });
 
-      if (!purchase) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Ba ka sayi wannan film ba.",
-        });
-      }
+const activePremium =
+  await hasActivePremium(
+    webUserId
+  );
 
+if (!purchase && !activePremium) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Sai ka sayi wannan film ko ka kunna Premium.",
+  });
+}
       // =================================
       // GET FILM
       // =================================

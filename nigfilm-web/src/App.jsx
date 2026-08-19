@@ -1517,17 +1517,15 @@ function App() {
     }
 
     if (
-      !isPurchased(
-        film.id
-      )
-    ) {
-      setVideoError(
-        "Sai ka sayi film kafin download."
-      );
+  !isPurchased(film.id) &&
+  !hasPremium
+) {
+  setVideoError(
+    "Sai ka sayi film ko ka kunna Premium kafin download."
+  );
 
-      return;
-    }
-
+  return;
+}
     setVideoError("");
 
     const downloadUrl =
@@ -2952,6 +2950,9 @@ function App() {
         selectedFilm.id
       );
 
+const canWatchMovie =
+  purchased || hasPremium;
+
     const purchasedFilm =
       findPurchasedMovie(
         selectedFilm.id
@@ -3054,8 +3055,8 @@ function App() {
                 </div>
               )}
 
-              {purchased &&
-                playerUrl && (
+              
+              {canWatchMovie && !playerUrl && (
                   <div className="bunny-player">
                     <iframe
                       src={
@@ -3071,8 +3072,7 @@ function App() {
                   </div>
                 )}
 
-              {purchased &&
-                !playerUrl && (
+                 {canWatchMovie && playerUrl && (
                   <div className="movie-security-note">
                     ⏳ Video ɗin
                     wannan film bai
@@ -3182,7 +3182,7 @@ function App() {
               </div>
 
               <div className="watch-options-list">
-                {purchased ? (
+                {canWatchMovie ? (
                   <>
                     {playerUrl && (
                       <button

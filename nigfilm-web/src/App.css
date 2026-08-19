@@ -1720,3 +1720,841 @@ img { max-width: 100%; }
     font-size: 9px;
   }
 }
+/* =====================================================
+   NIGFILM — WATCH OPTIONS MODAL FINAL FIX
+===================================================== */
+
+.watch-options-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 18px;
+
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.watch-options-modal {
+  width: min(100%, 480px);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 24px;
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(212, 175, 55, 0.09),
+      transparent 35%
+    ),
+    #101116;
+
+  color: #fff;
+
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.65);
+
+  scrollbar-width: none;
+}
+
+.watch-options-modal::-webkit-scrollbar {
+  display: none;
+}
+
+/* HEADER */
+
+.watch-options-header {
+  position: relative;
+
+  padding: 26px 55px 22px;
+
+  text-align: center;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.08);
+}
+
+.watch-options-logo {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 10px;
+
+  border-radius: 14px;
+
+  background: var(--gold);
+
+  color: #080808;
+
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.watch-options-header h3 {
+  margin: 0;
+
+  color: #fff;
+
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.watch-options-header p {
+  margin: 7px 0 0;
+
+  color: #8f939d;
+
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* CLOSE */
+
+.watch-options-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 1px solid #2b2e36;
+  border-radius: 50%;
+
+  background: #191b21;
+
+  color: #fff;
+
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.watch-options-close:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* OPTIONS BODY */
+
+.watch-options-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 12px;
+
+  padding: 16px;
+}
+
+/* EACH OPTION */
+
+.watch-option {
+  width: 100%;
+  min-height: 92px;
+
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 24px;
+  align-items: center;
+
+  gap: 14px;
+
+  padding: 14px;
+
+  text-align: left;
+
+  border: 1px solid #292c34;
+  border-radius: 17px;
+
+  background: #17191f;
+
+  color: #fff;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.watch-option:hover {
+  transform: translateY(-1px);
+
+  border-color:
+    rgba(212, 175, 55, 0.65);
+
+  background: #1b1d23;
+}
+
+/* ICON */
+
+.watch-option-icon {
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 15px;
+
+  background:
+    rgba(212, 175, 55, 0.12);
+
+  color: var(--gold);
+
+  font-size: 22px;
+
+  flex-shrink: 0;
+}
+
+/* TEXT */
+
+.watch-option-text {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 5px;
+}
+
+.watch-option-title {
+  display: block;
+
+  color: #fff;
+
+  font-size: 14px;
+  font-weight: 900;
+
+  line-height: 1.25;
+}
+
+.watch-option-description {
+  display: block;
+
+  color: #8e929c;
+
+  font-size: 11px;
+  font-weight: 500;
+
+  line-height: 1.45;
+}
+
+/* ARROW */
+
+.watch-option-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--gold);
+
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* PREMIUM OPTION */
+
+.watch-option.premium-option {
+  border-color:
+    rgba(212, 175, 55, 0.42);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(212, 175, 55, 0.12),
+      rgba(212, 175, 55, 0.025)
+    ),
+    #17191f;
+}
+
+.watch-option.premium-option
+.watch-option-icon {
+  background: var(--gold);
+  color: #080808;
+}
+
+/* BUY MOVIE */
+
+.watch-option.buy-option
+.watch-option-icon {
+  background:
+    rgba(212, 175, 55, 0.13);
+
+  color: var(--gold);
+}
+
+/* ADS */
+
+.watch-option.ads-option
+.watch-option-icon {
+  background:
+    rgba(44, 210, 150, 0.12);
+
+  color: #2cd296;
+}
+
+/* TUTORIAL */
+
+.watch-option.tutorial-option
+.watch-option-icon {
+  background:
+    rgba(255, 90, 90, 0.12);
+
+  color: #ff6464;
+}
+
+/* DISABLED */
+
+.watch-option:disabled,
+.watch-option.disabled {
+  opacity: 0.45;
+
+  cursor: not-allowed;
+
+  transform: none;
+}
+
+.watch-option:disabled:hover,
+.watch-option.disabled:hover {
+  border-color: #292c34;
+  background: #17191f;
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+
+  .watch-options-backdrop {
+    padding: 14px;
+  }
+
+  .watch-options-modal {
+    width: 100%;
+
+    max-height:
+      calc(100dvh - 28px);
+
+    border-radius: 21px;
+  }
+
+  .watch-options-header {
+    padding:
+      23px 48px 19px;
+  }
+
+  .watch-options-header h3 {
+    font-size: 20px;
+  }
+
+  .watch-options-header p {
+    font-size: 11px;
+  }
+
+  .watch-options-close {
+    top: 15px;
+    right: 15px;
+
+    width: 32px;
+    height: 32px;
+
+    font-size: 16px;
+  }
+
+  .watch-options-list {
+    gap: 10px;
+
+    padding: 14px;
+  }
+
+  .watch-option {
+    min-height: 82px;
+
+    grid-template-columns:
+      46px minmax(0, 1fr) 20px;
+
+    gap: 11px;
+
+    padding: 12px;
+
+    border-radius: 15px;
+  }
+
+  .watch-option-icon {
+    width: 46px;
+    height: 46px;
+
+    border-radius: 13px;
+
+    font-size: 19px;
+  }
+
+  .watch-option-title {
+    font-size: 13px;
+  }
+
+  .watch-option-description {
+    font-size: 10px;
+  }
+
+  .watch-option-arrow {
+    font-size: 19px;
+  }
+}
+/* =====================================================
+   NIGFILM WATCH OPTIONS — FINAL UI FIX
+===================================================== */
+
+.watch-options-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 16px;
+
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.watch-options-modal {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
+
+  width: min(100%, 430px) !important;
+  max-height: calc(100dvh - 32px);
+
+  overflow-y: auto;
+
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 24px;
+
+  background:
+    radial-gradient(
+      circle at top,
+      rgba(212, 175, 55, 0.10),
+      transparent 32%
+    ),
+    #101116;
+
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75);
+
+  color: white;
+
+  scrollbar-width: none;
+}
+
+.watch-options-modal::-webkit-scrollbar {
+  display: none;
+}
+
+/* ================= HEADER ================= */
+
+.watch-options-handle {
+  width: 42px;
+  height: 4px;
+
+  margin: 10px auto 0;
+
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.watch-options-header {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 18px 55px 20px;
+
+  text-align: center;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.watch-options-brand-icon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 10px;
+
+  border-radius: 15px;
+
+  background: #d4af37;
+
+  color: #050505;
+
+  font-size: 20px;
+}
+
+.watch-options-header h3 {
+  margin: 0;
+
+  color: #fff;
+
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.watch-options-header p {
+  margin: 6px 0 0;
+
+  color: #8d919a;
+
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ================= CLOSE ================= */
+
+.watch-options-close {
+  position: absolute;
+
+  top: 16px;
+  right: 16px;
+
+  width: 34px;
+  height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border: 1px solid #30323a;
+  border-radius: 50%;
+
+  background: #1a1c22;
+
+  color: #fff;
+
+  font-size: 21px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+/* ================= OPTIONS ================= */
+
+.watch-options-list {
+  display: flex;
+  flex-direction: column;
+
+  gap: 11px;
+
+  padding: 15px;
+}
+
+.watch-option-card {
+  width: 100% !important;
+  min-height: 82px;
+
+  display: grid !important;
+
+  grid-template-columns:
+    50px minmax(0, 1fr) 22px;
+
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 13px !important;
+
+  border: 1px solid #292c34 !important;
+  border-radius: 17px !important;
+
+  background: #17191f !important;
+
+  color: #fff !important;
+
+  text-align: left !important;
+
+  box-shadow: none !important;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.watch-option-card:hover {
+  transform: translateY(-1px);
+
+  border-color: rgba(212, 175, 55, 0.60) !important;
+
+  background: #1c1e24 !important;
+}
+
+/* ================= ICON ================= */
+
+.watch-option-card .watch-option-icon {
+  width: 50px;
+  height: 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 !important;
+
+  border-radius: 14px;
+
+  background: rgba(212, 175, 55, 0.12);
+
+  color: #d4af37;
+
+  font-size: 21px;
+
+  flex-shrink: 0;
+}
+
+/* ================= TEXT ================= */
+
+.watch-option-copy {
+  min-width: 0;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  align-items: flex-start !important;
+
+  gap: 5px;
+
+  margin: 0 !important;
+
+  text-align: left !important;
+}
+
+.watch-option-copy strong {
+  display: block !important;
+
+  width: 100%;
+
+  margin: 0 !important;
+
+  color: #fff !important;
+
+  font-size: 14px !important;
+  font-weight: 800 !important;
+
+  line-height: 1.25 !important;
+
+  white-space: normal;
+}
+
+.watch-option-copy small {
+  display: block !important;
+
+  width: 100%;
+
+  margin: 0 !important;
+
+  color: #8f939d !important;
+
+  font-size: 11px !important;
+  font-weight: 400 !important;
+
+  line-height: 1.45 !important;
+
+  white-space: normal;
+}
+
+/* ================= ARROW ================= */
+
+.watch-option-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #d4af37 !important;
+
+  font-size: 23px;
+  font-weight: 700;
+}
+
+/* ================= PREMIUM ================= */
+
+.watch-option-card.premium-option {
+  border-color: rgba(212, 175, 55, 0.42) !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(212, 175, 55, 0.12),
+      rgba(212, 175, 55, 0.025)
+    ),
+    #17191f !important;
+}
+
+.watch-option-card.premium-option
+.watch-option-icon {
+  background: #d4af37;
+
+  color: #050505;
+}
+
+/* ================= BUY ================= */
+
+.watch-option-card.buy-option
+.watch-option-icon {
+  background: rgba(212, 175, 55, 0.13);
+
+  color: #d4af37;
+}
+
+/* ================= ADS ================= */
+
+.watch-option-card.ads-option
+.watch-option-icon {
+  background: rgba(35, 210, 145, 0.12);
+
+  color: #2bd394;
+}
+
+.watch-option-card.is-disabled {
+  opacity: 0.42;
+
+  cursor: not-allowed;
+}
+
+.watch-option-card.is-disabled:hover {
+  transform: none;
+}
+
+.watch-option-coming {
+  color: #777b84;
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* ================= TUTORIAL ================= */
+
+.watch-option-card.tutorial-option
+.watch-option-icon {
+  background: rgba(255, 80, 80, 0.12);
+
+  color: #ff5d5d;
+}
+
+/* ================= MOBILE ================= */
+
+@media (max-width: 600px) {
+
+  .watch-options-backdrop {
+    padding: 13px;
+  }
+
+  .watch-options-modal {
+    width: 100% !important;
+
+    max-height: calc(100dvh - 26px);
+
+    border-radius: 21px;
+  }
+
+  .watch-options-header {
+    padding: 16px 48px 18px;
+  }
+
+  .watch-options-brand-icon {
+    width: 43px;
+    height: 43px;
+
+    border-radius: 13px;
+
+    font-size: 18px;
+  }
+
+  .watch-options-header h3 {
+    font-size: 19px;
+  }
+
+  .watch-options-header p {
+    font-size: 11px;
+  }
+
+  .watch-options-close {
+    top: 13px;
+    right: 13px;
+
+    width: 31px;
+    height: 31px;
+
+    font-size: 18px;
+  }
+
+  .watch-options-list {
+    padding: 12px;
+
+    gap: 9px;
+  }
+
+  .watch-option-card {
+    min-height: 76px;
+
+    grid-template-columns:
+      44px minmax(0, 1fr) 18px;
+
+    gap: 10px;
+
+    padding: 11px !important;
+
+    border-radius: 14px !important;
+  }
+
+  .watch-option-card
+  .watch-option-icon {
+    width: 44px;
+    height: 44px;
+
+    border-radius: 12px;
+
+    font-size: 18px;
+  }
+
+  .watch-option-copy strong {
+    font-size: 13px !important;
+  }
+
+  .watch-option-copy small {
+    font-size: 10px !important;
+
+    line-height: 1.4 !important;
+  }
+
+  .watch-option-arrow {
+    font-size: 19px;
+  }
+}

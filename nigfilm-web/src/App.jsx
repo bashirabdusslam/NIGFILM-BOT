@@ -376,6 +376,14 @@ function App() {
   ] = useState(false);
 
   const [
+    watchOptionsPosition,
+    setWatchOptionsPosition,
+  ] = useState({
+    top: 120,
+    left: 180,
+  });
+
+  const [
     tutorialOpen,
     setTutorialOpen,
   ] = useState(false);
@@ -763,6 +771,76 @@ function App() {
     setWatchOptionsOpen(false);
     setTutorialOpen(false);
     navigateTo("details", movie);
+  }
+
+  function openWatchOptionsAtButton(event) {
+    const rect =
+      event.currentTarget.getBoundingClientRect();
+
+    const viewportWidth =
+      window.innerWidth;
+
+    const viewportHeight =
+      window.innerHeight;
+
+    const modalWidth =
+      Math.min(
+        370,
+        viewportWidth - 24
+      );
+
+    const modalHeightEstimate =
+      410;
+
+    const halfWidth =
+      modalWidth / 2;
+
+    let left =
+      rect.left +
+      rect.width / 2;
+
+    left =
+      Math.max(
+        halfWidth + 12,
+        Math.min(
+          left,
+          viewportWidth -
+            halfWidth -
+            12
+        )
+      );
+
+    let top =
+      rect.bottom + 10;
+
+    if (
+      top +
+        modalHeightEstimate >
+      viewportHeight - 12
+    ) {
+      top =
+        rect.top -
+        modalHeightEstimate -
+        10;
+    }
+
+    top =
+      Math.max(
+        12,
+        Math.min(
+          top,
+          viewportHeight -
+            modalHeightEstimate -
+            12
+        )
+      );
+
+    setWatchOptionsPosition({
+      top,
+      left,
+    });
+
+    setWatchOptionsOpen(true);
   }
 
   function openProfile() {
@@ -2917,10 +2995,9 @@ function App() {
               />
 
               <span className="details-price-badge">
-                ₦
-                {Number(
-                  movie.price || 0
-                ).toLocaleString()}
+                {purchased
+                  ? "✅ OWNED"
+                  : "🔒 ACCESS"}
               </span>
             </div>
 
@@ -3010,21 +3087,6 @@ function App() {
                 </div>
               )}
 
-              {!purchased && (
-                <div className="details-price">
-                  <small>
-                    Movie Price
-                  </small>
-
-                  <strong>
-                    ₦
-                    {Number(
-                      movie.price || 0
-                    ).toLocaleString()}
-                  </strong>
-                </div>
-              )}
-
               {paymentError && (
                 <div className="auth-error">
                   {paymentError}
@@ -3035,8 +3097,8 @@ function App() {
                 <button
                   type="button"
                   className="buy-now-button watch-options-main-button"
-                  onClick={() =>
-                    setWatchOptionsOpen(true)
+                  onClick={
+                    openWatchOptionsAtButton
                   }
                 >
                   ▶ WATCH OPTIONS
@@ -3077,7 +3139,13 @@ function App() {
             }
           >
             <section
-              className="watch-options-modal"
+              className="watch-options-modal watch-options-popover"
+              style={{
+                top:
+                  watchOptionsPosition.top,
+                left:
+                  watchOptionsPosition.left,
+              }}
               role="dialog"
               aria-modal="true"
               aria-label="Watch options"
@@ -5354,10 +5422,7 @@ function MovieRow({
               />
 
               <span className="row-price">
-                ₦
-                {Number(
-                  film.price || 0
-                ).toLocaleString()}
+                🔒 ACCESS
               </span>
 
               <span className="row-play">
@@ -5489,10 +5554,7 @@ function VerticalMovieList({
                 </span>
 
                 <strong>
-                  ₦
-                  {Number(
-                    film.price || 0
-                  ).toLocaleString()}
+                  🔒 ACCESS
                 </strong>
 
                 <div
@@ -5999,11 +6061,7 @@ function MovieGrid({
 
                 {!purchased && (
                   <span className="price">
-                    ₦
-                    {Number(
-                      film.price ||
-                        0
-                    ).toLocaleString()}
+                    🔒 ACCESS
                   </span>
                 )}
 

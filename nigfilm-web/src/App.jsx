@@ -343,6 +343,26 @@ function App() {
     setPremiumError,
   ] = useState("");
 
+  const [
+    premiumPlans,
+    setPremiumPlans,
+  ] = useState([]);
+
+  const [
+    premiumPlansLoading,
+    setPremiumPlansLoading,
+  ] = useState(false);
+
+  const [
+    premiumSubscribeLoading,
+    setPremiumSubscribeLoading,
+  ] = useState("");
+
+  const [
+    premiumSubscribeError,
+    setPremiumSubscribeError,
+  ] = useState("");
+
   const hasPremium =
     Boolean(premiumStatus?.premium);
 
@@ -522,6 +542,15 @@ function App() {
       setPremiumLoading(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (
+      user?.id &&
+      page === "premium"
+    ) {
+      loadPremiumPlans();
+    }
+  }, [user?.id, page]);
 
   useEffect(() => {
     if (!user) {
@@ -722,6 +751,11 @@ function App() {
 
   function openProfile() {
     navigateTo("profile");
+  }
+
+  function openPremium() {
+    setPremiumSubscribeError("");
+    navigateTo("premium");
   }
 
   function openMyMovies() {
@@ -1038,6 +1072,10 @@ function App() {
     setPremiumStatus(null);
     setPremiumError("");
     setPremiumLoading(false);
+    setPremiumPlans([]);
+    setPremiumPlansLoading(false);
+    setPremiumSubscribeLoading("");
+    setPremiumSubscribeError("");
   }
 
   // ===================================================
@@ -1165,6 +1203,123 @@ function App() {
       );
     } finally {
       setPremiumLoading(false);
+    }
+  }
+
+  // ===================================================
+  // LOAD PREMIUM PLANS
+  // ===================================================
+
+  async function loadPremiumPlans() {
+    const token = getSessionToken();
+
+    if (!user?.id || !token) {
+      setPremiumPlans([]);
+      return;
+    }
+
+    try {
+      setPremiumPlansLoading(true);
+      setPremiumSubscribeError("");
+
+      const response = await fetch(
+        `${API_URL}/api/web/premium/plans`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa dauko Premium plans."
+        );
+      }
+
+      setPremiumPlans(
+        Array.isArray(data?.plans)
+          ? data.plans
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "PREMIUM PLANS ERROR:",
+        error
+      );
+
+      setPremiumPlans([]);
+
+      setPremiumSubscribeError(
+        error?.message ||
+          "An samu matsala wajen dauko Premium plans."
+      );
+    } finally {
+      setPremiumPlansLoading(false);
+    }
+  }
+
+  // ===================================================
+  // START PREMIUM PAYMENT
+  // ===================================================
+
+  async function subscribePremium(planId) {
+    const token = getSessionToken();
+
+    if (!token || !planId) {
+      return;
+    }
+
+    try {
+      setPremiumSubscribeLoading(planId);
+      setPremiumSubscribeError("");
+
+      const response = await fetch(
+        `${API_URL}/api/web/premium/initialize`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            plan: planId,
+          }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa fara Premium payment."
+        );
+      }
+
+      if (!data?.authorizationUrl) {
+        throw new Error(
+          "Paystack Premium payment URL bai samu ba."
+        );
+      }
+
+      window.location.href =
+        data.authorizationUrl;
+    } catch (error) {
+      console.error(
+        "PREMIUM SUBSCRIBE ERROR:",
+        error
+      );
+
+      setPremiumSubscribeError(
+        error?.message ||
+          "An samu matsala wajen bude Premium payment."
+      );
+    } finally {
+      setPremiumSubscribeLoading("");
     }
   }
 
@@ -4088,6 +4243,181 @@ function App() {
   }
 
   // ===================================================
+  // PREMIUM PAGE
+  // ===================================================
+
+  if (page === "premium") {
+    return (
+      <div className="app">
+        {header}
+
+        <main className="movie-details">
+          <button
+            type="button"
+            className="back-button"
+            onClick={goBack}
+          >
+            ← Back
+          </button>
+
+          <div className="movie-details-card">
+            <div
+              className="details-content"
+              style={{
+                gridColumn: "1 / -1",
+              }}
+            >
+              <p className="small-title">
+                NIGFILM PREMIUM
+              </p>
+
+              <h2>
+                👑 Premium Membership
+              </h2>
+
+              <p className="details-description">
+                {language === "HAUSA"
+                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account ɗinka."
+                  : "Choose the Premium plan that works for you. Your membership activates after Paystack confirms payment."}
+              </p>
+
+              {hasPremium && (
+                <div className="movie-security-note">
+                  👑 Premium ɗinka yana aiki yanzu.
+                  {premiumStatus?.subscription?.plan
+                    ? ` Plan: ${premiumStatus.subscription.plan}.`
+                    : ""}
+                  {premiumStatus?.subscription?.expiresAt
+                    ? ` Expires: ${new Date(
+                        premiumStatus.subscription.expiresAt
+                      ).toLocaleDateString()}.`
+                    : ""}
+                </div>
+              )}
+
+              {premiumSubscribeError && (
+                <div className="auth-error">
+                  {premiumSubscribeError}
+                </div>
+              )}
+
+              {premiumPlansLoading ? (
+                <div className="status">
+                  <div className="loader" />
+                  <p>Loading Premium plans…</p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "16px",
+                    marginTop: "20px",
+                  }}
+                >
+                  {premiumPlans.map(
+                    (plan) => (
+                      <article
+                        key={plan.id}
+                        className="preference-card"
+                        style={{
+                          padding: "20px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "12px",
+                          minHeight: "230px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "28px",
+                          }}
+                        >
+                          👑
+                        </span>
+
+                        <h3
+                          style={{
+                            margin: 0,
+                          }}
+                        >
+                          {plan.name || plan.id}
+                        </h3>
+
+                        <strong
+                          style={{
+                            fontSize: "28px",
+                          }}
+                        >
+                          ₦
+                          {Number(
+                            plan.amount || 0
+                          ).toLocaleString()}
+                        </strong>
+
+                        <span>
+                          {Number(
+                            plan.durationDays || 0
+                          )}{" "}
+                          days
+                        </span>
+
+                        <button
+                          type="button"
+                          className="buy-now-button"
+                          style={{
+                            marginTop: "auto",
+                          }}
+                          disabled={
+                            Boolean(
+                              premiumSubscribeLoading
+                            )
+                          }
+                          onClick={() =>
+                            subscribePremium(
+                              plan.id
+                            )
+                          }
+                        >
+                          {premiumSubscribeLoading ===
+                          plan.id
+                            ? "Opening Paystack..."
+                            : hasPremium
+                              ? "👑 Extend Premium"
+                              : "👑 Go Premium"}
+                        </button>
+                      </article>
+                    )
+                  )}
+                </div>
+              )}
+
+              {!premiumPlansLoading &&
+                premiumPlans.length === 0 &&
+                !premiumSubscribeError && (
+                  <div className="status">
+                    <p>
+                      Babu Premium plan da aka samu.
+                    </p>
+                  </div>
+                )}
+            </div>
+          </div>
+        </main>
+
+        <BottomNav
+          page={page}
+          goHome={goHome}
+          goSearch={goSearch}
+          loadMyMovies={openMyMovies}
+          openProfile={openProfile}
+        />
+      </div>
+    );
+  }
+
+  // ===================================================
   // PROFILE PAGE
   // ===================================================
 
@@ -4222,6 +4552,16 @@ function App() {
               </div>
 
               <div className="details-actions">
+                <button
+                  type="button"
+                  className="buy-now-button"
+                  onClick={openPremium}
+                >
+                  {hasPremium
+                    ? "👑 Premium Plans"
+                    : "👑 Go Premium"}
+                </button>
+
                 <button
                   type="button"
                   className="buy-now-button"
@@ -4523,6 +4863,7 @@ function App() {
                   posterSrc={posterSrc}
                   openFilm={openFilm}
                   handlePosterError={handlePosterError}
+                  autoSlide
                 />
               )}
 
@@ -4544,9 +4885,10 @@ function App() {
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
               />
 
-              <MovieRow
+              <VerticalMovieList
                 title={t("hausaMovies")}
                 films={films.filter((film) =>
                   String(film.category || "").toLowerCase().includes("hausa")
@@ -4565,9 +4907,10 @@ function App() {
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
               />
 
-              <MovieRow
+              <VerticalMovieList
                 title={t("americanMovies")}
                 films={films.filter((film) => {
                   const category = String(film.category || "").toLowerCase();
@@ -4586,6 +4929,7 @@ function App() {
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
               />
             </div>
           )}
@@ -4617,8 +4961,84 @@ function MovieRow({
   posterSrc,
   openFilm,
   handlePosterError,
+  autoSlide = false,
 }) {
-  if (!Array.isArray(films) || films.length === 0) {
+  const rowRef = useRef(null);
+  const pauseUntilRef = useRef(0);
+
+  function pauseAutoSlide(
+    milliseconds = 8000
+  ) {
+    pauseUntilRef.current =
+      Date.now() + milliseconds;
+  }
+
+  useEffect(() => {
+    if (
+      !autoSlide ||
+      !Array.isArray(films) ||
+      films.length < 2
+    ) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const row = rowRef.current;
+
+      if (
+        !row ||
+        Date.now() <
+          pauseUntilRef.current
+      ) {
+        return;
+      }
+
+      const card =
+        row.querySelector(
+          ".row-card"
+        );
+
+      if (!card) {
+        return;
+      }
+
+      const style =
+        window.getComputedStyle(row);
+
+      const gap =
+        Number.parseFloat(
+          style.columnGap ||
+            style.gap ||
+            "0"
+        ) || 0;
+
+      const step =
+        card.getBoundingClientRect()
+          .width + gap;
+
+      const nearEnd =
+        row.scrollLeft +
+          row.clientWidth >=
+        row.scrollWidth -
+          step * 0.75;
+
+      row.scrollTo({
+        left: nearEnd
+          ? 0
+          : row.scrollLeft +
+            step,
+        behavior: "smooth",
+      });
+    }, 6000);
+
+    return () =>
+      clearInterval(timer);
+  }, [autoSlide, films]);
+
+  if (
+    !Array.isArray(films) ||
+    films.length === 0
+  ) {
     return null;
   }
 
@@ -4631,31 +5051,74 @@ function MovieRow({
         </div>
       )}
 
-      <div className="movie-row">
+      <div
+        ref={rowRef}
+        className="movie-row"
+        style={{
+          scrollSnapType: "x mandatory",
+          scrollBehavior: "smooth",
+          overscrollBehaviorX:
+            "contain",
+        }}
+        onPointerDown={() =>
+          pauseAutoSlide(10000)
+        }
+        onTouchStart={() =>
+          pauseAutoSlide(10000)
+        }
+        onWheel={() =>
+          pauseAutoSlide(8000)
+        }
+        onMouseEnter={() =>
+          pauseAutoSlide(5000)
+        }
+      >
         {films.map((film) => (
-          <article className="row-card" key={film.id}>
+          <article
+            className="row-card"
+            key={film.id}
+            style={{
+              scrollSnapAlign:
+                "start",
+            }}
+          >
             <button
               type="button"
               className="row-poster-button"
-              onClick={() => openFilm(film)}
+              onClick={() =>
+                openFilm(film)
+              }
             >
               <img
                 src={posterSrc(film)}
                 alt={film.title}
                 loading="lazy"
-                onError={handlePosterError}
+                decoding="async"
+                onError={
+                  handlePosterError
+                }
               />
 
               <span className="row-price">
-                ₦{Number(film.price || 0).toLocaleString()}
+                ₦
+                {Number(
+                  film.price || 0
+                ).toLocaleString()}
               </span>
 
-              <span className="row-play">▶</span>
+              <span className="row-play">
+                ▶
+              </span>
             </button>
 
             <div className="row-card-info">
-              <strong>{film.title}</strong>
-              <span>{film.category || "Movie"}</span>
+              <strong>
+                {film.title}
+              </strong>
+              <span>
+                {film.category ||
+                  "Movie"}
+              </span>
             </div>
           </article>
         ))}
@@ -4663,6 +5126,139 @@ function MovieRow({
     </section>
   );
 }
+
+// =====================================================
+// VERTICAL MOVIE LIST
+// =====================================================
+
+function VerticalMovieList({
+  title,
+  films,
+  posterSrc,
+  openFilm,
+  handlePosterError,
+}) {
+  if (
+    !Array.isArray(films) ||
+    films.length === 0
+  ) {
+    return null;
+  }
+
+  return (
+    <section className="movie-row-section">
+      <div className="row-heading">
+        <h3>{title}</h3>
+        <span>{films.length}</span>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}
+      >
+        {films.slice(0, 12).map(
+          (film) => (
+            <article
+              key={film.id}
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                openFilm(film)
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                    "Enter" ||
+                  event.key === " "
+                ) {
+                  openFilm(film);
+                }
+              }}
+              style={{
+                display: "flex",
+                gap: "14px",
+                alignItems: "center",
+                padding: "10px",
+                borderRadius: "16px",
+                cursor: "pointer",
+                background:
+                  "var(--card-bg, rgba(255,255,255,0.04))",
+                border:
+                  "1px solid var(--border-color, rgba(212,175,55,0.18))",
+              }}
+            >
+              <img
+                src={posterSrc(film)}
+                alt={film.title}
+                loading="lazy"
+                decoding="async"
+                onError={
+                  handlePosterError
+                }
+                style={{
+                  width: "82px",
+                  height: "118px",
+                  objectFit: "cover",
+                  borderRadius: "12px",
+                  flexShrink: 0,
+                }}
+              />
+
+              <div
+                style={{
+                  minWidth: 0,
+                  flex: 1,
+                }}
+              >
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: "16px",
+                    marginBottom: "7px",
+                  }}
+                >
+                  {film.title}
+                </strong>
+
+                <span
+                  style={{
+                    display: "block",
+                    opacity: 0.75,
+                    marginBottom: "8px",
+                  }}
+                >
+                  {film.category ||
+                    "Movie"}
+                </span>
+
+                <strong>
+                  ₦
+                  {Number(
+                    film.price || 0
+                  ).toLocaleString()}
+                </strong>
+
+                <div
+                  style={{
+                    marginTop: "10px",
+                    fontSize: "13px",
+                    opacity: 0.8,
+                  }}
+                >
+                  ▶ Duba Film
+                </div>
+              </div>
+            </article>
+          )
+        )}
+      </div>
+    </section>
+  );
+}
+
 function TrailerRow({
   title,
   films,
@@ -4676,7 +5272,16 @@ function TrailerRow({
 
   const hoverTimerRef = useRef(null);
   const sectionRef = useRef(null);
+  const rowRef = useRef(null);
   const cardRefs = useRef(new Map());
+  const pauseUntilRef = useRef(0);
+
+  function pauseTrailerAuto(
+    milliseconds = 8000
+  ) {
+    pauseUntilRef.current =
+      Date.now() + milliseconds;
+  }
 
   // ===================================================
   // LIGHT BUNNY PRECONNECT
@@ -4832,6 +5437,68 @@ function startPreview(film) {
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      !Array.isArray(films) ||
+      films.length < 2
+    ) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const row = rowRef.current;
+
+      if (
+        !row ||
+        previewId ||
+        Date.now() <
+          pauseUntilRef.current
+      ) {
+        return;
+      }
+
+      const card =
+        row.querySelector(
+          ".trailer-card"
+        );
+
+      if (!card) {
+        return;
+      }
+
+      const style =
+        window.getComputedStyle(row);
+
+      const gap =
+        Number.parseFloat(
+          style.columnGap ||
+            style.gap ||
+            "0"
+        ) || 0;
+
+      const step =
+        card.getBoundingClientRect()
+          .width + gap;
+
+      const nearEnd =
+        row.scrollLeft +
+          row.clientWidth >=
+        row.scrollWidth -
+          step * 0.75;
+
+      row.scrollTo({
+        left: nearEnd
+          ? 0
+          : row.scrollLeft +
+            step,
+        behavior: "smooth",
+      });
+    }, 6500);
+
+    return () =>
+      clearInterval(timer);
+  }, [films, previewId]);
+
   if (
     !Array.isArray(films) ||
     films.length === 0
@@ -4854,7 +5521,25 @@ function startPreview(film) {
         </span>
       </div>
 
-      <div className="trailer-row">
+      <div
+        ref={rowRef}
+        className="trailer-row"
+        style={{
+          scrollSnapType: "x mandatory",
+          scrollBehavior: "smooth",
+          overscrollBehaviorX:
+            "contain",
+        }}
+        onPointerDown={() =>
+          pauseTrailerAuto(10000)
+        }
+        onTouchStart={() =>
+          pauseTrailerAuto(10000)
+        }
+        onWheel={() =>
+          pauseTrailerAuto(8000)
+        }
+      >
         {films.map((film) => {
           const trailerUrl =
             trailerPlayerUrl(film);
@@ -4889,9 +5574,15 @@ function startPreview(film) {
 
               key={film.id}
 
-              onMouseEnter={() =>
-                startPreview(film)
-              }
+              style={{
+                scrollSnapAlign:
+                  "start",
+              }}
+
+              onMouseEnter={() => {
+                pauseTrailerAuto(9000);
+                startPreview(film);
+              }}
 
               onMouseLeave={
                 stopPreview

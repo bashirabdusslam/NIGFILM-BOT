@@ -1099,3 +1099,445 @@ img { max-width: 100%; }
     font-size: 14px;
   }
 }
+/* =====================================================
+   NIGFILM — COMPACT MOBILE DASHBOARD
+   More movies visible with less scrolling
+===================================================== */
+
+/* Tighter spacing between dashboard sections */
+.streaming-rows {
+  gap: 20px;
+}
+
+.movie-row-section {
+  min-width: 0;
+}
+
+.row-heading {
+  margin-bottom: 10px;
+}
+
+.row-heading h3 {
+  font-size: 16px;
+}
+
+.row-heading span {
+  font-size: 10px;
+}
+
+/* =====================================================
+   HORIZONTAL MOVIE CAROUSEL
+===================================================== */
+
+.movie-row {
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+
+.row-card {
+  scroll-snap-align: start;
+}
+
+.row-poster-button {
+  border-radius: 11px;
+}
+
+.row-card-info {
+  padding-top: 6px;
+}
+
+.row-card-info strong {
+  font-size: 11px;
+}
+
+.row-card-info span {
+  margin-top: 2px;
+  font-size: 8px;
+}
+
+.row-price {
+  top: 6px;
+  right: 6px;
+
+  padding: 4px 6px;
+
+  font-size: 9px;
+}
+
+.row-play {
+  left: 7px;
+  bottom: 7px;
+
+  width: 28px;
+  height: 28px;
+
+  font-size: 9px;
+}
+
+/* =====================================================
+   COMPACT VERTICAL MOVIE LIST
+   Hausa / American sections
+===================================================== */
+
+/*
+  VerticalMovieList currently uses inline styles in App.jsx.
+  These !important rules intentionally override them.
+*/
+
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"] {
+  min-height: 94px !important;
+
+  gap: 10px !important;
+
+  padding: 8px !important;
+
+  border-radius: 12px !important;
+}
+
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"]
+  > img {
+  width: 64px !important;
+  height: 92px !important;
+
+  border-radius: 9px !important;
+}
+
+/* Movie title inside vertical list */
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"]
+  > div
+  > strong:first-child {
+  margin-bottom: 4px !important;
+
+  font-size: 13px !important;
+
+  line-height: 1.2 !important;
+
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+
+  overflow: hidden !important;
+}
+
+/* Category */
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"]
+  > div
+  > span {
+  margin-bottom: 5px !important;
+
+  font-size: 11px !important;
+}
+
+/* Price */
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"]
+  > div
+  > strong:not(:first-child) {
+  font-size: 13px !important;
+}
+
+/* View movie */
+.movie-row-section
+  > div[style*="flex-direction: column"]
+  > article[role="button"]
+  > div
+  > div {
+  margin-top: 5px !important;
+
+  font-size: 10px !important;
+}
+
+/* =====================================================
+   TRAILER COMPACT SIZE
+===================================================== */
+
+.trailer-card {
+  flex-basis: 250px;
+  min-width: 250px;
+}
+
+.trailer-card-bottom {
+  padding-top: 6px;
+}
+
+.trailer-card-bottom strong {
+  font-size: 11px;
+}
+
+.trailer-card-bottom button {
+  font-size: 11px;
+}
+
+.trailer-preview-play {
+  width: 40px;
+  height: 40px;
+
+  font-size: 14px;
+}
+
+.trailer-preview-text {
+  font-size: 9px;
+}
+
+/* =====================================================
+   MOBILE — SHOW ABOUT 3 MOVIES AT ONCE
+===================================================== */
+
+@media (max-width: 700px) {
+
+  .app {
+    padding-bottom: 76px;
+  }
+
+  /* Slightly more screen width available for content */
+  .header,
+  .search-section,
+  .hero-banner,
+  .section {
+    width: calc(100% - 20px);
+  }
+
+  /* Smaller hero so movies appear earlier */
+  .hero-banner {
+    min-height: 180px;
+
+    margin-bottom: 16px;
+
+    border-radius: 13px;
+  }
+
+  .hero-overlay {
+    padding: 17px;
+  }
+
+  .hero-banner h2 {
+    font-size: 27px;
+  }
+
+  .hero-banner p {
+    margin: 8px 0 12px;
+
+    font-size: 10px;
+  }
+
+  .hero-banner button {
+    min-height: 36px;
+
+    padding: 0 13px;
+
+    font-size: 10px;
+  }
+
+  /* Less space below sections */
+  .section {
+    padding-bottom: 18px;
+  }
+
+  .section-heading,
+  .row-heading {
+    margin-bottom: 9px;
+  }
+
+  .section-heading h2 {
+    font-size: 16px;
+  }
+
+  .row-heading h3 {
+    font-size: 15px;
+  }
+
+  /*
+    IMPORTANT:
+    Before = 42vw, about 2 cards visible.
+    Now = 30vw, about 3 cards visible.
+  */
+  .movie-row {
+    grid-auto-columns: 30vw;
+
+    gap: 8px;
+
+    margin-right: -10px;
+    padding-right: 10px;
+    padding-bottom: 7px;
+  }
+
+  .row-poster-button {
+    border-radius: 10px;
+  }
+
+  .row-card-info strong {
+    font-size: 10px;
+  }
+
+  .row-card-info span {
+    font-size: 7.5px;
+  }
+
+  .row-price {
+    padding: 3px 5px;
+
+    font-size: 8px;
+  }
+
+  .row-play {
+    width: 26px;
+    height: 26px;
+
+    left: 6px;
+    bottom: 6px;
+
+    font-size: 8px;
+  }
+
+  /* Trailer: show part of next trailer */
+  .trailer-row {
+    grid-auto-columns: 68vw;
+
+    gap: 9px;
+
+    margin-right: -10px;
+    padding-right: 10px;
+  }
+
+  .trailer-card {
+    flex-basis: 68vw;
+    min-width: 68vw;
+  }
+
+  /*
+    Vertical cards become much shorter.
+    Users can see several Hausa/American films quickly.
+  */
+  .movie-row-section
+    > div[style*="flex-direction: column"] {
+    gap: 8px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"] {
+    min-height: 88px !important;
+
+    gap: 9px !important;
+
+    padding: 7px !important;
+
+    border-radius: 11px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > img {
+    width: 58px !important;
+    height: 84px !important;
+
+    border-radius: 8px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > div
+    > strong:first-child {
+    font-size: 12px !important;
+
+    margin-bottom: 3px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > div
+    > span {
+    margin-bottom: 3px !important;
+
+    font-size: 9px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > div
+    > strong:not(:first-child) {
+    font-size: 12px !important;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > div
+    > div {
+    margin-top: 4px !important;
+
+    font-size: 9px !important;
+  }
+
+  .streaming-rows {
+    gap: 18px;
+  }
+
+  /* Keep bottom navigation compact */
+  .bottom-nav {
+    height: 55px;
+  }
+
+  .bottom-nav button {
+    font-size: 8px;
+  }
+
+  .bottom-nav button span {
+    font-size: 16px;
+  }
+}
+
+/* =====================================================
+   VERY SMALL PHONES
+===================================================== */
+
+@media (max-width: 380px) {
+
+  .movie-row {
+    grid-auto-columns: 31vw;
+
+    gap: 7px;
+  }
+
+  .trailer-row {
+    grid-auto-columns: 72vw;
+  }
+
+  .trailer-card {
+    flex-basis: 72vw;
+    min-width: 72vw;
+  }
+
+  .hero-banner {
+    min-height: 165px;
+  }
+
+  .hero-banner h2 {
+    font-size: 24px;
+  }
+
+  .row-heading h3 {
+    font-size: 14px;
+  }
+
+  .movie-row-section
+    > div[style*="flex-direction: column"]
+    > article[role="button"]
+    > img {
+    width: 54px !important;
+    height: 78px !important;
+  }
+}

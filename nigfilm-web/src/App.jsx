@@ -14,6 +14,10 @@ const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
   "726332";
 
+const TUTORIAL_VIDEO_URL =
+  import.meta.env.VITE_TUTORIAL_VIDEO_URL ||
+  "";
+
 const UI_TEXT = {
   HAUSA: {
     search: "Nemo fina-finai...",
@@ -365,6 +369,16 @@ function App() {
 
   const hasPremium =
     Boolean(premiumStatus?.premium);
+
+  const [
+    watchOptionsOpen,
+    setWatchOptionsOpen,
+  ] = useState(false);
+
+  const [
+    tutorialOpen,
+    setTutorialOpen,
+  ] = useState(false);
 
   // ===================================================
   // ADMIN - MANAGE FILMS
@@ -746,6 +760,8 @@ function App() {
     const movie = normalizeFilm(film);
     if (!movie) return;
 
+    setWatchOptionsOpen(false);
+    setTutorialOpen(false);
     navigateTo("details", movie);
   }
 
@@ -1076,6 +1092,8 @@ function App() {
     setPremiumPlansLoading(false);
     setPremiumSubscribeLoading("");
     setPremiumSubscribeError("");
+    setWatchOptionsOpen(false);
+    setTutorialOpen(false);
   }
 
   // ===================================================
@@ -3014,66 +3032,20 @@ function App() {
               )}
 
               <div className="details-actions">
-                {!purchased ? (
-                  <button
-                    type="button"
-                    className="buy-now-button"
-                    disabled={
-                      paymentLoading
-                    }
-                    onClick={() =>
-                      buyMovie(movie)
-                    }
-                  >
-                    {paymentLoading
-                      ? "Opening Paystack..."
-                      : "💳 Buy Now"}
-                  </button>
-                ) : (
-                  <>
-                    {playerUrl && (
-                      <button
-                        type="button"
-                        className="buy-now-button"
-                        onClick={() => {
-                          document
-                            .querySelector(
-                              ".bunny-player"
-                            )
-                            ?.scrollIntoView(
-                              {
-                                behavior:
-                                  "smooth",
-                                block:
-                                  "center",
-                              }
-                            );
-                        }}
-                      >
-                        ▶ Watch Movie
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="download-button"
-                      onClick={() =>
-                        downloadMovie(
-                          movie
-                        )
-                      }
-                    >
-                      ⬇ Download
-                    </button>
-                  </>
-                )}
+                <button
+                  type="button"
+                  className="buy-now-button watch-options-main-button"
+                  onClick={() =>
+                    setWatchOptionsOpen(true)
+                  }
+                >
+                  ▶ WATCH OPTIONS
+                </button>
 
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={
-                    openMyMovies
-                  }
+                  onClick={openMyMovies}
                 >
                   🎬 My Movies
                 </button>
@@ -3081,9 +3053,7 @@ function App() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={
-                    goHome
-                  }
+                  onClick={goHome}
                 >
                   🎞️ More Movies
                 </button>
@@ -3097,6 +3067,290 @@ function App() {
             </div>
           </div>
         </main>
+
+        {watchOptionsOpen && (
+          <div
+            className="watch-options-backdrop"
+            role="presentation"
+            onClick={() =>
+              setWatchOptionsOpen(false)
+            }
+          >
+            <section
+              className="watch-options-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Watch options"
+              onClick={(event) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="watch-options-handle" />
+
+              <div className="watch-options-header">
+                <div className="watch-options-brand-icon">
+                  ▶
+                </div>
+
+                <div>
+                  <h3>NIGFILM</h3>
+                  <p>
+                    {language === "HAUSA"
+                      ? "Zaɓi yadda kake son kallon wannan film"
+                      : "Choose how you want to watch this movie"}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="watch-options-close"
+                  onClick={() =>
+                    setWatchOptionsOpen(false)
+                  }
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="watch-options-list">
+                {purchased ? (
+                  <>
+                    {playerUrl && (
+                      <button
+                        type="button"
+                        className="watch-option-card premium-option"
+                        onClick={() => {
+                          setWatchOptionsOpen(false);
+                          setTimeout(() => {
+                            document
+                              .querySelector(
+                                ".bunny-player:not(.trailer-player)"
+                              )
+                              ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                              });
+                          }, 80);
+                        }}
+                      >
+                        <span className="watch-option-icon">▶</span>
+                        <span className="watch-option-copy">
+                          <strong>Watch Movie</strong>
+                          <small>
+                            {language === "HAUSA"
+                              ? "Film ɗin yana cikin My Movies ɗinka."
+                              : "This movie is already in your library."}
+                          </small>
+                        </span>
+                        <span className="watch-option-arrow">›</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="watch-option-card buy-option"
+                      onClick={() => {
+                        setWatchOptionsOpen(false);
+                        downloadMovie(movie);
+                      }}
+                    >
+                      <span className="watch-option-icon">⬇</span>
+                      <span className="watch-option-copy">
+                        <strong>Download Movie</strong>
+                        <small>
+                          {language === "HAUSA"
+                            ? "Sauke film ɗin zuwa na'urarka."
+                            : "Download the movie to your device."}
+                        </small>
+                      </span>
+                      <span className="watch-option-arrow">›</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="watch-option-card premium-option"
+                      onClick={() => {
+                        setWatchOptionsOpen(false);
+                        openPremium();
+                      }}
+                    >
+                      <span className="watch-option-icon">👑</span>
+                      <span className="watch-option-copy">
+                        <strong>
+                          {hasPremium
+                            ? "Premium Active"
+                            : "Activate Premium"}
+                        </strong>
+                        <small>
+                          {hasPremium
+                            ? language === "HAUSA"
+                              ? "Premium ɗinka yana aiki. Za ka iya duba plans ko ƙara lokaci."
+                              : "Your Premium is active. View plans or extend it."
+                            : language === "HAUSA"
+                              ? "Zaɓi Weekly, Monthly ko Yearly Premium."
+                              : "Choose Weekly, Monthly or Yearly Premium."}
+                        </small>
+                      </span>
+                      <span className="watch-option-arrow">›</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="watch-option-card buy-option"
+                      disabled={paymentLoading}
+                      onClick={() => {
+                        setWatchOptionsOpen(false);
+                        buyMovie(movie);
+                      }}
+                    >
+                      <span className="watch-option-icon">💳</span>
+                      <span className="watch-option-copy">
+                        <strong>
+                          {paymentLoading
+                            ? "Opening Paystack..."
+                            : `Buy This Movie — ₦${Number(
+                                movie.price || 0
+                              ).toLocaleString()}`}
+                        </strong>
+                        <small>
+                          {language === "HAUSA"
+                            ? "Biya sau ɗaya, film ya shiga My Movies."
+                            : "Pay once and keep the movie in My Movies."}
+                        </small>
+                      </span>
+                      <span className="watch-option-arrow">›</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="watch-option-card ads-option is-disabled"
+                      disabled
+                    >
+                      <span className="watch-option-icon">📺</span>
+                      <span className="watch-option-copy">
+                        <strong>Watch 5 Ads & Unlock</strong>
+                        <small>
+                          {language === "HAUSA"
+                            ? "Wannan zaɓin zai kunna bayan mun haɗa rewarded ads."
+                            : "This option will activate after rewarded ads are connected."}
+                        </small>
+                      </span>
+                      <span className="watch-option-coming">SOON</span>
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="watch-option-card tutorial-option"
+                  onClick={() => {
+                    setWatchOptionsOpen(false);
+                    setTutorialOpen(true);
+                  }}
+                >
+                  <span className="watch-option-icon">🎥</span>
+                  <span className="watch-option-copy">
+                    <strong>How to Buy / Activate Premium</strong>
+                    <small>
+                      {language === "HAUSA"
+                        ? "Kalli tutorial na yadda ake siyan film ko kunna Premium."
+                        : "Watch a guide on buying a movie or activating Premium."}
+                    </small>
+                  </span>
+                  <span className="watch-option-arrow">›</span>
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {tutorialOpen && (
+          <div
+            className="watch-options-backdrop tutorial-backdrop"
+            role="presentation"
+            onClick={() =>
+              setTutorialOpen(false)
+            }
+          >
+            <section
+              className="tutorial-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="NIGFILM tutorial"
+              onClick={(event) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="watch-options-handle" />
+
+              <div className="watch-options-header">
+                <div className="watch-options-brand-icon tutorial-brand-icon">
+                  🎥
+                </div>
+
+                <div>
+                  <h3>Video Tutorial</h3>
+                  <p>
+                    {language === "HAUSA"
+                      ? "Yadda ake siyan film ko kunna Premium"
+                      : "How to buy a movie or activate Premium"}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="watch-options-close"
+                  onClick={() =>
+                    setTutorialOpen(false)
+                  }
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              {TUTORIAL_VIDEO_URL ? (
+                <div className="tutorial-video-frame">
+                  <iframe
+                    src={TUTORIAL_VIDEO_URL}
+                    title="NIGFILM tutorial"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <div className="tutorial-fallback">
+                  <div className="tutorial-step">
+                    <span>1</span>
+                    <div>
+                      <strong>Buy This Movie</strong>
+                      <p>
+                        Watch Options → Buy This Movie → Paystack → My Movies.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="tutorial-step">
+                    <span>2</span>
+                    <div>
+                      <strong>Activate Premium</strong>
+                      <p>
+                        Watch Options → Activate Premium → Choose Plan → Paystack.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="movie-security-note">
+                    🎥 Idan ka saka VITE_TUTORIAL_VIDEO_URL a Vercel, video tutorial zai bayyana a nan kai tsaye.
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
 
         <BottomNav
           page={page}

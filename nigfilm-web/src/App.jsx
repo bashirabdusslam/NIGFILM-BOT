@@ -325,6 +325,28 @@ function App() {
   ] = useState("");
 
   // ===================================================
+  // PREMIUM
+  // ===================================================
+
+  const [
+    premiumStatus,
+    setPremiumStatus,
+  ] = useState(null);
+
+  const [
+    premiumLoading,
+    setPremiumLoading,
+  ] = useState(false);
+
+  const [
+    premiumError,
+    setPremiumError,
+  ] = useState("");
+
+  const hasPremium =
+    Boolean(premiumStatus?.premium);
+
+  // ===================================================
   // ADMIN - MANAGE FILMS
   // ===================================================
 
@@ -493,6 +515,11 @@ function App() {
   useEffect(() => {
     if (user?.id) {
       loadMyMovies(false);
+      loadPremiumStatus();
+    } else {
+      setPremiumStatus(null);
+      setPremiumError("");
+      setPremiumLoading(false);
     }
   }, [user?.id]);
 
@@ -1007,6 +1034,10 @@ function App() {
 
     setBunnyStatus(null);
     setUploadProgress(0);
+
+    setPremiumStatus(null);
+    setPremiumError("");
+    setPremiumLoading(false);
   }
 
   // ===================================================
@@ -1070,6 +1101,70 @@ function App() {
       );
     } finally {
       setMyMoviesLoading(false);
+    }
+  }
+
+  // ===================================================
+  // LOAD PREMIUM STATUS
+  // ===================================================
+
+  async function loadPremiumStatus() {
+    const token =
+      getSessionToken();
+
+    if (!user?.id || !token) {
+      setPremiumStatus(null);
+      setPremiumError("");
+      return;
+    }
+
+    try {
+      setPremiumLoading(true);
+      setPremiumError("");
+
+      const response =
+        await fetch(
+          `${API_URL}/api/web/premium/status`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const data =
+        await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa duba Premium status."
+        );
+      }
+
+      setPremiumStatus({
+        premium:
+          Boolean(data?.premium),
+
+        subscription:
+          data?.subscription ||
+          null,
+      });
+    } catch (error) {
+      console.error(
+        "PREMIUM STATUS ERROR:",
+        error
+      );
+
+      setPremiumStatus(null);
+
+      setPremiumError(
+        error?.message ||
+          "An samu matsala wajen duba Premium."
+      );
+    } finally {
+      setPremiumLoading(false);
     }
   }
 
@@ -4037,6 +4132,20 @@ function App() {
                     🛡️ Admin
                   </span>
                 )}
+
+                {premiumLoading ? (
+                  <span>
+                    👑 Checking Premium...
+                  </span>
+                ) : hasPremium ? (
+                  <span>
+                    👑 Premium Active
+                  </span>
+                ) : (
+                  <span>
+                    🎬 Standard Account
+                  </span>
+                )}
               </div>
 
               <p className="details-description">
@@ -4044,6 +4153,27 @@ function App() {
                 ka saya suna cikin
                 My Movies ɗinka.
               </p>
+
+              {premiumError && (
+                <div className="auth-error">
+                  {premiumError}
+                </div>
+              )}
+
+              {hasPremium &&
+                premiumStatus?.subscription && (
+                  <div className="movie-security-note">
+                    👑 Premium ɗinka yana aiki.
+                    {premiumStatus.subscription.plan
+                      ? ` Plan: ${premiumStatus.subscription.plan}.`
+                      : ""}
+                    {premiumStatus.subscription.expiresAt
+                      ? ` Expires: ${new Date(
+                          premiumStatus.subscription.expiresAt
+                        ).toLocaleDateString()}.`
+                      : ""}
+                  </div>
+                )}
 
               <div className="preference-panel">
                 <h3>⚙️ {t("accountSettings")}</h3>

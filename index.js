@@ -1264,7 +1264,108 @@ app.get(
     }
   }
 );
+// ======================================================
+// PREMIUM PAYMENT CALLBACK
+// ======================================================
 
+app.get(
+  "/premium-payment-success",
+  async (req, res) => {
+    try {
+      const reference =
+        String(
+          req.query.reference || ""
+        ).trim();
+
+      if (!reference) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Premium Payment Reference Missing",
+              message:
+                "Ba a samu Premium payment reference ba.",
+            })
+          );
+      }
+
+      const verification =
+        await verifyPaystackTransaction(
+          reference
+        );
+
+      if (
+        !verification.success
+      ) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Premium Payment Not Confirmed",
+              message:
+                verification.message,
+            })
+          );
+      }
+
+      const result =
+        await processPremiumPayment({
+          reference,
+
+          paidAmount:
+            verification.amount,
+        });
+
+      if (!result.success) {
+        return res
+          .status(400)
+          .send(
+            buildWebPaymentPage({
+              success: false,
+              title:
+                "Premium Activation Problem",
+              message:
+                result.message,
+            })
+          );
+      }
+
+      return res
+        .status(200)
+        .send(
+          buildWebPaymentPage({
+            success: true,
+            title:
+              "Premium Activated",
+            message:
+              "An tabbatar da payment dinka. NIGFILM Premium ya kunna cikin nasara.",
+          })
+        );
+
+    } catch (error) {
+      console.error(
+        "❌ PREMIUM PAYMENT CALLBACK ERROR:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send(
+          buildWebPaymentPage({
+            success: false,
+            title:
+              "Premium Payment Error",
+            message:
+              "An samu matsala wajen kunna Premium.",
+          })
+        );
+    }
+  }
+);
 // ======================================================
 // WEB MY MOVIES API
 // ======================================================
@@ -2643,6 +2744,206 @@ app.post(
     }
   }
 );
+// ======================================================
+// REQUIRE WEB USER
+// ======================================================
+
+async function requireWebUser(
+  req,
+  res,
+  next
+) {
+  try {
+    const authorization =
+      String(
+        req.headers.authorization ||
+          ""
+      );
+
+    if (
+      !authorization.startsWith(
+        "Bearer "
+      )
+    ) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Authentication required.",
+      });
+    }
+
+    const token =
+      authorization
+        .slice(7)
+        .trim();
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Session token bai samu ba.",
+      });
+    }
+
+    const tokenHash =
+      hashSessionToken(token);
+
+    const session =
+      await prisma.webSession.findUnique({
+        where: {
+          tokenHash,
+        },
+
+        include: {
+          user: true,
+        },
+      });
+
+    if (!session) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Session bai dace ba.",
+      });
+    }
+
+    if (
+      session.expiresAt <
+      new Date()
+    ) {
+      await prisma.webSession
+        .delete({
+          where: {
+            id: session.id,
+          },
+        })
+        .catch(() => {});
+
+      return res.status(401).json({
+        success: false,
+        message:
+          "Session ya kare.",
+      });
+    }
+
+    req.webUser =
+      session.user;
+
+    req.webSession =
+      session;
+
+    return next();
+  } catch (error) {
+    console.error(
+      "❌ REQUIRE WEB USER ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "An samu matsala wajen tabbatar da account.",
+    });
+  }
+}
+// ======================================================
+// NIGFILM PREMIUM PLANS
+// ======================================================
+
+const PREMIUM_PLANS = {
+  WEEKLY: {
+    name: "Weekly",
+    amount: 1000,
+    durationDays: 7,
+  },
+
+  MONTHLY: {
+    name: "Monthly",
+    amount: 3000,
+    durationDays: 30,
+  },
+
+  YEARLY: {
+    name: "Yearly",
+    amount: 25000,
+    durationDays: 365,
+  },
+};
+// ======================================================
+// PREMIUM EXPIRY CALCULATOR
+// ======================================================
+
+function getPremiumExpiryDate(
+  planKey,
+  startDate = new Date()
+) {
+  const plan =
+    PREMIUM_PLANS[planKey];
+
+  if (!plan) {
+    return null;
+  }
+
+  const expiresAt =
+    new Date(startDate);
+
+  expiresAt.setDate(
+    expiresAt.getDate() +
+      Number(plan.durationDays)
+  );
+
+  return expiresAt;
+}
+// ======================================================
+// CHECK ACTIVE PREMIUM
+// ======================================================
+
+async function getActivePremium(
+  webUserId
+) {
+  const userId =
+    Number(webUserId);
+
+  if (
+    !Number.isInteger(userId) ||
+    userId <= 0
+  ) {
+    return null;
+  }
+
+  const now =
+    new Date();
+
+  const subscription =
+    await prisma.premiumSubscription.findFirst({
+      where: {
+        webUserId: userId,
+
+        status: "ACTIVE",
+
+        expiresAt: {
+          gt: now,
+        },
+      },
+
+      orderBy: {
+        expiresAt: "desc",
+      },
+    });
+
+  return subscription || null;
+}
+
+async function hasActivePremium(
+  webUserId
+) {
+  const subscription =
+    await getActivePremium(
+      webUserId
+    );
+
+  return Boolean(subscription);
+}
 // =================================
 // REQUIRE ADMIN
 // =================================
@@ -2756,6 +3057,373 @@ async function requireAdmin(
     });
   }
 }
+// ======================================================
+// WEB PREMIUM - GET PREMIUM STATUS
+// ======================================================
+
+app.get(
+  "/api/web/premium/status",
+  requireWebUser,
+  async (req, res) => {
+    try {
+      const webUserId =
+        req.webUser.id;
+
+      const subscription =
+        await getActivePremium(
+          webUserId
+        );
+
+      if (!subscription) {
+        return res.status(200).json({
+          success: true,
+          premium: false,
+          subscription: null,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+
+        premium: true,
+
+        subscription: {
+          id:
+            subscription.id,
+
+          plan:
+            subscription.plan,
+
+          status:
+            subscription.status,
+
+          amount:
+            subscription.amount,
+
+          startsAt:
+            subscription.startsAt,
+
+          expiresAt:
+            subscription.expiresAt,
+        },
+      });
+
+    } catch (error) {
+      console.error(
+        "❌ PREMIUM STATUS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen duba Premium status.",
+      });
+    }
+  }
+);
+// ======================================================
+// WEB PREMIUM - GET PLANS
+// ======================================================
+
+app.get(
+  "/api/web/premium/plans",
+  requireWebUser,
+  async (req, res) => {
+    try {
+      const plans =
+        Object.entries(
+          PREMIUM_PLANS
+        ).map(
+          ([key, value]) => ({
+            id: key,
+            name: value.name,
+            amount: value.amount,
+            durationDays:
+              value.durationDays,
+          })
+        );
+
+      return res.status(200).json({
+        success: true,
+        plans,
+      });
+
+    } catch (error) {
+      console.error(
+        "❌ PREMIUM PLANS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen dauko Premium plans.",
+      });
+    }
+  }
+);
+// ======================================================
+// WEB PREMIUM - INITIALIZE PAYMENT
+// ======================================================
+
+app.post(
+  "/api/web/premium/initialize",
+  requireWebUser,
+  async (req, res) => {
+    try {
+      const webUserId =
+        req.webUser.id;
+
+      const requestedPlan =
+        String(
+          req.body?.plan || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      // =================================
+      // VALIDATE PLAN
+      // =================================
+
+      const plan =
+        PREMIUM_PLANS[
+          requestedPlan
+        ];
+
+      if (!plan) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Premium plan bai dace ba.",
+        });
+      }
+
+      // =================================
+      // CHECK PAYSTACK CONFIG
+      // =================================
+
+      if (
+        !process.env
+          .PAYSTACK_SECRET_KEY
+      ) {
+        console.error(
+          "❌ PAYSTACK_SECRET_KEY babu."
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Paystack bai gama saitawa ba.",
+        });
+      }
+
+      // =================================
+      // CHECK USER
+      // =================================
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            id: webUserId,
+          },
+
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+          },
+        });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu wannan user ba.",
+        });
+      }
+
+      // =================================
+      // CREATE PAYMENT REFERENCE
+      // =================================
+
+      const reference =
+        `PREMIUM_${user.id}_${requestedPlan}_${Date.now()}_${crypto
+          .randomBytes(4)
+          .toString("hex")}`;
+
+      // =================================
+      // CREATE PREMIUM ORDER
+      // =================================
+
+      const order =
+        await prisma.premiumOrder.create({
+          data: {
+            webUserId:
+              user.id,
+
+            plan:
+              requestedPlan,
+
+            amount:
+              Number(
+                plan.amount
+              ),
+
+            status:
+              "pending",
+
+            paymentReference:
+              reference,
+          },
+        });
+
+      // =================================
+      // INITIALIZE PAYSTACK
+      // =================================
+
+      const paystackResponse =
+        await fetch(
+          "https://api.paystack.co/transaction/initialize",
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              email:
+                `premium${user.id}@nigfilm.app`,
+
+              amount:
+                Number(
+                  plan.amount
+                ) * 100,
+
+              reference,
+
+              callback_url:
+                `${PUBLIC_BASE_URL}/premium-payment-success`,
+
+              metadata: {
+                type:
+                  "web_premium_subscription",
+
+                webUserId:
+                  user.id,
+
+                premiumOrderId:
+                  order.id,
+
+                plan:
+                  requestedPlan,
+              },
+            }),
+          }
+        );
+
+      const paystackData =
+        await paystackResponse.json();
+
+      // =================================
+      // PAYSTACK FAILED
+      // =================================
+
+      if (
+        !paystackResponse.ok ||
+        !paystackData?.status ||
+        !paystackData?.data
+          ?.authorization_url
+      ) {
+        console.error(
+          "❌ PREMIUM PAYSTACK INITIALIZE ERROR:",
+          paystackData
+        );
+
+        await prisma.premiumOrder.update({
+          where: {
+            id: order.id,
+          },
+
+          data: {
+            status:
+              "failed",
+          },
+        });
+
+        return res.status(502).json({
+          success: false,
+
+          message:
+            paystackData?.message ||
+            "An kasa fara Premium payment.",
+        });
+      }
+
+      console.log(
+        "✅ PREMIUM PAYMENT INITIALIZED:",
+        {
+          webUserId:
+            user.id,
+
+          plan:
+            requestedPlan,
+
+          reference,
+        }
+      );
+
+      // =================================
+      // RESPONSE
+      // =================================
+
+      return res.status(200).json({
+        success: true,
+
+        authorizationUrl:
+          paystackData.data
+            .authorization_url,
+
+        accessCode:
+          paystackData.data
+            .access_code,
+
+        reference,
+
+        order: {
+          id:
+            order.id,
+
+          plan:
+            order.plan,
+
+          amount:
+            order.amount,
+
+          status:
+            order.status,
+        },
+      });
+
+    } catch (error) {
+      console.error(
+        "❌ PREMIUM PAYMENT INITIALIZE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen fara Premium payment.",
+      });
+    }
+  }
+);
 // ======================================================
 // ADMIN - PREPARE BUNNY UPLOAD
 // ======================================================
@@ -6093,7 +6761,219 @@ async function processWebFilmPayment({
     };
   }
 }
+// ======================================================
+// PROCESS PREMIUM PAYMENT
+// ======================================================
 
+async function processPremiumPayment({
+  reference,
+  paidAmount,
+}) {
+  try {
+    const order =
+      await prisma.premiumOrder.findUnique({
+        where: {
+          paymentReference:
+            reference,
+        },
+      });
+
+    if (!order) {
+      return {
+        success: false,
+        message:
+          "Ba a samu PremiumOrder na payment ba.",
+      };
+    }
+
+    const expectedAmount =
+      Number(order.amount) * 100;
+
+    if (
+      !Number.isFinite(
+        paidAmount
+      ) ||
+      paidAmount !==
+        expectedAmount
+    ) {
+      console.error(
+        "❌ PREMIUM PAYMENT AMOUNT MISMATCH:",
+        {
+          reference,
+          paidAmount,
+          expectedAmount,
+        }
+      );
+
+      return {
+        success: false,
+        message:
+          "Adadin kudin Premium bai dace ba.",
+      };
+    }
+
+    if (
+      order.status ===
+      "paid"
+    ) {
+      return {
+        success: true,
+        alreadyProcessed: true,
+      };
+    }
+
+    const plan =
+      PREMIUM_PLANS[
+        order.plan
+      ];
+
+    if (!plan) {
+      return {
+        success: false,
+        message:
+          "Premium plan na order bai dace ba.",
+      };
+    }
+
+    const now =
+      new Date();
+
+    // =================================
+    // CHECK EXISTING ACTIVE PREMIUM
+    // =================================
+
+    const existingSubscription =
+      await prisma.premiumSubscription.findFirst({
+        where: {
+          webUserId:
+            order.webUserId,
+
+          status:
+            "ACTIVE",
+
+          expiresAt: {
+            gt: now,
+          },
+        },
+
+        orderBy: {
+          expiresAt:
+            "desc",
+        },
+      });
+
+    // Idan user yana da active premium,
+    // sabon plan zai fara daga lokacin da tsohon zai kare.
+    const startsAt =
+      existingSubscription
+        ? new Date(
+            existingSubscription.expiresAt
+          )
+        : now;
+
+    const expiresAt =
+      getPremiumExpiryDate(
+        order.plan,
+        startsAt
+      );
+
+    if (!expiresAt) {
+      return {
+        success: false,
+        message:
+          "An kasa lissafa lokacin kare Premium.",
+      };
+    }
+
+    await prisma.$transaction(
+      async (tx) => {
+        const currentOrder =
+          await tx.premiumOrder.findUnique({
+            where: {
+              id: order.id,
+            },
+          });
+
+        if (
+          !currentOrder ||
+          currentOrder.status ===
+            "paid"
+        ) {
+          return;
+        }
+
+        await tx.premiumSubscription.create({
+          data: {
+            webUserId:
+              order.webUserId,
+
+            plan:
+              order.plan,
+
+            status:
+              "ACTIVE",
+
+            amount:
+              order.amount,
+
+            paymentReference:
+              order.paymentReference,
+
+            startsAt,
+
+            expiresAt,
+          },
+        });
+
+        await tx.premiumOrder.update({
+          where: {
+            id: order.id,
+          },
+
+          data: {
+            status:
+              "paid",
+          },
+        });
+      }
+    );
+
+    console.log(
+      "✅ PREMIUM SUBSCRIPTION ACTIVATED:",
+      {
+        webUserId:
+          order.webUserId,
+
+        plan:
+          order.plan,
+
+        reference,
+
+        startsAt,
+
+        expiresAt,
+      }
+    );
+
+    return {
+      success: true,
+      startsAt,
+      expiresAt,
+    };
+
+  } catch (error) {
+    console.error(
+      "❌ PROCESS PREMIUM PAYMENT ERROR:",
+      error
+    );
+
+    return {
+      success: false,
+      message:
+        "An samu matsala wajen kunna Premium.",
+    };
+  }
+}
 // ======================================================
 // VERIFY PAYSTACK TRANSACTION
 // ======================================================

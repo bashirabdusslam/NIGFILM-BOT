@@ -35,6 +35,18 @@ enum AppTheme {
   WHITE_GOLD
 }
 
+enum PremiumPlan {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum PremiumStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
 model WebUser {
   id           Int         @id @default(autoincrement())
   fullName     String
@@ -48,9 +60,11 @@ model WebUser {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  webPurchases WebPurchase[]
-  webOrders    WebOrder[]
-  webSessions  WebSession[]
+  webPurchases         WebPurchase[]
+  webOrders            WebOrder[]
+  webSessions          WebSession[]
+  premiumSubscriptions PremiumSubscription[]
+  premiumOrders        PremiumOrder[]
 }
 
 model WebSession {
@@ -66,6 +80,42 @@ model WebSession {
   @@index([expiresAt])
 }
 
+model PremiumSubscription {
+  id               Int           @id @default(autoincrement())
+  webUserId        Int
+  plan             PremiumPlan
+  status           PremiumStatus @default(ACTIVE)
+  amount           Int
+  paymentReference String?       @unique
+  startsAt         DateTime      @default(now())
+  expiresAt        DateTime
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, status])
+}
+
+model PremiumOrder {
+  id               Int         @id @default(autoincrement())
+  webUserId        Int
+  plan             PremiumPlan
+  amount           Int
+  status           String      @default("pending")
+  paymentReference String      @unique
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([status])
+}
+
 model Film {
   id          Int    @id @default(autoincrement())
   title       String
@@ -73,34 +123,26 @@ model Film {
   category    String
   price       Int
 
-  // Telegram poster
   posterFileId String?
+  posterUrl    String?
 
-  // Permanent web/app poster
-  posterUrl String?
-
-  // Old Telegram video
   videoFileId String?
 
-  // Bunny full movie
   bunnyVideoId String?
   webVideoUrl  String?
 
-  // Trailer
   trailerBunnyVideoId String?
   trailerUrl          String?
   trailerEnabled      Boolean @default(false)
 
-  // Home/featured display
   featured Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  carts     Cart[]
-  orders    Order[]
-  purchases Purchase[]
-
+  carts        Cart[]
+  orders       Order[]
+  purchases    Purchase[]
   webOrders    WebOrder[]
   webPurchases WebPurchase[]
 

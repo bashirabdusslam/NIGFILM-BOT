@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as tus from "tus-js-client";
 import "./App.css";
 
@@ -545,6 +545,162 @@ function App() {
     videoError,
     setVideoError,
   ] = useState("");
+
+  // ===================================================
+  // WATCH PROGRESS / CONTINUE WATCHING
+  // ===================================================
+
+  const [
+    watchProgress,
+    setWatchProgress,
+  ] = useState({});
+
+  useEffect(() => {
+    if (!user?.id) {
+      setWatchProgress({});
+      return;
+    }
+
+    try {
+      const saved =
+        localStorage.getItem(
+          `nigfilm_watch_progress_${user.id}`
+        );
+
+      const parsed =
+        saved ? JSON.parse(saved) : {};
+
+      setWatchProgress(
+        parsed &&
+        typeof parsed === "object"
+          ? parsed
+          : {}
+      );
+    } catch {
+      setWatchProgress({});
+    }
+  }, [user?.id]);
+
+  const handleWatchProgressChange =
+    useCallback(
+      (filmId, progress) => {
+        const id = Number(filmId);
+
+        if (
+          !Number.isInteger(id) ||
+          id <= 0
+        ) {
+          return;
+        }
+
+        setWatchProgress(
+          (current) => {
+            const next = {
+              ...current,
+            };
+
+            if (progress) {
+              next[id] = progress;
+            } else {
+              delete next[id];
+            }
+
+            return next;
+          }
+        );
+      },
+      []
+    );
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        `nigfilm_watch_progress_${user.id}`,
+        JSON.stringify(
+          watchProgress
+        )
+      );
+    } catch {
+      // Ignore browser storage failures.
+    }
+  }, [
+    user?.id,
+    watchProgress,
+  ]);
+
+  const continueWatchingFilms =
+    useMemo(() => {
+      if (!user?.id) {
+        return [];
+      }
+
+      return films
+        .filter((film) => {
+          const progress =
+            watchProgress[
+              Number(film.id)
+            ];
+
+          if (!progress) {
+            return false;
+          }
+
+          const seconds =
+            Number(
+              progress.seconds || 0
+            );
+
+          const duration =
+            Number(
+              progress.duration || 0
+            );
+
+          if (
+            !Number.isFinite(seconds) ||
+            seconds < 10
+          ) {
+            return false;
+          }
+
+          if (
+            duration > 0 &&
+            seconds >=
+              duration - 15
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .sort((a, b) => {
+          const aUpdated =
+            Number(
+              watchProgress[
+                Number(a.id)
+              ]?.updatedAt || 0
+            );
+
+          const bUpdated =
+            Number(
+              watchProgress[
+                Number(b.id)
+              ]?.updatedAt || 0
+            );
+
+          return (
+            bUpdated -
+            aUpdated
+          );
+        });
+    }, [
+      films,
+      user?.id,
+      watchProgress,
+    ]);
 
   // ===================================================
   // INITIAL LOAD
@@ -1190,6 +1346,7 @@ function App() {
     setPremiumSubscribeError("");
     setWatchOptionsOpen(false);
     setTutorialOpen(false);
+    setWatchProgress({});
   }
 
   // ===================================================
@@ -2968,8 +3125,8 @@ function App() {
         selectedFilm.id
       );
 
-const canWatchMovie =
-  purchased || hasPremium;
+    const canWatchMovie =
+      purchased || hasPremium;
 
     const purchasedFilm =
       findPurchasedMovie(
@@ -2981,7 +3138,7 @@ const canWatchMovie =
       selectedFilm;
 
     const playerUrl =
-       canWatchMovie
+      canWatchMovie
         ? bunnyPlayerUrl(movie)
         : "";
 
@@ -3044,9 +3201,11 @@ const canWatchMovie =
                   </span>
                 )}
 
-                <span>
-                  ⭐ Premium
-                </span>
+                {hasPremium && (
+                  <span>
+                    👑 Premium Active
+                  </span>
+                )}
               </div>
 
               <p className="details-description">
@@ -3054,42 +3213,44 @@ const canWatchMovie =
                   "Babu cikakken bayanin wannan film tukuna."}
               </p>
 
-              {trailerPlayerUrl(movie) && (
-                <div className="trailer-panel">
-                  <div className="trailer-panel-heading">
-                    <span>🎞️</span>
-                    <strong>{t("trailer")}</strong>
-                  </div>
+              {!canWatchMovie &&
+                trailerPlayerUrl(movie) && (
+                  <div className="trailer-panel">
+                    <div className="trailer-panel-heading">
+                      <span>🎞️</span>
+                      <strong>{t("trailer")}</strong>
+                    </div>
 
-                  <div className="bunny-player trailer-player">
-                    <iframe
-                      src={trailerPlayerUrl(movie)}
-                      title={`${movie.title} trailer`}
-                      loading="lazy"
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                    />
+                    <div className="bunny-player trailer-player">
+                      <iframe
+                        src={trailerPlayerUrl(movie)}
+                        title={`${movie.title} trailer`}
+                        loading="lazy"
+                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {canWatchMovie && playerUrl && (
-  <div className="bunny-player">
-    <iframe
-      src={playerUrl}
-      title={movie.title}
-      loading="lazy"
-      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-      allowFullScreen
-    />
-  </div>
-)}
+                <BunnyMoviePlayer
+                  src={playerUrl}
+                  title={movie.title}
+                  filmId={movie.id}
+                  userId={user?.id}
+                  language={language}
+                  onProgressChange={
+                    handleWatchProgressChange
+                  }
+                />
+              )}
 
-{canWatchMovie && !playerUrl && (
-  <div className="movie-security-note">
-    ⏳ Video ɗin wannan film bai shirya a Bunny Stream ba tukuna.
-  </div>
-)}
+              {canWatchMovie && !playerUrl && (
+                <div className="movie-security-note">
+                  ⏳ Video ɗin wannan film bai shirya a Bunny Stream ba tukuna.
+                </div>
+              )}
 
               {videoError && (
                 <div className="auth-error">
@@ -3134,7 +3295,9 @@ const canWatchMovie =
               <div className="movie-security-note">
                 {purchased
                   ? "🔒 Wannan film yana cikin My Movies ɗinka. Za ka iya kallonsa ko sauke shi."
-                  : "🔒 Bayan Paystack ya tabbatar da payment, film zai shiga My Movies."}
+                  : hasPremium
+                    ? "👑 Premium ɗinka yana aiki. Kana da damar kallon wannan film."
+                    : "🔒 Bayan Paystack ya tabbatar da payment ko Premium ya kunna, za ka samu damar kallon film."}
               </div>
             </div>
           </div>
@@ -5169,7 +5332,7 @@ const canWatchMovie =
         {!filmsLoading &&
           !filmsError &&
           filteredFilms.length > 0 &&
-          (search.trim() || activeCategory !== "All") && (
+          search.trim() && (
             <MovieRow
               films={filteredFilms}
               posterSrc={posterSrc}
@@ -5185,9 +5348,48 @@ const canWatchMovie =
 
         {!filmsLoading &&
           !filmsError &&
+          filteredFilms.length > 0 &&
+          !search.trim() &&
+          activeCategory !== "All" && (
+            <VerticalMovieList
+              title={activeCategory}
+              films={filteredFilms}
+              posterSrc={posterSrc}
+              openFilm={openFilm}
+              handlePosterError={handlePosterError}
+              limit={null}
+            />
+          )}
+
+        {!filmsLoading &&
+          !filmsError &&
           !search.trim() &&
           activeCategory === "All" && (
             <div className="streaming-rows">
+              {continueWatchingFilms.length > 0 && (
+                <ContinueWatchingRow
+                  title={
+                    language === "HAUSA"
+                      ? "Ci gaba da Kallo"
+                      : "Continue Watching"
+                  }
+                  films={
+                    continueWatchingFilms.slice(
+                      0,
+                      10
+                    )
+                  }
+                  watchProgress={
+                    watchProgress
+                  }
+                  posterSrc={posterSrc}
+                  openFilm={openFilm}
+                  handlePosterError={
+                    handlePosterError
+                  }
+                />
+              )}
+
               {films.some((film) => film.featured) && (
                 <MovieRow
                   title={t("featured")}
@@ -5248,7 +5450,7 @@ const canWatchMovie =
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
                 autoSlide
-                limit={5}
+                limit={8}
                 onSeeAll={() =>
                   openFullCategory("India Fassara")
                 }
@@ -5287,7 +5489,7 @@ const canWatchMovie =
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
                 autoSlide
-                limit={5}
+                limit={8}
                 onSeeAll={() =>
                   openFullCategory("Series")
                 }
@@ -5544,6 +5746,7 @@ function VerticalMovieList({
   handlePosterError,
   onSeeAll = null,
   seeAllLabel = "See All",
+  limit = 8,
 }) {
   if (
     !Array.isArray(films) ||
@@ -5566,8 +5769,7 @@ function VerticalMovieList({
         >
           <span>{films.length}</span>
 
-          {films.length > 5 &&
-            typeof onSeeAll === "function" && (
+          {showSeeAll && (
               <button
                 type="button"
                 onClick={onSeeAll}
@@ -5595,7 +5797,7 @@ function VerticalMovieList({
           gap: "12px",
         }}
       >
-        {films.slice(0, 5).map(
+        {displayedFilms.map(
           (film) => (
             <article
               key={film.id}
@@ -6217,6 +6419,792 @@ function MovieGrid({
         }
       )}
     </div>
+  );
+}
+
+// =====================================================
+// BUNNY FULL MOVIE PLAYER
+// Resume + 10s backward/forward
+// =====================================================
+
+let bunnyPlayerScriptPromise = null;
+
+function ensureBunnyPlayerJs() {
+  if (
+    window.playerjs?.Player
+  ) {
+    return Promise.resolve();
+  }
+
+  if (bunnyPlayerScriptPromise) {
+    return bunnyPlayerScriptPromise;
+  }
+
+  bunnyPlayerScriptPromise =
+    new Promise(
+      (resolve, reject) => {
+        const existing =
+          document.getElementById(
+            "nigfilm-playerjs-script"
+          );
+
+        if (existing) {
+          existing.addEventListener(
+            "load",
+            () => resolve(),
+            { once: true }
+          );
+
+          existing.addEventListener(
+            "error",
+            () =>
+              reject(
+                new Error(
+                  "Player.js bai load ba."
+                )
+              ),
+            { once: true }
+          );
+
+          if (
+            window.playerjs?.Player
+          ) {
+            resolve();
+          }
+
+          return;
+        }
+
+        const script =
+          document.createElement(
+            "script"
+          );
+
+        script.id =
+          "nigfilm-playerjs-script";
+
+        script.src =
+          "https://assets.mediadelivery.net/playerjs/playerjs-latest.min.js";
+
+        script.async = true;
+
+        script.onload = () =>
+          resolve();
+
+        script.onerror = () =>
+          reject(
+            new Error(
+              "Player.js bai load ba."
+            )
+          );
+
+        document.head.appendChild(
+          script
+        );
+      }
+    );
+
+  return bunnyPlayerScriptPromise;
+}
+
+function parsePlayerTiming(
+  raw
+) {
+  if (!raw) {
+    return {};
+  }
+
+  if (
+    typeof raw === "object"
+  ) {
+    return raw;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function BunnyMoviePlayer({
+  src,
+  title,
+  filmId,
+  userId,
+  language,
+  onProgressChange,
+}) {
+  const iframeRef =
+    useRef(null);
+
+  const playerRef =
+    useRef(null);
+
+  const lastSavedSecondRef =
+    useRef(-1);
+
+  const resumeAttemptedRef =
+    useRef(false);
+
+  const [
+    apiReady,
+    setApiReady,
+  ] = useState(false);
+
+  const [
+    playerError,
+    setPlayerError,
+  ] = useState("");
+
+  const [
+    currentSeconds,
+    setCurrentSeconds,
+  ] = useState(0);
+
+  const [
+    durationSeconds,
+    setDurationSeconds,
+  ] = useState(0);
+
+  const storageKey =
+    `nigfilm_watch_progress_${userId}`;
+
+  const uniqueSrc =
+    useMemo(() => {
+      const separator =
+        String(src).includes("?")
+          ? "&"
+          : "?";
+
+      return (
+        `${src}${separator}` +
+        `nigfilmPlayer=${encodeURIComponent(
+          `${filmId}-${userId || "guest"}`
+        )}`
+      );
+    }, [
+      src,
+      filmId,
+      userId,
+    ]);
+
+  function readSavedProgress() {
+    if (!userId) {
+      return null;
+    }
+
+    try {
+      const raw =
+        localStorage.getItem(
+          storageKey
+        );
+
+      const all =
+        raw
+          ? JSON.parse(raw)
+          : {};
+
+      return (
+        all?.[
+          Number(filmId)
+        ] || null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setApiReady(false);
+    setPlayerError("");
+
+    ensureBunnyPlayerJs()
+      .then(() => {
+        if (!cancelled) {
+          setApiReady(true);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPlayerError(
+            error?.message ||
+              "An kasa shirya video controls."
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (
+      !apiReady ||
+      !iframeRef.current ||
+      !window.playerjs?.Player
+    ) {
+      return;
+    }
+
+    const player =
+      new window.playerjs.Player(
+        iframeRef.current
+      );
+
+    playerRef.current =
+      player;
+
+    let disposed = false;
+
+    const saveProgress = (
+      seconds,
+      duration
+    ) => {
+      if (
+        !userId ||
+        !Number.isFinite(seconds) ||
+        seconds < 0
+      ) {
+        return;
+      }
+
+      const safeDuration =
+        Number.isFinite(duration)
+          ? duration
+          : 0;
+
+      const rounded =
+        Math.floor(seconds);
+
+      // Save at most once every ~3 seconds.
+      if (
+        rounded !== 0 &&
+        Math.abs(
+          rounded -
+            lastSavedSecondRef.current
+        ) < 3
+      ) {
+        return;
+      }
+
+      lastSavedSecondRef.current =
+        rounded;
+
+      if (
+        safeDuration > 0 &&
+        seconds >=
+          safeDuration - 10
+      ) {
+        onProgressChange?.(
+          filmId,
+          null
+        );
+
+        return;
+      }
+
+      onProgressChange?.(
+        filmId,
+        {
+          seconds,
+          duration:
+            safeDuration,
+          updatedAt:
+            Date.now(),
+        }
+      );
+    };
+
+    const handleReady = () => {
+      if (
+        disposed ||
+        resumeAttemptedRef.current
+      ) {
+        return;
+      }
+
+      resumeAttemptedRef.current =
+        true;
+
+      const saved =
+        readSavedProgress();
+
+      const savedSeconds =
+        Number(
+          saved?.seconds || 0
+        );
+
+      if (
+        Number.isFinite(
+          savedSeconds
+        ) &&
+        savedSeconds >= 5
+      ) {
+        try {
+          player.setCurrentTime(
+            savedSeconds
+          );
+        } catch {
+          // Keep playing from start if resume is unsupported.
+        }
+      }
+
+      try {
+        player.getDuration(
+          (duration) => {
+            const value =
+              Number(duration);
+
+            if (
+              Number.isFinite(value)
+            ) {
+              setDurationSeconds(
+                value
+              );
+            }
+          }
+        );
+      } catch {
+        // Duration will also arrive through timeupdate.
+      }
+    };
+
+    const handleTimeUpdate = (
+      raw
+    ) => {
+      if (disposed) {
+        return;
+      }
+
+      const timing =
+        parsePlayerTiming(raw);
+
+      const seconds =
+        Number(
+          timing.seconds ?? 0
+        );
+
+      const duration =
+        Number(
+          timing.duration ?? 0
+        );
+
+      if (
+        Number.isFinite(seconds)
+      ) {
+        setCurrentSeconds(
+          seconds
+        );
+      }
+
+      if (
+        Number.isFinite(duration) &&
+        duration > 0
+      ) {
+        setDurationSeconds(
+          duration
+        );
+      }
+
+      saveProgress(
+        seconds,
+        duration
+      );
+    };
+
+    const handleEnded = () => {
+      setCurrentSeconds(
+        durationSeconds || 0
+      );
+
+      onProgressChange?.(
+        filmId,
+        null
+      );
+    };
+
+    const handlePlayerError = () => {
+      if (!disposed) {
+        setPlayerError(
+          language === "HAUSA"
+            ? "An samu matsala a video player. Ka sake gwadawa."
+            : "The video player encountered an error. Please try again."
+        );
+      }
+    };
+
+    player.on(
+      "ready",
+      handleReady
+    );
+
+    player.on(
+      "timeupdate",
+      handleTimeUpdate
+    );
+
+    player.on(
+      "ended",
+      handleEnded
+    );
+
+    player.on(
+      "error",
+      handlePlayerError
+    );
+
+    return () => {
+      disposed = true;
+
+      try {
+        player.off(
+          "ready",
+          handleReady
+        );
+
+        player.off(
+          "timeupdate",
+          handleTimeUpdate
+        );
+
+        player.off(
+          "ended",
+          handleEnded
+        );
+
+        player.off(
+          "error",
+          handlePlayerError
+        );
+      } catch {
+        // Ignore cleanup differences between Player.js versions.
+      }
+
+      if (
+        playerRef.current ===
+        player
+      ) {
+        playerRef.current =
+          null;
+      }
+    };
+  }, [
+    apiReady,
+    uniqueSrc,
+    filmId,
+    userId,
+    language,
+    onProgressChange,
+  ]);
+
+  function seekBy(
+    amount
+  ) {
+    const player =
+      playerRef.current;
+
+    if (!player) {
+      return;
+    }
+
+    try {
+      player.getCurrentTime(
+        (value) => {
+          const current =
+            Number(value || 0);
+
+          const duration =
+            Number(
+              durationSeconds || 0
+            );
+
+          let next =
+            current + amount;
+
+          next =
+            Math.max(
+              0,
+              next
+            );
+
+          if (duration > 0) {
+            next =
+              Math.min(
+                next,
+                Math.max(
+                  0,
+                  duration - 0.25
+                )
+              );
+          }
+
+          player.setCurrentTime(
+            next
+          );
+        }
+      );
+    } catch {
+      setPlayerError(
+        language === "HAUSA"
+          ? "Seek bai yi aiki ba tukuna."
+          : "Seek is not available right now."
+      );
+    }
+  }
+
+  const progressPercent =
+    durationSeconds > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            (currentSeconds /
+              durationSeconds) *
+              100
+          )
+        )
+      : 0;
+
+  return (
+    <div className="nigfilm-full-player">
+      {!apiReady &&
+        !playerError && (
+          <div className="movie-security-note">
+            ⏳{" "}
+            {language === "HAUSA"
+              ? "Ana shirya video player..."
+              : "Preparing video player..."}
+          </div>
+        )}
+
+      {apiReady && (
+        <>
+          <div className="bunny-player">
+            <iframe
+              ref={iframeRef}
+              src={uniqueSrc}
+              title={title}
+              loading="lazy"
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+
+          <div
+            className="nigfilm-player-controls"
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "1fr 1fr",
+              gap: "10px",
+              margin:
+                "10px 0 8px",
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                seekBy(-10)
+              }
+            >
+              ⏪ 10s
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                seekBy(10)
+              }
+            >
+              10s ⏩
+            </button>
+          </div>
+
+          <div
+            style={{
+              height: "5px",
+              overflow: "hidden",
+              borderRadius:
+                "999px",
+              background:
+                "rgba(255,255,255,.10)",
+              marginBottom:
+                "8px",
+            }}
+          >
+            <div
+              style={{
+                width:
+                  `${progressPercent}%`,
+                height: "100%",
+                background:
+                  "var(--gold)",
+                transition:
+                  "width .25s linear",
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {playerError && (
+        <div className="auth-error">
+          {playerError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =====================================================
+// CONTINUE WATCHING ROW
+// =====================================================
+
+function ContinueWatchingRow({
+  title,
+  films,
+  watchProgress,
+  posterSrc,
+  openFilm,
+  handlePosterError,
+}) {
+  if (
+    !Array.isArray(films) ||
+    films.length === 0
+  ) {
+    return null;
+  }
+
+  const displayedFilms =
+    Number.isInteger(limit) &&
+    limit > 0
+      ? films.slice(0, limit)
+      : films;
+
+  const showSeeAll =
+    typeof onSeeAll === "function" &&
+    Number.isInteger(limit) &&
+    limit > 0 &&
+    films.length > limit;
+
+  return (
+    <section className="movie-row-section">
+      <div className="row-heading">
+        <h3>
+          ▶ {title}
+        </h3>
+
+        <span>
+          {films.length}
+        </span>
+      </div>
+
+      <div className="movie-row">
+        {films.map((film) => {
+          const progress =
+            watchProgress[
+              Number(film.id)
+            ] || {};
+
+          const seconds =
+            Number(
+              progress.seconds || 0
+            );
+
+          const duration =
+            Number(
+              progress.duration || 0
+            );
+
+          const percent =
+            duration > 0
+              ? Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    (seconds /
+                      duration) *
+                      100
+                  )
+                )
+              : 0;
+
+          return (
+            <article
+              className="row-card"
+              key={film.id}
+            >
+              <button
+                type="button"
+                className="row-poster-button"
+                onClick={() =>
+                  openFilm(film)
+                }
+              >
+                <img
+                  src={
+                    posterSrc(film)
+                  }
+                  alt={film.title}
+                  loading="lazy"
+                  decoding="async"
+                  onError={
+                    handlePosterError
+                  }
+                />
+
+                <span className="row-play">
+                  ▶
+                </span>
+
+                <div
+                  style={{
+                    position:
+                      "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: "5px",
+                    background:
+                      "rgba(0,0,0,.55)",
+                  }}
+                >
+                  <div
+                    style={{
+                      width:
+                        `${percent}%`,
+                      height: "100%",
+                      background:
+                        "var(--gold)",
+                    }}
+                  />
+                </div>
+              </button>
+
+              <div className="row-card-info">
+                <strong>
+                  {film.title}
+                </strong>
+
+                <span>
+                  {percent > 0
+                    ? `${Math.round(
+                        percent
+                      )}%`
+                    : "Continue"}
+                </span>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

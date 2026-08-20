@@ -6219,21 +6219,13 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
               )}
 
               {films.some((film) => film.featured) && (
-                <DashboardMovieGrid
+                <MovieRow
                   title={t("featured")}
                   films={films.filter((film) => film.featured)}
                   posterSrc={posterSrc}
                   openFilm={openFilm}
                   handlePosterError={handlePosterError}
-                  limit={8}
-                  onSeeAll={() =>
-                    openFullCategory("All")
-                  }
-                  seeAllLabel={
-                    language === "HAUSA"
-                      ? "Duba Duk"
-                      : "See All"
-                  }
+                  autoSlide
                 />
               )}
 
@@ -6249,24 +6241,16 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 />
               )}
 
-              <DashboardMovieGrid
+              <MovieRow
                 title={t("latestMovies")}
-                films={films}
+                films={films.slice(0, 18)}
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                limit={8}
-                onSeeAll={() =>
-                  openFullCategory("All")
-                }
-                seeAllLabel={
-                  language === "HAUSA"
-                    ? "Duba Duk"
-                    : "See All"
-                }
+                autoSlide
               />
 
-              <DashboardMovieGrid
+              <VerticalMovieList
                 title={t("hausaMovies")}
                 films={films.filter((film) =>
                   String(film.category || "").toLowerCase().includes("hausa")
@@ -6274,7 +6258,6 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                limit={8}
                 onSeeAll={() =>
                   openFullCategory("Hausa")
                 }
@@ -6285,7 +6268,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 }
               />
 
-              <DashboardMovieGrid
+              <MovieRow
                 title={t("indiaMovies")}
                 films={films.filter((film) => {
                   const category = String(film.category || "").toLowerCase();
@@ -6294,6 +6277,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
                 limit={8}
                 onSeeAll={() =>
                   openFullCategory("India Fassara")
@@ -6305,7 +6289,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 }
               />
 
-              <DashboardMovieGrid
+              <VerticalMovieList
                 title={t("americanMovies")}
                 films={films.filter((film) => {
                   const category = String(film.category || "").toLowerCase();
@@ -6314,7 +6298,6 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                limit={8}
                 onSeeAll={() =>
                   openFullCategory("American")
                 }
@@ -6325,7 +6308,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 }
               />
 
-              <DashboardMovieGrid
+              <MovieRow
                 title={t("series")}
                 films={films.filter((film) =>
                   String(film.category || "").toLowerCase().includes("series")
@@ -6333,6 +6316,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
                 limit={8}
                 onSeeAll={() =>
                   openFullCategory("Series")
@@ -6359,190 +6343,6 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
         }
       />
     </div>
-  );
-}
-
-// =====================================================
-// DASHBOARD MOVIE GRID - 2 FILMS PER ROW / 8 FILMS
-// =====================================================
-
-function DashboardMovieGrid({
-  title,
-  films,
-  posterSrc,
-  openFilm,
-  handlePosterError,
-  limit = 8,
-  onSeeAll = null,
-  seeAllLabel = "See All",
-}) {
-  if (
-    !Array.isArray(films) ||
-    films.length === 0
-  ) {
-    return null;
-  }
-
-  const displayedFilms =
-    Number.isInteger(limit) &&
-    limit > 0
-      ? films.slice(0, limit)
-      : films;
-
-  const showSeeAll =
-    typeof onSeeAll === "function" &&
-    Number.isInteger(limit) &&
-    limit > 0 &&
-    films.length > limit;
-
-  return (
-    <section className="movie-row-section">
-      <div className="row-heading">
-        <h3>{title}</h3>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          <span>{films.length}</span>
-
-          {showSeeAll && (
-            <button
-              type="button"
-              onClick={onSeeAll}
-              style={{
-                padding: 0,
-                border: 0,
-                background: "transparent",
-                color: "var(--gold)",
-                fontSize: "11px",
-                fontWeight: 900,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {seeAllLabel} →
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(2, minmax(0, 1fr))",
-          gap: "16px 12px",
-          width: "100%",
-        }}
-      >
-        {displayedFilms.map(
-          (film) => (
-            <article
-              key={film.id}
-              style={{
-                minWidth: 0,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  openFilm(film)
-                }
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "2 / 3",
-                  display: "block",
-                  padding: 0,
-                  border:
-                    "1px solid rgba(212,175,55,.16)",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  background:
-                    "var(--card-bg, #111)",
-                  cursor: "pointer",
-                  boxShadow:
-                    "0 10px 24px rgba(0,0,0,.18)",
-                }}
-              >
-                <img
-                  src={posterSrc(film)}
-                  alt={film.title}
-                  loading="lazy"
-                  decoding="async"
-                  onError={
-                    handlePosterError
-                  }
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "block",
-                    objectFit: "cover",
-                  }}
-                />
-
-                <span
-                  className="row-price"
-                  style={{
-                    position: "absolute",
-                    top: "8px",
-                    left: "8px",
-                  }}
-                >
-                  🔒 ACCESS
-                </span>
-
-                <span className="row-play">
-                  ▶
-                </span>
-              </button>
-
-              <div
-                style={{
-                  paddingTop: "8px",
-                  minWidth: 0,
-                }}
-              >
-                <strong
-                  style={{
-                    display: "block",
-                    fontSize: "14px",
-                    lineHeight: 1.3,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow:
-                      "ellipsis",
-                  }}
-                >
-                  {film.title}
-                </strong>
-
-                <span
-                  style={{
-                    display: "block",
-                    marginTop: "3px",
-                    fontSize: "12px",
-                    color:
-                      "var(--gold)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow:
-                      "ellipsis",
-                  }}
-                >
-                  {film.category ||
-                    "Movie"}
-                </span>
-              </div>
-            </article>
-          )
-        )}
-      </div>
-    </section>
   );
 }
 

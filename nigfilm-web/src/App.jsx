@@ -6172,13 +6172,13 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
           filteredFilms.length > 0 &&
           !search.trim() &&
           activeCategory !== "All" && (
-            <DashboardMovieGrid
+            <MovieRow
               title={activeCategory}
               films={filteredFilms}
               posterSrc={posterSrc}
               openFilm={openFilm}
               handlePosterError={handlePosterError}
-              limit={null}
+              autoSlide
             />
           )}
 
@@ -6243,14 +6243,23 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
 
               <MovieRow
                 title={t("latestMovies")}
-                films={films.slice(0, 18)}
+                films={films}
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
                 autoSlide
+                limit={8}
+                onSeeAll={() =>
+                  openFullCategory("All")
+                }
+                seeAllLabel={
+                  language === "HAUSA"
+                    ? "Duba Duk"
+                    : "See All"
+                }
               />
 
-              <DashboardMovieGrid
+              <MovieRow
                 title={t("hausaMovies")}
                 films={films.filter((film) =>
                   String(film.category || "").toLowerCase().includes("hausa")
@@ -6258,6 +6267,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
                 limit={8}
                 onSeeAll={() =>
                   openFullCategory("Hausa")
@@ -6290,7 +6300,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 }
               />
 
-              <DashboardMovieGrid
+              <MovieRow
                 title={t("americanMovies")}
                 films={films.filter((film) => {
                   const category = String(film.category || "").toLowerCase();
@@ -6299,6 +6309,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
+                autoSlide
                 limit={8}
                 onSeeAll={() =>
                   openFullCategory("American")
@@ -6354,7 +6365,7 @@ function DashboardMovieGrid({
   openFilm,
   handlePosterError,
   limit = 8,
-  onSeeAll = null,
+  onSeeAll,
   seeAllLabel = "See All",
 }) {
   if (
@@ -6364,110 +6375,37 @@ function DashboardMovieGrid({
     return null;
   }
 
-  const hasLimit =
-    Number.isInteger(limit) &&
-    limit > 0;
-
   const displayedFilms =
-    hasLimit
-      ? films.slice(0, limit)
-      : films;
-
-  const showSeeAll =
-    typeof onSeeAll === "function" &&
-    hasLimit &&
-    films.length > limit;
+    films.slice(0, limit);
 
   return (
-    <section
-      className="dashboard-grid-section"
-      style={{
-        width: "100%",
-        marginTop: "26px",
-      }}
-    >
-      <div
-        className="row-heading"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          marginBottom: "14px",
-        }}
-      >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: "clamp(20px, 5.2vw, 28px)",
-            lineHeight: 1.15,
-          }}
-        >
-          {title}
-        </h3>
+    <section className="dashboard-grid-section">
+      <div className="row-heading">
+        <h3>{title}</h3>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "9px",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              opacity: 0.7,
-              fontSize: "12px",
-            }}
-          >
-            {films.length}
-          </span>
+        <div className="dashboard-grid-heading-right">
+          <span>{films.length}</span>
 
-          {showSeeAll && (
-            <button
-              type="button"
-              onClick={onSeeAll}
-              aria-label={seeAllLabel}
-              style={{
-                width: "32px",
-                height: "32px",
-                display: "grid",
-                placeItems: "center",
-                padding: 0,
-                border: 0,
-                borderRadius: "50%",
-                background: "transparent",
-                color: "var(--gold)",
-                fontSize: "25px",
-                fontWeight: 900,
-                cursor: "pointer",
-                lineHeight: 1,
-              }}
-            >
-              ›
-            </button>
-          )}
+          {films.length > limit &&
+            typeof onSeeAll ===
+              "function" && (
+              <button
+                type="button"
+                className="dashboard-see-all"
+                onClick={onSeeAll}
+              >
+                {seeAllLabel} →
+              </button>
+            )}
         </div>
       </div>
 
-      <div
-        className="dashboard-movie-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(2, minmax(0, 1fr))",
-          gap: "18px 12px",
-          width: "100%",
-        }}
-      >
+      <div className="dashboard-movie-grid">
         {displayedFilms.map(
           (film) => (
             <article
               className="dashboard-movie-card"
               key={film.id}
-              style={{
-                minWidth: 0,
-              }}
             >
               <button
                 type="button"
@@ -6475,22 +6413,6 @@ function DashboardMovieGrid({
                 onClick={() =>
                   openFilm(film)
                 }
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "2 / 3",
-                  display: "block",
-                  padding: 0,
-                  border:
-                    "1px solid rgba(212,175,55,.14)",
-                  borderRadius: "15px",
-                  overflow: "hidden",
-                  background:
-                    "var(--card-bg, #111)",
-                  cursor: "pointer",
-                  boxShadow:
-                    "0 8px 20px rgba(0,0,0,.20)",
-                }}
               >
                 <img
                   src={posterSrc(film)}
@@ -6500,76 +6422,23 @@ function DashboardMovieGrid({
                   onError={
                     handlePosterError
                   }
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "block",
-                    objectFit: "cover",
-                  }}
                 />
 
-                <span
-                  className="row-price"
-                  style={{
-                    position: "absolute",
-                    top: "8px",
-                    right: "8px",
-                    left: "auto",
-                    maxWidth: "calc(100% - 16px)",
-                    padding: "5px 8px",
-                    borderRadius: "8px",
-                    fontSize: "10px",
-                    fontWeight: 900,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <span className="row-price">
                   🔒 ACCESS
                 </span>
 
-                <span
-                  className="row-play"
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    fontSize: "15px",
-                  }}
-                >
+                <span className="row-play">
                   ▶
                 </span>
               </button>
 
-              <div
-                className="dashboard-card-info"
-                style={{
-                  padding: "8px 2px 0",
-                  minWidth: 0,
-                }}
-              >
-                <strong
-                  style={{
-                    display: "-webkit-box",
-                    WebkitBoxOrient: "vertical",
-                    WebkitLineClamp: 2,
-                    overflow: "hidden",
-                    fontSize: "14px",
-                    lineHeight: 1.3,
-                    minHeight: "36px",
-                  }}
-                >
+              <div className="dashboard-card-info">
+                <strong>
                   {film.title}
                 </strong>
 
-                <span
-                  style={{
-                    display: "block",
-                    marginTop: "3px",
-                    fontSize: "11px",
-                    color: "var(--gold)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
+                <span>
                   {film.category ||
                     "Movie"}
                 </span>
@@ -6581,7 +6450,6 @@ function DashboardMovieGrid({
     </section>
   );
 }
-
 // =====================================================
 // HORIZONTAL MOVIE ROW
 // =====================================================

@@ -3178,6 +3178,38 @@ function App() {
         ? bunnyPlayerUrl(movie)
         : "";
 
+    const relatedMovies =
+      films
+        .filter((film) => {
+          if (
+            Number(film.id) ===
+            Number(movie.id)
+          ) {
+            return false;
+          }
+
+          const currentCategory =
+            String(
+              movie.category || ""
+            )
+              .trim()
+              .toLowerCase();
+
+          const filmCategory =
+            String(
+              film.category || ""
+            )
+              .trim()
+              .toLowerCase();
+
+          return (
+            currentCategory &&
+            filmCategory ===
+              currentCategory
+          );
+        })
+        .slice(0, 8);
+
     return (
       <div className="app movie-details-page">
         {header}
@@ -3337,6 +3369,35 @@ function App() {
               </div>
             </div>
           </div>
+
+          {relatedMovies.length > 0 && (
+            <section
+              style={{
+                marginTop: "28px",
+              }}
+            >
+              <div className="row-heading">
+                <h3>
+                  {language === "HAUSA"
+                    ? "🎬 Makamantan Films"
+                    : "🎬 More Like This"}
+                </h3>
+
+                <span>
+                  {relatedMovies.length}
+                </span>
+              </div>
+
+              <MovieRow
+                films={relatedMovies}
+                posterSrc={posterSrc}
+                openFilm={openFilm}
+                handlePosterError={
+                  handlePosterError
+                }
+              />
+            </section>
+          )}
         </main>
 
         {watchOptionsOpen && (
@@ -7038,48 +7099,168 @@ function BunnyMoviePlayer({
 
       {apiReady && (
         <>
-       <div className="bunny-player">
-  <iframe
-    ref={iframeRef}
-    src={uniqueSrc}
-    title={title}
-    loading="lazy"
-    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-    allowFullScreen
-  />
-</div>
+          <div
+            className="bunny-player"
+            style={{
+              position: "relative",
+            }}
+          >
+            <iframe
+              ref={iframeRef}
+              src={uniqueSrc}
+              title={title}
+              loading="lazy"
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
 
-<div
-  className="nigfilm-player-controls"
-  style={{
-    display: "grid",
-    gridTemplateColumns:
-      "1fr 1fr",
-    gap: "10px",
-    margin:
-      "10px 0 8px",
-  }}
->
-  <button
-    type="button"
-    className="secondary-button"
-    onClick={() =>
-      seekBy(-10)
-    }
-  >
-    ⏪ 10s
-  </button>
+            <button
+              type="button"
+              aria-label={
+                language === "HAUSA"
+                  ? "Mayar da video baya da sakan 10"
+                  : "Rewind 10 seconds"
+              }
+              title={
+                language === "HAUSA"
+                  ? "Baya 10s"
+                  : "Rewind 10s"
+              }
+              onClick={() =>
+                seekBy(-10)
+              }
+              style={{
+                position:
+                  "absolute",
+                left: "16px",
+                top: "50%",
+                transform:
+                  "translateY(-50%)",
+                zIndex: 20,
+                width: "52px",
+                height: "52px",
+                display: "flex",
+                flexDirection:
+                  "column",
+                alignItems:
+                  "center",
+                justifyContent:
+                  "center",
+                gap: "0",
+                padding: 0,
+                border:
+                  "1px solid rgba(255,255,255,.50)",
+                borderRadius:
+                  "50%",
+                background:
+                  "rgba(0,0,0,.58)",
+                color: "#fff",
+                boxShadow:
+                  "0 6px 18px rgba(0,0,0,.32)",
+                backdropFilter:
+                  "blur(4px)",
+                WebkitBackdropFilter:
+                  "blur(4px)",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  fontSize:
+                    "21px",
+                  lineHeight: 1,
+                }}
+              >
+                ↶
+              </span>
+              <small
+                style={{
+                  marginTop:
+                    "-2px",
+                  fontSize:
+                    "10px",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                10
+              </small>
+            </button>
 
-  <button
-    type="button"
-    className="secondary-button"
-    onClick={() =>
-      seekBy(10)
-    }
-  >
-    10s ⏩
-  </button>
-</div>
+            <button
+              type="button"
+              aria-label={
+                language === "HAUSA"
+                  ? "Kai video gaba da sakan 10"
+                  : "Forward 10 seconds"
+              }
+              title={
+                language === "HAUSA"
+                  ? "Gaba 10s"
+                  : "Forward 10s"
+              }
+              onClick={() =>
+                seekBy(10)
+              }
+              style={{
+                position:
+                  "absolute",
+                right: "16px",
+                top: "50%",
+                transform:
+                  "translateY(-50%)",
+                zIndex: 20,
+                width: "52px",
+                height: "52px",
+                display: "flex",
+                flexDirection:
+                  "column",
+                alignItems:
+                  "center",
+                justifyContent:
+                  "center",
+                gap: "0",
+                padding: 0,
+                border:
+                  "1px solid rgba(255,255,255,.50)",
+                borderRadius:
+                  "50%",
+                background:
+                  "rgba(0,0,0,.58)",
+                color: "#fff",
+                boxShadow:
+                  "0 6px 18px rgba(0,0,0,.32)",
+                backdropFilter:
+                  "blur(4px)",
+                WebkitBackdropFilter:
+                  "blur(4px)",
+                cursor: "pointer",
+              }}
+            >
+              <span
+                style={{
+                  fontSize:
+                    "21px",
+                  lineHeight: 1,
+                }}
+              >
+                ↷
+              </span>
+              <small
+                style={{
+                  marginTop:
+                    "-2px",
+                  fontSize:
+                    "10px",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                }}
+              >
+                10
+              </small>
+            </button>
+          </div>
+
           <div
             style={{
               height: "5px",

@@ -632,6 +632,42 @@ function App() {
     watchProgress,
   ]);
 
+  // ===================================================
+  // CONTINUE WATCHING - REMOVE ONE / CLEAR ALL
+  // ===================================================
+
+  const removeFromContinueWatching =
+    useCallback(
+      (filmId) => {
+        const id = Number(filmId);
+
+        if (
+          !Number.isInteger(id) ||
+          id <= 0
+        ) {
+          return;
+        }
+
+        setWatchProgress(
+          (current) => {
+            const next = {
+              ...current,
+            };
+
+            delete next[id];
+
+            return next;
+          }
+        );
+      },
+      []
+    );
+
+  const clearContinueWatching =
+    useCallback(() => {
+      setWatchProgress({});
+    }, []);
+
   const continueWatchingFilms =
     useMemo(() => {
       if (!user?.id) {
@@ -5387,6 +5423,13 @@ function App() {
                   handlePosterError={
                     handlePosterError
                   }
+                  onRemoveOne={
+                    removeFromContinueWatching
+                  }
+                  onClearAll={
+                    clearContinueWatching
+                  }
+                  language={language}
                 />
               )}
 
@@ -7084,6 +7127,9 @@ function ContinueWatchingRow({
   posterSrc,
   openFilm,
   handlePosterError,
+  onRemoveOne,
+  onClearAll,
+  language = "HAUSA",
 }) {
   if (
     !Array.isArray(films) ||
@@ -7099,9 +7145,46 @@ function ContinueWatchingRow({
           ▶ {title}
         </h3>
 
-        <span>
-          {films.length}
-        </span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span>
+            {films.length}
+          </span>
+
+          <button
+            type="button"
+            onClick={() =>
+              onClearAll?.()
+            }
+            style={{
+              padding: "5px 9px",
+              border:
+                "1px solid rgba(239,68,68,.35)",
+              borderRadius: "8px",
+              background:
+                "rgba(239,68,68,.08)",
+              color: "#ef4444",
+              fontSize: "10px",
+              fontWeight: 900,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+            title={
+              language === "HAUSA"
+                ? "Cire duk daga Ci gaba da Kallo"
+                : "Clear all Continue Watching"
+            }
+          >
+            {language === "HAUSA"
+              ? "Cire Duka"
+              : "Clear All"}
+          </button>
+        </div>
       </div>
 
       <div className="movie-row">
@@ -7138,7 +7221,57 @@ function ContinueWatchingRow({
             <article
               className="row-card"
               key={film.id}
+              style={{
+                position: "relative",
+              }}
             >
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveOne?.(
+                    film.id
+                  );
+                }}
+                aria-label={
+                  language === "HAUSA"
+                    ? `Cire ${film.title} daga Ci gaba da Kallo`
+                    : `Remove ${film.title} from Continue Watching`
+                }
+                title={
+                  language === "HAUSA"
+                    ? "Cire daga Ci gaba da Kallo"
+                    : "Remove from Continue Watching"
+                }
+                style={{
+                  position: "absolute",
+                  top: "7px",
+                  right: "7px",
+                  zIndex: 8,
+                  width: "28px",
+                  height: "28px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent:
+                    "center",
+                  padding: 0,
+                  border:
+                    "1px solid rgba(255,255,255,.28)",
+                  borderRadius: "50%",
+                  background:
+                    "rgba(0,0,0,.76)",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: 900,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  boxShadow:
+                    "0 4px 12px rgba(0,0,0,.28)",
+                }}
+              >
+                ×
+              </button>
+
               <button
                 type="button"
                 className="row-poster-button"

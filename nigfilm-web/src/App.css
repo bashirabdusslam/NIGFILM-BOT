@@ -325,14 +325,21 @@ img { max-width: 100%; }
 .row-card:hover .row-poster-button img { transform: scale(1.035); filter: brightness(.82); }
 .row-price {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 5px 7px;
-  border-radius: 7px;
-  background: rgba(7,8,11,.86);
+  top: 7px;
+  right: 7px;
+
+  padding: 3px 6px;
+
+  border-radius: 6px;
+
+  background: rgba(7, 8, 11, 0.82);
+
   color: var(--gold-light);
-  font-size: 10px;
+
+  font-size: 8px;
   font-weight: 900;
+
+  line-height: 1.2;
 }
 .row-play {
   position: absolute;
@@ -444,14 +451,21 @@ img { max-width: 100%; }
 .movie-card:hover .poster { transform: scale(1.03); filter: brightness(.86); }
 .price {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 5px 7px;
-  border-radius: 7px;
-  background: rgba(7,8,11,.88);
+  top: 7px;
+  right: 7px;
+
+  padding: 3px 6px;
+
+  border-radius: 6px;
+
+  background: rgba(7, 8, 11, 0.84);
+
   color: var(--gold-light);
-  font-size: 10px;
+
+  font-size: 8px;
   font-weight: 900;
+
+  line-height: 1.2;
 }
 .play-button {
   position: absolute;

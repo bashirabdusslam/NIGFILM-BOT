@@ -18,6 +18,66 @@ const TUTORIAL_VIDEO_URL =
   import.meta.env.VITE_TUTORIAL_VIDEO_URL ||
   "";
 
+const REWARDED_AD_UNIT_PATH =
+  import.meta.env.VITE_GOOGLE_REWARDED_AD_UNIT_PATH ||
+  "";
+
+function loadGooglePublisherTag() {
+  return new Promise((resolve, reject) => {
+    if (
+      window.googletag?.apiReady &&
+      window.googletag?.pubads
+    ) {
+      resolve(window.googletag);
+      return;
+    }
+
+    window.googletag =
+      window.googletag || {
+        cmd: [],
+      };
+
+    const existingScript =
+      document.getElementById(
+        "nigfilm-google-publisher-tag"
+      );
+
+    const waitForApi = () => {
+      window.googletag.cmd.push(() => {
+        resolve(window.googletag);
+      });
+    };
+
+    if (existingScript) {
+      waitForApi();
+      return;
+    }
+
+    const script =
+      document.createElement("script");
+
+    script.id =
+      "nigfilm-google-publisher-tag";
+
+    script.async = true;
+
+    script.src =
+      "https://securepubads.g.doubleclick.net/tag/js/gpt.js";
+
+    script.onload = waitForApi;
+
+    script.onerror = () => {
+      reject(
+        new Error(
+          "An kasa loda Google Rewarded Ads."
+        )
+      );
+    };
+
+    document.head.appendChild(script);
+  });
+}
+
 const UI_TEXT = {
   HAUSA: {
     search: "Nemo fina-finai...",
@@ -387,7 +447,24 @@ function App() {
     tutorialOpen,
     setTutorialOpen,
   ] = useState(false);
+// ===================================================
+// WATCH ADS UNLOCK
+// ===================================================
 
+const [adUnlockStatus, setAdUnlockStatus] =
+  useState(null);
+
+const [adUnlockLoading, setAdUnlockLoading] =
+  useState(false);
+
+const [adWatchLoading, setAdWatchLoading] =
+  useState(false);
+
+const [adUnlockError, setAdUnlockError] =
+  useState("");
+
+const [adUnlockSuccess, setAdUnlockSuccess] =
+  useState("");
   // ===================================================
   // ADMIN - MANAGE FILMS
   // ===================================================
@@ -754,8 +831,36 @@ function App() {
       setPremiumStatus(null);
       setPremiumError("");
       setPremiumLoading(false);
+
+      setAdUnlockStatus(null);
+      setAdUnlockError("");
+      setAdUnlockSuccess("");
+      setAdUnlockLoading(false);
+      setAdWatchLoading(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (
+      !user?.id ||
+      page !== "details" ||
+      !selectedFilm?.id
+    ) {
+      return;
+    }
+
+    setAdUnlockStatus(null);
+    setAdUnlockError("");
+    setAdUnlockSuccess("");
+
+    loadAdUnlockStatus(
+      selectedFilm.id
+    );
+  }, [
+    user?.id,
+    page,
+    selectedFilm?.id,
+  ]);
 
   useEffect(() => {
     if (
@@ -1383,6 +1488,12 @@ function App() {
     setWatchOptionsOpen(false);
     setTutorialOpen(false);
     setWatchProgress({});
+
+    setAdUnlockStatus(null);
+    setAdUnlockError("");
+    setAdUnlockSuccess("");
+    setAdUnlockLoading(false);
+    setAdWatchLoading(false);
   }
 
   // ===================================================
@@ -1627,6 +1738,542 @@ function App() {
       );
     } finally {
       setPremiumSubscribeLoading("");
+    }
+  }
+  // ===================================================
+  // LOAD AD UNLOCK STATUS
+  // ===================================================
+
+  async function loadAdUnlockStatus(filmId) {
+    const token = getSessionToken();
+    const id = Number(filmId);
+
+    if (
+      !token ||
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      setAdUnlockStatus(null);
+      return null;
+    }
+
+    try {
+      setAdUnlockLoading(true);
+      setAdUnlockError("");
+
+      const response = await fetch(
+        `${API_URL}/api/web/ads/unlock-status/${id}`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data =
+        await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa duba matsayin talla."
+        );
+      }
+
+      const normalized = {
+        ...data,
+        filmId: Number(
+          data?.filmId || id
+        ),
+        watchedAds: Number(
+          data?.watchedAds || 0
+        ),
+        requiredAds: Number(
+          data?.requiredAds || 5
+        ),
+        unlocked:
+          Boolean(data?.unlocked),
+        expiresAt:
+          data?.expiresAt || null,
+      };
+
+      setAdUnlockStatus(
+        normalized
+      );
+
+      return normalized;
+    } catch (error) {
+      console.error(
+        "AD UNLOCK STATUS ERROR:",
+        error
+      );
+
+      setAdUnlockStatus(null);
+
+      setAdUnlockError(
+        error?.message ||
+          "An samu matsala wajen duba talla."
+      );
+
+      return null;
+    } finally {
+      setAdUnlockLoading(false);
+    }
+  }
+
+  // ===================================================
+  // COMPLETE REWARDED AD
+  // ===================================================
+
+  async function completeRewardedAd({
+    filmId,
+    attemptToken,
+  }) {
+    const token = getSessionToken();
+
+    const response = await fetch(
+      `${API_URL}/api/web/ads/complete-attempt`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          filmId:
+            Number(filmId),
+
+          attemptToken,
+        }),
+      }
+    );
+
+    const data =
+      await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa tabbatar da reward ɗin talla."
+      );
+    }
+
+    const normalized = {
+      ...data,
+
+      filmId:
+        Number(filmId),
+
+      watchedAds:
+        Number(
+          data?.watchedAds || 0
+        ),
+
+      requiredAds:
+        Number(
+          data?.requiredAds || 5
+        ),
+
+      unlocked:
+        Boolean(data?.unlocked),
+
+      expiresAt:
+        data?.expiresAt || null,
+    };
+
+    setAdUnlockStatus(
+      normalized
+    );
+
+    if (normalized.unlocked) {
+      setAdUnlockSuccess(
+        language === "HAUSA"
+          ? "✅ Ka gama talla 5. An buɗe wannan film na awa 24."
+          : "✅ You completed 5 ads. This movie is unlocked for 24 hours."
+      );
+    } else {
+      setAdUnlockSuccess(
+        language === "HAUSA"
+          ? `✅ An kirga tallar. ${normalized.watchedAds}/${normalized.requiredAds} sun cika.`
+          : `✅ Ad counted. ${normalized.watchedAds}/${normalized.requiredAds} completed.`
+      );
+    }
+
+    return normalized;
+  }
+
+  // ===================================================
+  // WATCH REAL GOOGLE REWARDED AD
+  // ===================================================
+
+  async function watchRewardedAd(filmId) {
+    const token =
+      getSessionToken();
+
+    const id =
+      Number(filmId);
+
+    if (
+      !token ||
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
+      return;
+    }
+
+    if (
+      adUnlockStatus?.filmId === id &&
+      adUnlockStatus?.unlocked
+    ) {
+      setAdUnlockSuccess(
+        language === "HAUSA"
+          ? "✅ Wannan film a buɗe yake yanzu."
+          : "✅ This movie is already unlocked."
+      );
+      return;
+    }
+
+    if (
+      !REWARDED_AD_UNIT_PATH
+    ) {
+      setAdUnlockError(
+        language === "HAUSA"
+          ? "Google Rewarded Ad Unit Path bai saita ba tukuna."
+          : "Google Rewarded Ad Unit Path is not configured yet."
+      );
+      return;
+    }
+
+    try {
+      setAdWatchLoading(true);
+      setAdUnlockError("");
+      setAdUnlockSuccess("");
+
+      await loadGooglePublisherTag();
+
+      await new Promise(
+        (resolve, reject) => {
+          window.googletag.cmd.push(
+            () => {
+              const googletag =
+                window.googletag;
+
+              let rewardedSlot =
+                googletag.defineOutOfPageSlot(
+                  REWARDED_AD_UNIT_PATH,
+                  googletag.enums
+                    .OutOfPageFormat
+                    .REWARDED
+                );
+
+              if (!rewardedSlot) {
+                reject(
+                  new Error(
+                    language === "HAUSA"
+                      ? "Wannan browser/device bai goyi bayan rewarded ad ba."
+                      : "Rewarded ads are not supported on this browser/device."
+                  )
+                );
+                return;
+              }
+
+              rewardedSlot.addService(
+                googletag.pubads()
+              );
+
+              let attemptToken = "";
+              let rewardGranted = false;
+              let completionPromise = null;
+              let finished = false;
+
+              const pubads =
+                googletag.pubads();
+
+              const cleanup = () => {
+                if (finished) {
+                  return;
+                }
+
+                finished = true;
+
+                clearTimeout(
+                  readyTimeout
+                );
+
+                try {
+                  pubads.removeEventListener(
+                    "rewardedSlotReady",
+                    onRewardedReady
+                  );
+
+                  pubads.removeEventListener(
+                    "rewardedSlotGranted",
+                    onRewardedGranted
+                  );
+
+                  pubads.removeEventListener(
+                    "rewardedSlotClosed",
+                    onRewardedClosed
+                  );
+
+                  pubads.removeEventListener(
+                    "slotRenderEnded",
+                    onSlotRenderEnded
+                  );
+
+                  googletag.destroySlots(
+                    [rewardedSlot]
+                  );
+                } catch {
+                  // Ignore GPT cleanup differences.
+                }
+
+                rewardedSlot = null;
+              };
+
+              const fail = (
+                error
+              ) => {
+                cleanup();
+                reject(error);
+              };
+
+              async function startBackendAttempt() {
+                const startResponse =
+                  await fetch(
+                    `${API_URL}/api/web/ads/start-attempt`,
+                    {
+                      method: "POST",
+
+                      headers: {
+                        "Content-Type":
+                          "application/json",
+
+                        Authorization:
+                          `Bearer ${token}`,
+                      },
+
+                      body:
+                        JSON.stringify({
+                          filmId: id,
+                        }),
+                    }
+                  );
+
+                const startData =
+                  await readJson(
+                    startResponse
+                  );
+
+                if (
+                  startData
+                    ?.alreadyHasAccess ||
+                  startData
+                    ?.alreadyUnlocked
+                ) {
+                  const status =
+                    await loadAdUnlockStatus(
+                      id
+                    );
+
+                  if (
+                    status?.unlocked
+                  ) {
+                    setAdUnlockSuccess(
+                      language === "HAUSA"
+                        ? "✅ Wannan film a buɗe yake yanzu."
+                        : "✅ This movie is already unlocked."
+                    );
+                  }
+
+                  return "";
+                }
+
+                if (
+                  !startResponse.ok
+                ) {
+                  throw new Error(
+                    startData?.message ||
+                      "An kasa fara Ad attempt."
+                  );
+                }
+
+                const rawToken =
+                  String(
+                    startData
+                      ?.attemptToken ||
+                      ""
+                  ).trim();
+
+                if (!rawToken) {
+                  throw new Error(
+                    "Backend bai dawo da Ad attempt token ba."
+                  );
+                }
+
+                return rawToken;
+              }
+
+              async function onRewardedReady(
+                event
+              ) {
+                if (
+                  event.slot !==
+                    rewardedSlot ||
+                  finished
+                ) {
+                  return;
+                }
+
+                try {
+                  attemptToken =
+                    await startBackendAttempt();
+
+                  if (!attemptToken) {
+                    cleanup();
+                    resolve();
+                    return;
+                  }
+
+                  event.makeRewardedVisible();
+                } catch (error) {
+                  fail(error);
+                }
+              }
+
+              function onRewardedGranted(
+                event
+              ) {
+                if (
+                  event.slot !==
+                    rewardedSlot ||
+                  finished ||
+                  !attemptToken
+                ) {
+                  return;
+                }
+
+                rewardGranted = true;
+
+                completionPromise =
+                  completeRewardedAd({
+                    filmId: id,
+                    attemptToken,
+                  });
+              }
+
+              async function onRewardedClosed(
+                event
+              ) {
+                if (
+                  event.slot !==
+                    rewardedSlot ||
+                  finished
+                ) {
+                  return;
+                }
+
+                try {
+                  if (
+                    rewardGranted &&
+                    completionPromise
+                  ) {
+                    await completionPromise;
+                  } else {
+                    setAdUnlockSuccess(
+                      language === "HAUSA"
+                        ? "Ba a kirga talla ba saboda ba a kai ga reward ba."
+                        : "The ad was not counted because the reward requirement was not reached."
+                    );
+                  }
+
+                  cleanup();
+                  resolve();
+                } catch (error) {
+                  fail(error);
+                }
+              }
+
+              function onSlotRenderEnded(
+                event
+              ) {
+                if (
+                  event.slot ===
+                    rewardedSlot &&
+                  event.isEmpty
+                ) {
+                  fail(
+                    new Error(
+                      language === "HAUSA"
+                        ? "Babu rewarded ad da aka samu yanzu. Ka sake gwadawa daga baya."
+                        : "No rewarded ad is available right now. Please try again later."
+                    )
+                  );
+                }
+              }
+
+              pubads.addEventListener(
+                "rewardedSlotReady",
+                onRewardedReady
+              );
+
+              pubads.addEventListener(
+                "rewardedSlotGranted",
+                onRewardedGranted
+              );
+
+              pubads.addEventListener(
+                "rewardedSlotClosed",
+                onRewardedClosed
+              );
+
+              pubads.addEventListener(
+                "slotRenderEnded",
+                onSlotRenderEnded
+              );
+
+              const readyTimeout =
+                setTimeout(() => {
+                  fail(
+                    new Error(
+                      language === "HAUSA"
+                        ? "Rewarded ad bai shirya ba. Ka sake gwadawa."
+                        : "The rewarded ad did not become ready. Please try again."
+                    )
+                  );
+                }, 20000);
+
+              googletag.enableServices();
+
+              googletag.display(
+                rewardedSlot
+              );
+            }
+          );
+        }
+      );
+
+      await loadAdUnlockStatus(
+        id
+      );
+    } catch (error) {
+      console.error(
+        "WATCH REWARDED AD ERROR:",
+        error
+      );
+
+      setAdUnlockError(
+        error?.message ||
+          "An samu matsala wajen nuna rewarded ad."
+      );
+    } finally {
+      setAdWatchLoading(false);
     }
   }
 
@@ -3161,8 +3808,21 @@ function App() {
         selectedFilm.id
       );
 
+    const hasAdUnlock =
+      Boolean(
+        adUnlockStatus?.unlocked &&
+        Number(
+          adUnlockStatus?.filmId
+        ) ===
+          Number(
+            selectedFilm.id
+          )
+      );
+
     const canWatchMovie =
-      purchased || hasPremium;
+      purchased ||
+      hasPremium ||
+      hasAdUnlock;
 
     const purchasedFilm =
       findPurchasedMovie(
@@ -3274,6 +3934,12 @@ function App() {
                     👑 Premium Active
                   </span>
                 )}
+
+                {hasAdUnlock && (
+                  <span>
+                    📺 Ads Unlock Active
+                  </span>
+                )}
               </div>
 
               <p className="details-description">
@@ -3332,6 +3998,30 @@ function App() {
                 </div>
               )}
 
+              {adUnlockError && (
+                <div className="auth-error">
+                  {adUnlockError}
+                </div>
+              )}
+
+              {adUnlockSuccess && (
+                <div className="admin-upload-success">
+                  {adUnlockSuccess}
+                </div>
+              )}
+
+              {!purchased &&
+                !hasPremium &&
+                !hasAdUnlock &&
+                adUnlockStatus && (
+                  <div className="movie-security-note">
+                    📺{" "}
+                    {language === "HAUSA"
+                      ? `Tallan da aka gama: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`
+                      : `Ads completed: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`}
+                  </div>
+                )}
+
               <div className="details-actions">
                 <button
                   type="button"
@@ -3365,7 +4055,9 @@ function App() {
                   ? "🔒 Wannan film yana cikin My Movies ɗinka. Za ka iya kallonsa ko sauke shi."
                   : hasPremium
                     ? "👑 Premium ɗinka yana aiki. Kana da damar kallon wannan film."
-                    : "🔒 Bayan Paystack ya tabbatar da payment ko Premium ya kunna, za ka samu damar kallon film."}
+                    : hasAdUnlock
+                      ? "📺 Ka gama tallan da ake buƙata. Wannan film a buɗe yake na awa 24."
+                      : "🔒 Saya film, kunna Premium, ko kalli talla 5 domin samun damar kallon film."}
               </div>
             </div>
           </div>
@@ -3477,33 +4169,44 @@ function App() {
                           <strong>Watch Movie</strong>
                           <small>
                             {language === "HAUSA"
-                              ? "Film ɗin yana cikin My Movies ɗinka."
-                              : "This movie is already in your library."}
+                              ? purchased
+                                ? "Film ɗin yana cikin My Movies ɗinka."
+                                : hasPremium
+                                  ? "Premium ɗinka yana ba ka damar kallon film."
+                                  : "Ka buɗe film ɗin ta hanyar kallon talla 5."
+                              : purchased
+                                ? "This movie is in your library."
+                                : hasPremium
+                                  ? "Your Premium gives you access to this movie."
+                                  : "You unlocked this movie by watching 5 ads."}
                           </small>
                         </span>
                         <span className="watch-option-arrow">›</span>
                       </button>
                     )}
 
-                    <button
-                      type="button"
-                      className="watch-option-card buy-option"
-                      onClick={() => {
-                        setWatchOptionsOpen(false);
-                        downloadMovie(movie);
-                      }}
-                    >
-                      <span className="watch-option-icon">⬇</span>
-                      <span className="watch-option-copy">
-                        <strong>Download Movie</strong>
-                        <small>
-                          {language === "HAUSA"
-                            ? "Sauke film ɗin zuwa na'urarka."
-                            : "Download the movie to your device."}
-                        </small>
-                      </span>
-                      <span className="watch-option-arrow">›</span>
-                    </button>
+                    {(purchased ||
+                      hasPremium) && (
+                      <button
+                        type="button"
+                        className="watch-option-card buy-option"
+                        onClick={() => {
+                          setWatchOptionsOpen(false);
+                          downloadMovie(movie);
+                        }}
+                      >
+                        <span className="watch-option-icon">⬇</span>
+                        <span className="watch-option-copy">
+                          <strong>Download Movie</strong>
+                          <small>
+                            {language === "HAUSA"
+                              ? "Sauke film ɗin zuwa na'urarka."
+                              : "Download the movie to your device."}
+                          </small>
+                        </span>
+                        <span className="watch-option-arrow">›</span>
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
@@ -3561,23 +4264,44 @@ function App() {
                       </span>
                       <span className="watch-option-arrow">›</span>
                     </button>
-
                     <button
                       type="button"
-                      className="watch-option-card ads-option is-disabled"
-                      disabled
+                      className="watch-option-card ads-option"
+                      disabled={
+                        adWatchLoading ||
+                        adUnlockLoading
+                      }
+                      onClick={() => {
+                        watchRewardedAd(
+                          movie.id
+                        );
+                      }}
                     >
-                      <span className="watch-option-icon">📺</span>
+                      <span className="watch-option-icon">
+                        📺
+                      </span>
+
                       <span className="watch-option-copy">
-                        <strong>Watch 5 Ads & Unlock</strong>
+                        <strong>
+                          {adWatchLoading
+                            ? language === "HAUSA"
+                              ? "Ana shirya talla..."
+                              : "Preparing Ad..."
+                            : "Watch 5 Ads & Unlock"}
+                        </strong>
+
                         <small>
                           {language === "HAUSA"
-                            ? "Wannan zaɓin zai kunna bayan mun haɗa rewarded ads."
-                            : "This option will activate after rewarded ads are connected."}
+                            ? `Kalli talla 5 ka buɗe wannan film na awa 24. ${adUnlockStatus?.watchedAds || 0}/${adUnlockStatus?.requiredAds || 5}`
+                            : `Watch 5 ads to unlock this movie for 24 hours. ${adUnlockStatus?.watchedAds || 0}/${adUnlockStatus?.requiredAds || 5}`}
                         </small>
                       </span>
-                      <span className="watch-option-coming">SOON</span>
+
+                      <span className="watch-option-arrow">
+                        ›
+                      </span>
                     </button>
+
                   </>
                 )}
 

@@ -47,6 +47,19 @@ enum PremiumStatus {
   CANCELLED
 }
 
+enum AdRewardAttemptStatus {
+  PENDING
+  REWARDED
+  EXPIRED
+  CANCELLED
+}
+
+enum AdUnlockStatus {
+  IN_PROGRESS
+  UNLOCKED
+  EXPIRED
+}
+
 model WebUser {
   id           Int         @id @default(autoincrement())
   fullName     String
@@ -65,6 +78,9 @@ model WebUser {
   webSessions          WebSession[]
   premiumSubscriptions PremiumSubscription[]
   premiumOrders        PremiumOrder[]
+
+  adMovieUnlocks   AdMovieUnlock[]
+  adRewardAttempts AdRewardAttempt[]
 }
 
 model WebSession {
@@ -116,6 +132,58 @@ model PremiumOrder {
   @@index([status])
 }
 
+model AdMovieUnlock {
+  id Int @id @default(autoincrement())
+
+  webUserId Int
+  filmId    Int
+
+  watchedAds  Int @default(0)
+  requiredAds Int @default(5)
+
+  status AdUnlockStatus @default(IN_PROGRESS)
+
+  unlockedAt DateTime?
+  expiresAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+  film Film    @relation(fields: [filmId], references: [id])
+
+  @@unique([webUserId, filmId])
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, status])
+}
+
+model AdRewardAttempt {
+  id Int @id @default(autoincrement())
+
+  webUserId Int
+  filmId    Int
+
+  attemptTokenHash String @unique
+
+  status AdRewardAttemptStatus @default(PENDING)
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  rewardedAt DateTime?
+
+  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+  film Film    @relation(fields: [filmId], references: [id])
+
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, filmId])
+}
+
 model Film {
   id          Int    @id @default(autoincrement())
   title       String
@@ -145,6 +213,9 @@ model Film {
   purchases    Purchase[]
   webOrders    WebOrder[]
   webPurchases WebPurchase[]
+
+  adMovieUnlocks   AdMovieUnlock[]
+  adRewardAttempts AdRewardAttempt[]
 
   @@index([category])
   @@index([createdAt])

@@ -5755,6 +5755,18 @@ function VerticalMovieList({
     return null;
   }
 
+  const displayedFilms =
+    Number.isInteger(limit) &&
+    limit > 0
+      ? films.slice(0, limit)
+      : films;
+
+  const showSeeAll =
+    typeof onSeeAll === "function" &&
+    Number.isInteger(limit) &&
+    limit > 0 &&
+    films.length > limit;
+
   return (
     <section className="movie-row-section">
       <div className="row-heading">

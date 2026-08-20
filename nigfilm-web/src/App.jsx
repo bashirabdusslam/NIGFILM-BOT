@@ -14,10 +14,6 @@ const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
   "726332";
 
-const TUTORIAL_VIDEO_URL =
-  import.meta.env.VITE_TUTORIAL_VIDEO_URL ||
-  "";
-
 const UI_TEXT = {
   HAUSA: {
     search: "Nemo fina-finai...",
@@ -347,46 +343,8 @@ function App() {
     setPremiumError,
   ] = useState("");
 
-  const [
-    premiumPlans,
-    setPremiumPlans,
-  ] = useState([]);
-
-  const [
-    premiumPlansLoading,
-    setPremiumPlansLoading,
-  ] = useState(false);
-
-  const [
-    premiumSubscribeLoading,
-    setPremiumSubscribeLoading,
-  ] = useState("");
-
-  const [
-    premiumSubscribeError,
-    setPremiumSubscribeError,
-  ] = useState("");
-
   const hasPremium =
     Boolean(premiumStatus?.premium);
-
-  const [
-    watchOptionsOpen,
-    setWatchOptionsOpen,
-  ] = useState(false);
-
-  const [
-    watchOptionsPosition,
-    setWatchOptionsPosition,
-  ] = useState({
-    top: 120,
-    left: 180,
-  });
-
-  const [
-    tutorialOpen,
-    setTutorialOpen,
-  ] = useState(false);
 
   // ===================================================
   // ADMIN - MANAGE FILMS
@@ -564,15 +522,6 @@ function App() {
       setPremiumLoading(false);
     }
   }, [user?.id]);
-
-  useEffect(() => {
-    if (
-      user?.id &&
-      page === "premium"
-    ) {
-      loadPremiumPlans();
-    }
-  }, [user?.id, page]);
 
   useEffect(() => {
     if (!user) {
@@ -768,88 +717,11 @@ function App() {
     const movie = normalizeFilm(film);
     if (!movie) return;
 
-    setWatchOptionsOpen(false);
-    setTutorialOpen(false);
     navigateTo("details", movie);
-  }
-
-  function openWatchOptionsAtButton(event) {
-    const rect =
-      event.currentTarget.getBoundingClientRect();
-
-    const viewportWidth =
-      window.innerWidth;
-
-    const viewportHeight =
-      window.innerHeight;
-
-    const modalWidth =
-      Math.min(
-        370,
-        viewportWidth - 24
-      );
-
-    const modalHeightEstimate =
-      410;
-
-    const halfWidth =
-      modalWidth / 2;
-
-    let left =
-      rect.left +
-      rect.width / 2;
-
-    left =
-      Math.max(
-        halfWidth + 12,
-        Math.min(
-          left,
-          viewportWidth -
-            halfWidth -
-            12
-        )
-      );
-
-    let top =
-      rect.bottom + 10;
-
-    if (
-      top +
-        modalHeightEstimate >
-      viewportHeight - 12
-    ) {
-      top =
-        rect.top -
-        modalHeightEstimate -
-        10;
-    }
-
-    top =
-      Math.max(
-        12,
-        Math.min(
-          top,
-          viewportHeight -
-            modalHeightEstimate -
-            12
-        )
-      );
-
-    setWatchOptionsPosition({
-      top,
-      left,
-    });
-
-    setWatchOptionsOpen(true);
   }
 
   function openProfile() {
     navigateTo("profile");
-  }
-
-  function openPremium() {
-    setPremiumSubscribeError("");
-    navigateTo("premium");
   }
 
   function openMyMovies() {
@@ -1166,12 +1038,6 @@ function App() {
     setPremiumStatus(null);
     setPremiumError("");
     setPremiumLoading(false);
-    setPremiumPlans([]);
-    setPremiumPlansLoading(false);
-    setPremiumSubscribeLoading("");
-    setPremiumSubscribeError("");
-    setWatchOptionsOpen(false);
-    setTutorialOpen(false);
   }
 
   // ===================================================
@@ -1303,123 +1169,6 @@ function App() {
   }
 
   // ===================================================
-  // LOAD PREMIUM PLANS
-  // ===================================================
-
-  async function loadPremiumPlans() {
-    const token = getSessionToken();
-
-    if (!user?.id || !token) {
-      setPremiumPlans([]);
-      return;
-    }
-
-    try {
-      setPremiumPlansLoading(true);
-      setPremiumSubscribeError("");
-
-      const response = await fetch(
-        `${API_URL}/api/web/premium/plans`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await readJson(response);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "An kasa dauko Premium plans."
-        );
-      }
-
-      setPremiumPlans(
-        Array.isArray(data?.plans)
-          ? data.plans
-          : []
-      );
-    } catch (error) {
-      console.error(
-        "PREMIUM PLANS ERROR:",
-        error
-      );
-
-      setPremiumPlans([]);
-
-      setPremiumSubscribeError(
-        error?.message ||
-          "An samu matsala wajen dauko Premium plans."
-      );
-    } finally {
-      setPremiumPlansLoading(false);
-    }
-  }
-
-  // ===================================================
-  // START PREMIUM PAYMENT
-  // ===================================================
-
-  async function subscribePremium(planId) {
-    const token = getSessionToken();
-
-    if (!token || !planId) {
-      return;
-    }
-
-    try {
-      setPremiumSubscribeLoading(planId);
-      setPremiumSubscribeError("");
-
-      const response = await fetch(
-        `${API_URL}/api/web/premium/initialize`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            plan: planId,
-          }),
-        }
-      );
-
-      const data = await readJson(response);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "An kasa fara Premium payment."
-        );
-      }
-
-      if (!data?.authorizationUrl) {
-        throw new Error(
-          "Paystack Premium payment URL bai samu ba."
-        );
-      }
-
-      window.location.href =
-        data.authorizationUrl;
-    } catch (error) {
-      console.error(
-        "PREMIUM SUBSCRIBE ERROR:",
-        error
-      );
-
-      setPremiumSubscribeError(
-        error?.message ||
-          "An samu matsala wajen bude Premium payment."
-      );
-    } finally {
-      setPremiumSubscribeLoading("");
-    }
-  }
-
-  // ===================================================
   // BUY MOVIE
   // ===================================================
 
@@ -1517,15 +1266,17 @@ function App() {
     }
 
     if (
-  !isPurchased(film.id) &&
-  !hasPremium
-) {
-  setVideoError(
-    "Sai ka sayi film ko ka kunna Premium kafin download."
-  );
+      !isPurchased(
+        film.id
+      )
+    ) {
+      setVideoError(
+        "Sai ka sayi film kafin download."
+      );
 
-  return;
-}
+      return;
+    }
+
     setVideoError("");
 
     const downloadUrl =
@@ -2950,9 +2701,6 @@ function App() {
         selectedFilm.id
       );
 
-const canWatchMovie =
-  purchased || hasPremium;
-
     const purchasedFilm =
       findPurchasedMovie(
         selectedFilm.id
@@ -2996,9 +2744,10 @@ const canWatchMovie =
               />
 
               <span className="details-price-badge">
-                {purchased
-                  ? "✅ OWNED"
-                  : "🔒 ACCESS"}
+                ₦
+                {Number(
+                  movie.price || 0
+                ).toLocaleString()}
               </span>
             </div>
 
@@ -3055,8 +2804,8 @@ const canWatchMovie =
                 </div>
               )}
 
-              
-              {canWatchMovie && !playerUrl && (
+              {purchased &&
+                playerUrl && (
                   <div className="bunny-player">
                     <iframe
                       src={
@@ -3072,7 +2821,8 @@ const canWatchMovie =
                   </div>
                 )}
 
-                 {canWatchMovie && playerUrl && (
+              {purchased &&
+                !playerUrl && (
                   <div className="movie-security-note">
                     ⏳ Video ɗin
                     wannan film bai
@@ -3087,6 +2837,21 @@ const canWatchMovie =
                 </div>
               )}
 
+              {!purchased && (
+                <div className="details-price">
+                  <small>
+                    Movie Price
+                  </small>
+
+                  <strong>
+                    ₦
+                    {Number(
+                      movie.price || 0
+                    ).toLocaleString()}
+                  </strong>
+                </div>
+              )}
+
               {paymentError && (
                 <div className="auth-error">
                   {paymentError}
@@ -3094,20 +2859,66 @@ const canWatchMovie =
               )}
 
               <div className="details-actions">
-                <button
-                  type="button"
-                  className="buy-now-button watch-options-main-button"
-                  onClick={
-                    openWatchOptionsAtButton
-                  }
-                >
-                  ▶ WATCH OPTIONS
-                </button>
+                {!purchased ? (
+                  <button
+                    type="button"
+                    className="buy-now-button"
+                    disabled={
+                      paymentLoading
+                    }
+                    onClick={() =>
+                      buyMovie(movie)
+                    }
+                  >
+                    {paymentLoading
+                      ? "Opening Paystack..."
+                      : "💳 Buy Now"}
+                  </button>
+                ) : (
+                  <>
+                    {playerUrl && (
+                      <button
+                        type="button"
+                        className="buy-now-button"
+                        onClick={() => {
+                          document
+                            .querySelector(
+                              ".bunny-player"
+                            )
+                            ?.scrollIntoView(
+                              {
+                                behavior:
+                                  "smooth",
+                                block:
+                                  "center",
+                              }
+                            );
+                        }}
+                      >
+                        ▶ Watch Movie
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="download-button"
+                      onClick={() =>
+                        downloadMovie(
+                          movie
+                        )
+                      }
+                    >
+                      ⬇ Download
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={openMyMovies}
+                  onClick={
+                    openMyMovies
+                  }
                 >
                   🎬 My Movies
                 </button>
@@ -3115,7 +2926,9 @@ const canWatchMovie =
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={goHome}
+                  onClick={
+                    goHome
+                  }
                 >
                   🎞️ More Movies
                 </button>
@@ -3129,296 +2942,6 @@ const canWatchMovie =
             </div>
           </div>
         </main>
-
-        {watchOptionsOpen && (
-          <div
-            className="watch-options-backdrop"
-            role="presentation"
-            onClick={() =>
-              setWatchOptionsOpen(false)
-            }
-          >
-            <section
-              className="watch-options-modal watch-options-popover"
-              style={{
-                top:
-                  watchOptionsPosition.top,
-                left:
-                  watchOptionsPosition.left,
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-label="Watch options"
-              onClick={(event) =>
-                event.stopPropagation()
-              }
-            >
-              <div className="watch-options-handle" />
-
-              <div className="watch-options-header">
-                <div className="watch-options-brand-icon">
-                  ▶
-                </div>
-
-                <div>
-                  <h3>NIGFILM</h3>
-                  <p>
-                    {language === "HAUSA"
-                      ? "Zaɓi yadda kake son kallon wannan film"
-                      : "Choose how you want to watch this movie"}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="watch-options-close"
-                  onClick={() =>
-                    setWatchOptionsOpen(false)
-                  }
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-
-              <div className="watch-options-list">
-                {canWatchMovie ? (
-                  <>
-                    {playerUrl && (
-                      <button
-                        type="button"
-                        className="watch-option-card premium-option"
-                        onClick={() => {
-                          setWatchOptionsOpen(false);
-                          setTimeout(() => {
-                            document
-                              .querySelector(
-                                ".bunny-player:not(.trailer-player)"
-                              )
-                              ?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                              });
-                          }, 80);
-                        }}
-                      >
-                        <span className="watch-option-icon">▶</span>
-                        <span className="watch-option-copy">
-                          <strong>Watch Movie</strong>
-                          <small>
-                            {language === "HAUSA"
-                              ? "Film ɗin yana cikin My Movies ɗinka."
-                              : "This movie is already in your library."}
-                          </small>
-                        </span>
-                        <span className="watch-option-arrow">›</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="watch-option-card buy-option"
-                      onClick={() => {
-                        setWatchOptionsOpen(false);
-                        downloadMovie(movie);
-                      }}
-                    >
-                      <span className="watch-option-icon">⬇</span>
-                      <span className="watch-option-copy">
-                        <strong>Download Movie</strong>
-                        <small>
-                          {language === "HAUSA"
-                            ? "Sauke film ɗin zuwa na'urarka."
-                            : "Download the movie to your device."}
-                        </small>
-                      </span>
-                      <span className="watch-option-arrow">›</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="watch-option-card premium-option"
-                      onClick={() => {
-                        setWatchOptionsOpen(false);
-                        openPremium();
-                      }}
-                    >
-                      <span className="watch-option-icon">👑</span>
-                      <span className="watch-option-copy">
-                        <strong>
-                          {hasPremium
-                            ? "Premium Active"
-                            : "Activate Premium"}
-                        </strong>
-                        <small>
-                          {hasPremium
-                            ? language === "HAUSA"
-                              ? "Premium ɗinka yana aiki. Za ka iya duba plans ko ƙara lokaci."
-                              : "Your Premium is active. View plans or extend it."
-                            : language === "HAUSA"
-                              ? "Zaɓi Weekly, Monthly ko Yearly Premium."
-                              : "Choose Weekly, Monthly or Yearly Premium."}
-                        </small>
-                      </span>
-                      <span className="watch-option-arrow">›</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="watch-option-card buy-option"
-                      disabled={paymentLoading}
-                      onClick={() => {
-                        setWatchOptionsOpen(false);
-                        buyMovie(movie);
-                      }}
-                    >
-                      <span className="watch-option-icon">💳</span>
-                      <span className="watch-option-copy">
-                        <strong>
-                          {paymentLoading
-                            ? "Opening Paystack..."
-                            : `Buy This Movie — ₦${Number(
-                                movie.price || 0
-                              ).toLocaleString()}`}
-                        </strong>
-                        <small>
-                          {language === "HAUSA"
-                            ? "Biya sau ɗaya, film ya shiga My Movies."
-                            : "Pay once and keep the movie in My Movies."}
-                        </small>
-                      </span>
-                      <span className="watch-option-arrow">›</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="watch-option-card ads-option is-disabled"
-                      disabled
-                    >
-                      <span className="watch-option-icon">📺</span>
-                      <span className="watch-option-copy">
-                        <strong>Watch 5 Ads & Unlock</strong>
-                        <small>
-                          {language === "HAUSA"
-                            ? "Wannan zaɓin zai kunna bayan mun haɗa rewarded ads."
-                            : "This option will activate after rewarded ads are connected."}
-                        </small>
-                      </span>
-                      <span className="watch-option-coming">SOON</span>
-                    </button>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  className="watch-option-card tutorial-option"
-                  onClick={() => {
-                    setWatchOptionsOpen(false);
-                    setTutorialOpen(true);
-                  }}
-                >
-                  <span className="watch-option-icon">🎥</span>
-                  <span className="watch-option-copy">
-                    <strong>How to Buy / Activate Premium</strong>
-                    <small>
-                      {language === "HAUSA"
-                        ? "Kalli tutorial na yadda ake siyan film ko kunna Premium."
-                        : "Watch a guide on buying a movie or activating Premium."}
-                    </small>
-                  </span>
-                  <span className="watch-option-arrow">›</span>
-                </button>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {tutorialOpen && (
-          <div
-            className="watch-options-backdrop tutorial-backdrop"
-            role="presentation"
-            onClick={() =>
-              setTutorialOpen(false)
-            }
-          >
-            <section
-              className="tutorial-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="NIGFILM tutorial"
-              onClick={(event) =>
-                event.stopPropagation()
-              }
-            >
-              <div className="watch-options-handle" />
-
-              <div className="watch-options-header">
-                <div className="watch-options-brand-icon tutorial-brand-icon">
-                  🎥
-                </div>
-
-                <div>
-                  <h3>Video Tutorial</h3>
-                  <p>
-                    {language === "HAUSA"
-                      ? "Yadda ake siyan film ko kunna Premium"
-                      : "How to buy a movie or activate Premium"}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="watch-options-close"
-                  onClick={() =>
-                    setTutorialOpen(false)
-                  }
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-
-              {TUTORIAL_VIDEO_URL ? (
-                <div className="tutorial-video-frame">
-                  <iframe
-                    src={TUTORIAL_VIDEO_URL}
-                    title="NIGFILM tutorial"
-                    allow="autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="tutorial-fallback">
-                  <div className="tutorial-step">
-                    <span>1</span>
-                    <div>
-                      <strong>Buy This Movie</strong>
-                      <p>
-                        Watch Options → Buy This Movie → Paystack → My Movies.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="tutorial-step">
-                    <span>2</span>
-                    <div>
-                      <strong>Activate Premium</strong>
-                      <p>
-                        Watch Options → Activate Premium → Choose Plan → Paystack.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="movie-security-note">
-                    🎥 Idan ka saka VITE_TUTORIAL_VIDEO_URL a Vercel, video tutorial zai bayyana a nan kai tsaye.
-                  </div>
-                </div>
-              )}
-            </section>
-          </div>
-        )}
 
         <BottomNav
           page={page}
@@ -4565,181 +4088,6 @@ const canWatchMovie =
   }
 
   // ===================================================
-  // PREMIUM PAGE
-  // ===================================================
-
-  if (page === "premium") {
-    return (
-      <div className="app">
-        {header}
-
-        <main className="movie-details">
-          <button
-            type="button"
-            className="back-button"
-            onClick={goBack}
-          >
-            ← Back
-          </button>
-
-          <div className="movie-details-card">
-            <div
-              className="details-content"
-              style={{
-                gridColumn: "1 / -1",
-              }}
-            >
-              <p className="small-title">
-                NIGFILM PREMIUM
-              </p>
-
-              <h2>
-                👑 Premium Membership
-              </h2>
-
-              <p className="details-description">
-                {language === "HAUSA"
-                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account ɗinka."
-                  : "Choose the Premium plan that works for you. Your membership activates after Paystack confirms payment."}
-              </p>
-
-              {hasPremium && (
-                <div className="movie-security-note">
-                  👑 Premium ɗinka yana aiki yanzu.
-                  {premiumStatus?.subscription?.plan
-                    ? ` Plan: ${premiumStatus.subscription.plan}.`
-                    : ""}
-                  {premiumStatus?.subscription?.expiresAt
-                    ? ` Expires: ${new Date(
-                        premiumStatus.subscription.expiresAt
-                      ).toLocaleDateString()}.`
-                    : ""}
-                </div>
-              )}
-
-              {premiumSubscribeError && (
-                <div className="auth-error">
-                  {premiumSubscribeError}
-                </div>
-              )}
-
-              {premiumPlansLoading ? (
-                <div className="status">
-                  <div className="loader" />
-                  <p>Loading Premium plans…</p>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(220px, 1fr))",
-                    gap: "16px",
-                    marginTop: "20px",
-                  }}
-                >
-                  {premiumPlans.map(
-                    (plan) => (
-                      <article
-                        key={plan.id}
-                        className="preference-card"
-                        style={{
-                          padding: "20px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "12px",
-                          minHeight: "230px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "28px",
-                          }}
-                        >
-                          👑
-                        </span>
-
-                        <h3
-                          style={{
-                            margin: 0,
-                          }}
-                        >
-                          {plan.name || plan.id}
-                        </h3>
-
-                        <strong
-                          style={{
-                            fontSize: "28px",
-                          }}
-                        >
-                          ₦
-                          {Number(
-                            plan.amount || 0
-                          ).toLocaleString()}
-                        </strong>
-
-                        <span>
-                          {Number(
-                            plan.durationDays || 0
-                          )}{" "}
-                          days
-                        </span>
-
-                        <button
-                          type="button"
-                          className="buy-now-button"
-                          style={{
-                            marginTop: "auto",
-                          }}
-                          disabled={
-                            Boolean(
-                              premiumSubscribeLoading
-                            )
-                          }
-                          onClick={() =>
-                            subscribePremium(
-                              plan.id
-                            )
-                          }
-                        >
-                          {premiumSubscribeLoading ===
-                          plan.id
-                            ? "Opening Paystack..."
-                            : hasPremium
-                              ? "👑 Extend Premium"
-                              : "👑 Go Premium"}
-                        </button>
-                      </article>
-                    )
-                  )}
-                </div>
-              )}
-
-              {!premiumPlansLoading &&
-                premiumPlans.length === 0 &&
-                !premiumSubscribeError && (
-                  <div className="status">
-                    <p>
-                      Babu Premium plan da aka samu.
-                    </p>
-                  </div>
-                )}
-            </div>
-          </div>
-        </main>
-
-        <BottomNav
-          page={page}
-          goHome={goHome}
-          goSearch={goSearch}
-          loadMyMovies={openMyMovies}
-          openProfile={openProfile}
-        />
-      </div>
-    );
-  }
-
-  // ===================================================
   // PROFILE PAGE
   // ===================================================
 
@@ -4874,16 +4222,6 @@ const canWatchMovie =
               </div>
 
               <div className="details-actions">
-                <button
-                  type="button"
-                  className="buy-now-button"
-                  onClick={openPremium}
-                >
-                  {hasPremium
-                    ? "👑 Premium Plans"
-                    : "👑 Go Premium"}
-                </button>
-
                 <button
                   type="button"
                   className="buy-now-button"
@@ -5185,7 +4523,6 @@ const canWatchMovie =
                   posterSrc={posterSrc}
                   openFilm={openFilm}
                   handlePosterError={handlePosterError}
-                  autoSlide
                 />
               )}
 
@@ -5207,10 +4544,9 @@ const canWatchMovie =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                autoSlide
               />
 
-              <VerticalMovieList
+              <MovieRow
                 title={t("hausaMovies")}
                 films={films.filter((film) =>
                   String(film.category || "").toLowerCase().includes("hausa")
@@ -5229,10 +4565,9 @@ const canWatchMovie =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                autoSlide
               />
 
-              <VerticalMovieList
+              <MovieRow
                 title={t("americanMovies")}
                 films={films.filter((film) => {
                   const category = String(film.category || "").toLowerCase();
@@ -5251,7 +4586,6 @@ const canWatchMovie =
                 posterSrc={posterSrc}
                 openFilm={openFilm}
                 handlePosterError={handlePosterError}
-                autoSlide
               />
             </div>
           )}
@@ -5283,84 +4617,8 @@ function MovieRow({
   posterSrc,
   openFilm,
   handlePosterError,
-  autoSlide = false,
 }) {
-  const rowRef = useRef(null);
-  const pauseUntilRef = useRef(0);
-
-  function pauseAutoSlide(
-    milliseconds = 8000
-  ) {
-    pauseUntilRef.current =
-      Date.now() + milliseconds;
-  }
-
-  useEffect(() => {
-    if (
-      !autoSlide ||
-      !Array.isArray(films) ||
-      films.length < 2
-    ) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      const row = rowRef.current;
-
-      if (
-        !row ||
-        Date.now() <
-          pauseUntilRef.current
-      ) {
-        return;
-      }
-
-      const card =
-        row.querySelector(
-          ".row-card"
-        );
-
-      if (!card) {
-        return;
-      }
-
-      const style =
-        window.getComputedStyle(row);
-
-      const gap =
-        Number.parseFloat(
-          style.columnGap ||
-            style.gap ||
-            "0"
-        ) || 0;
-
-      const step =
-        card.getBoundingClientRect()
-          .width + gap;
-
-      const nearEnd =
-        row.scrollLeft +
-          row.clientWidth >=
-        row.scrollWidth -
-          step * 0.75;
-
-      row.scrollTo({
-        left: nearEnd
-          ? 0
-          : row.scrollLeft +
-            step,
-        behavior: "smooth",
-      });
-    }, 6000);
-
-    return () =>
-      clearInterval(timer);
-  }, [autoSlide, films]);
-
-  if (
-    !Array.isArray(films) ||
-    films.length === 0
-  ) {
+  if (!Array.isArray(films) || films.length === 0) {
     return null;
   }
 
@@ -5373,71 +4631,31 @@ function MovieRow({
         </div>
       )}
 
-      <div
-        ref={rowRef}
-        className="movie-row"
-        style={{
-          scrollSnapType: "x mandatory",
-          scrollBehavior: "smooth",
-          overscrollBehaviorX:
-            "contain",
-        }}
-        onPointerDown={() =>
-          pauseAutoSlide(10000)
-        }
-        onTouchStart={() =>
-          pauseAutoSlide(10000)
-        }
-        onWheel={() =>
-          pauseAutoSlide(8000)
-        }
-        onMouseEnter={() =>
-          pauseAutoSlide(5000)
-        }
-      >
+      <div className="movie-row">
         {films.map((film) => (
-          <article
-            className="row-card"
-            key={film.id}
-            style={{
-              scrollSnapAlign:
-                "start",
-            }}
-          >
+          <article className="row-card" key={film.id}>
             <button
               type="button"
               className="row-poster-button"
-              onClick={() =>
-                openFilm(film)
-              }
+              onClick={() => openFilm(film)}
             >
               <img
                 src={posterSrc(film)}
                 alt={film.title}
                 loading="lazy"
-                decoding="async"
-                onError={
-                  handlePosterError
-                }
+                onError={handlePosterError}
               />
 
               <span className="row-price">
-                🔒 ACCESS
+                ₦{Number(film.price || 0).toLocaleString()}
               </span>
 
-              <span className="row-play">
-                ▶
-              </span>
+              <span className="row-play">▶</span>
             </button>
 
             <div className="row-card-info">
-              <strong>
-                {film.title}
-              </strong>
-              <span>
-                {film.category ||
-                  "Movie"}
-              </span>
+              <strong>{film.title}</strong>
+              <span>{film.category || "Movie"}</span>
             </div>
           </article>
         ))}
@@ -5445,136 +4663,6 @@ function MovieRow({
     </section>
   );
 }
-
-// =====================================================
-// VERTICAL MOVIE LIST
-// =====================================================
-
-function VerticalMovieList({
-  title,
-  films,
-  posterSrc,
-  openFilm,
-  handlePosterError,
-}) {
-  if (
-    !Array.isArray(films) ||
-    films.length === 0
-  ) {
-    return null;
-  }
-
-  return (
-    <section className="movie-row-section">
-      <div className="row-heading">
-        <h3>{title}</h3>
-        <span>{films.length}</span>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}
-      >
-        {films.slice(0, 12).map(
-          (film) => (
-            <article
-              key={film.id}
-              role="button"
-              tabIndex={0}
-              onClick={() =>
-                openFilm(film)
-              }
-              onKeyDown={(event) => {
-                if (
-                  event.key ===
-                    "Enter" ||
-                  event.key === " "
-                ) {
-                  openFilm(film);
-                }
-              }}
-              style={{
-                display: "flex",
-                gap: "14px",
-                alignItems: "center",
-                padding: "10px",
-                borderRadius: "16px",
-                cursor: "pointer",
-                background:
-                  "var(--card-bg, rgba(255,255,255,0.04))",
-                border:
-                  "1px solid var(--border-color, rgba(212,175,55,0.18))",
-              }}
-            >
-              <img
-                src={posterSrc(film)}
-                alt={film.title}
-                loading="lazy"
-                decoding="async"
-                onError={
-                  handlePosterError
-                }
-                style={{
-                  width: "82px",
-                  height: "118px",
-                  objectFit: "cover",
-                  borderRadius: "12px",
-                  flexShrink: 0,
-                }}
-              />
-
-              <div
-                style={{
-                  minWidth: 0,
-                  flex: 1,
-                }}
-              >
-                <strong
-                  style={{
-                    display: "block",
-                    fontSize: "16px",
-                    marginBottom: "7px",
-                  }}
-                >
-                  {film.title}
-                </strong>
-
-                <span
-                  style={{
-                    display: "block",
-                    opacity: 0.75,
-                    marginBottom: "8px",
-                  }}
-                >
-                  {film.category ||
-                    "Movie"}
-                </span>
-
-                <strong>
-                  🔒 ACCESS
-                </strong>
-
-                <div
-                  style={{
-                    marginTop: "10px",
-                    fontSize: "13px",
-                    opacity: 0.8,
-                  }}
-                >
-                  ▶ Duba Film
-                </div>
-              </div>
-            </article>
-          )
-        )}
-      </div>
-    </section>
-  );
-}
-
 function TrailerRow({
   title,
   films,
@@ -5588,16 +4676,7 @@ function TrailerRow({
 
   const hoverTimerRef = useRef(null);
   const sectionRef = useRef(null);
-  const rowRef = useRef(null);
   const cardRefs = useRef(new Map());
-  const pauseUntilRef = useRef(0);
-
-  function pauseTrailerAuto(
-    milliseconds = 8000
-  ) {
-    pauseUntilRef.current =
-      Date.now() + milliseconds;
-  }
 
   // ===================================================
   // LIGHT BUNNY PRECONNECT
@@ -5753,68 +4832,6 @@ function startPreview(film) {
     };
   }, []);
 
-  useEffect(() => {
-    if (
-      !Array.isArray(films) ||
-      films.length < 2
-    ) {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      const row = rowRef.current;
-
-      if (
-        !row ||
-        previewId ||
-        Date.now() <
-          pauseUntilRef.current
-      ) {
-        return;
-      }
-
-      const card =
-        row.querySelector(
-          ".trailer-card"
-        );
-
-      if (!card) {
-        return;
-      }
-
-      const style =
-        window.getComputedStyle(row);
-
-      const gap =
-        Number.parseFloat(
-          style.columnGap ||
-            style.gap ||
-            "0"
-        ) || 0;
-
-      const step =
-        card.getBoundingClientRect()
-          .width + gap;
-
-      const nearEnd =
-        row.scrollLeft +
-          row.clientWidth >=
-        row.scrollWidth -
-          step * 0.75;
-
-      row.scrollTo({
-        left: nearEnd
-          ? 0
-          : row.scrollLeft +
-            step,
-        behavior: "smooth",
-      });
-    }, 6500);
-
-    return () =>
-      clearInterval(timer);
-  }, [films, previewId]);
-
   if (
     !Array.isArray(films) ||
     films.length === 0
@@ -5837,25 +4854,7 @@ function startPreview(film) {
         </span>
       </div>
 
-      <div
-        ref={rowRef}
-        className="trailer-row"
-        style={{
-          scrollSnapType: "x mandatory",
-          scrollBehavior: "smooth",
-          overscrollBehaviorX:
-            "contain",
-        }}
-        onPointerDown={() =>
-          pauseTrailerAuto(10000)
-        }
-        onTouchStart={() =>
-          pauseTrailerAuto(10000)
-        }
-        onWheel={() =>
-          pauseTrailerAuto(8000)
-        }
-      >
+      <div className="trailer-row">
         {films.map((film) => {
           const trailerUrl =
             trailerPlayerUrl(film);
@@ -5890,15 +4889,9 @@ function startPreview(film) {
 
               key={film.id}
 
-              style={{
-                scrollSnapAlign:
-                  "start",
-              }}
-
-              onMouseEnter={() => {
-                pauseTrailerAuto(9000);
-                startPreview(film);
-              }}
+              onMouseEnter={() =>
+                startPreview(film)
+              }
 
               onMouseLeave={
                 stopPreview
@@ -6061,7 +5054,11 @@ function MovieGrid({
 
                 {!purchased && (
                   <span className="price">
-                    🔒 ACCESS
+                    ₦
+                    {Number(
+                      film.price ||
+                        0
+                    ).toLocaleString()}
                   </span>
                 )}
 

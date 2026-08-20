@@ -6995,12 +6995,7 @@ function BunnyMoviePlayer({
 
       {apiReady && (
         <>
-        <div
-  className="bunny-player"
-  style={{
-    position: "relative",
-  }}
->
+       <div className="bunny-player">
   <iframe
     ref={iframeRef}
     src={uniqueSrc}
@@ -7009,91 +7004,39 @@ function BunnyMoviePlayer({
     allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
     allowFullScreen
   />
-
-  <div
-    className="nigfilm-player-controls-overlay"
-    style={{
-      position: "absolute",
-      left: "50%",
-      bottom: "14px",
-      transform:
-        "translateX(-50%)",
-
-      zIndex: 10,
-
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-
-      gap: "14px",
-
-      padding:
-        "8px 12px",
-
-      borderRadius:
-        "999px",
-
-      background:
-        "rgba(0,0,0,.68)",
-
-      backdropFilter:
-        "blur(8px)",
-    }}
-  >
-    <button
-      type="button"
-      onClick={() =>
-        seekBy(-10)
-      }
-      style={{
-        minWidth: "72px",
-        height: "40px",
-
-        border:
-          "1px solid rgba(255,255,255,.18)",
-
-        borderRadius:
-          "999px",
-
-        background:
-          "rgba(255,255,255,.09)",
-
-        color: "#fff",
-
-        fontWeight: 900,
-      }}
-    >
-      ⏪ 10s
-    </button>
-
-    <button
-      type="button"
-      onClick={() =>
-        seekBy(10)
-      }
-      style={{
-        minWidth: "72px",
-        height: "40px",
-
-        border:
-          "1px solid rgba(255,255,255,.18)",
-
-        borderRadius:
-          "999px",
-
-        background:
-          "rgba(255,255,255,.09)",
-
-        color: "#fff",
-
-        fontWeight: 900,
-      }}
-    >
-      10s ⏩
-    </button>
-  </div>
 </div>
 
+<div
+  className="nigfilm-player-controls"
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "1fr 1fr",
+    gap: "10px",
+    margin:
+      "10px 0 8px",
+  }}
+>
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={() =>
+      seekBy(-10)
+    }
+  >
+    ⏪ 10s
+  </button>
+
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={() =>
+      seekBy(10)
+    }
+  >
+    10s ⏩
+  </button>
+</div>
           <div
             style={{
               height: "5px",

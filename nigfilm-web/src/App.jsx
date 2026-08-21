@@ -3874,99 +3874,285 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
       <div className="app movie-details-page">
         {header}
 
-        <main className="movie-details">
-          <button
-            type="button"
-            className="back-button"
-            onClick={
-              goBack
-            }
+        <main className="movie-details" style={{ paddingTop: "10px" }}>
+          <section
+            style={{
+              position: "relative",
+              width: "100%",
+              minHeight: "420px",
+              borderRadius: "24px",
+              overflow: "hidden",
+              background: "linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.92))",
+              border: "1px solid rgba(212,175,55,.16)",
+              boxShadow: "0 18px 50px rgba(0,0,0,.28)",
+            }}
           >
-            ← Back
-          </button>
+            <img
+              src={posterSrc(movie)}
+              alt={movie.title}
+              onError={handlePosterError}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
 
-          <div className="movie-details-card">
-            <div className="details-poster-wrapper">
-              <img
-                src={
-                  posterSrc(movie)
-                }
-                alt={
-                  movie.title
-                }
-                className="details-poster"
-                onError={handlePosterError}
-              />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(180deg, rgba(0,0,0,.16) 0%, rgba(0,0,0,.36) 42%, rgba(0,0,0,.96) 100%)",
+              }}
+            />
 
-              <span className="details-price-badge">
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label={language === "HAUSA" ? "Koma baya" : "Go back"}
+              style={{
+                position: "absolute",
+                top: "14px",
+                left: "14px",
+                zIndex: 2,
+                width: "42px",
+                height: "42px",
+                borderRadius: "50%",
+                border: "1px solid rgba(255,255,255,.18)",
+                background: "rgba(10,10,10,.62)",
+                color: "#fff",
+                fontSize: "21px",
+                cursor: "pointer",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              ←
+            </button>
+
+            <div
+              style={{
+                position: "absolute",
+                top: "14px",
+                right: "14px",
+                zIndex: 2,
+              }}
+            >
+              <span
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: "999px",
+                  background: purchased
+                    ? "rgba(38,166,91,.90)"
+                    : hasPremium
+                      ? "rgba(212,175,55,.94)"
+                      : hasAdUnlock
+                        ? "rgba(37,99,235,.90)"
+                        : "rgba(15,15,15,.72)",
+                  color: hasPremium ? "#111" : "#fff",
+                  fontSize: "11px",
+                  fontWeight: 900,
+                  letterSpacing: ".4px",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
                 {purchased
-                  ? "✅ OWNED"
-                  : "🔒 ACCESS"}
+                  ? "OWNED"
+                  : hasPremium
+                    ? "PREMIUM"
+                    : hasAdUnlock
+                      ? "UNLOCKED"
+                      : "ACCESS"}
               </span>
             </div>
 
-            <div className="details-content">
-              <p className="small-title">
-                {purchased
-                  ? "MY MOVIE"
-                  : "NIGFILM MOVIE"}
-              </p>
-
-              <h2>
-                {movie.title}
-              </h2>
-
-              <div className="details-meta">
-                <span>
-                  🎬{" "}
-                  {movie.category ||
-                    "Movie"}
+            <div
+              style={{
+                position: "relative",
+                zIndex: 1,
+                minHeight: "420px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-end",
+                padding: "120px 18px 20px",
+                color: "#fff",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  marginBottom: "10px",
+                }}
+              >
+                <span
+                  style={{
+                    padding: "6px 9px",
+                    borderRadius: "999px",
+                    background: "rgba(255,255,255,.12)",
+                    border: "1px solid rgba(255,255,255,.14)",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  🎬 {movie.category || "Movie"}
                 </span>
 
                 {purchased && (
-                  <span>
-                    ✅ Purchased
-                  </span>
-                )}
-
-                {hasPremium && (
-                  <span>
-                    👑 Premium Active
-                  </span>
-                )}
-
-                {hasAdUnlock && (
-                  <span>
-                    📺 Ads Unlock Active
+                  <span
+                    style={{
+                      padding: "6px 9px",
+                      borderRadius: "999px",
+                      background: "rgba(38,166,91,.18)",
+                      border: "1px solid rgba(38,166,91,.34)",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                    }}
+                  >
+                    ✓ Purchased
                   </span>
                 )}
               </div>
 
-              <p className="details-description">
+              <h2
+                style={{
+                  margin: 0,
+                  maxWidth: "720px",
+                  fontSize: "clamp(28px, 8vw, 44px)",
+                  lineHeight: 1.03,
+                  letterSpacing: "-.8px",
+                  textShadow: "0 3px 16px rgba(0,0,0,.55)",
+                }}
+              >
+                {movie.title}
+              </h2>
+
+              <p
+                style={{
+                  margin: "12px 0 0",
+                  maxWidth: "760px",
+                  fontSize: "14px",
+                  lineHeight: 1.65,
+                  color: "rgba(255,255,255,.84)",
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 4,
+                  overflow: "hidden",
+                }}
+              >
                 {movie.description ||
                   "Babu cikakken bayanin wannan film tukuna."}
               </p>
 
-              {!canWatchMovie &&
-                trailerPlayerUrl(movie) && (
-                  <div className="trailer-panel">
-                    <div className="trailer-panel-heading">
-                      <span>🎞️</span>
-                      <strong>{t("trailer")}</strong>
-                    </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) auto",
+                  gap: "10px",
+                  marginTop: "18px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    if (canWatchMovie) {
+                      document
+                        .getElementById("nigfilm-player-section")
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      return;
+                    }
 
-                    <div className="bunny-player trailer-player">
-                      <iframe
-                        src={trailerPlayerUrl(movie)}
-                        title={`${movie.title} trailer`}
-                        loading="lazy"
-                        allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  </div>
-                )}
+                    openWatchOptionsAtButton(event);
+                  }}
+                  style={{
+                    minHeight: "48px",
+                    border: 0,
+                    borderRadius: "13px",
+                    background: "var(--gold)",
+                    color: "#111",
+                    fontWeight: 950,
+                    fontSize: "14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  ▶{" "}
+                  {canWatchMovie
+                    ? language === "HAUSA"
+                      ? "Kalli Yanzu"
+                      : "Watch Now"
+                    : language === "HAUSA"
+                      ? "Zaɓin Kallo"
+                      : "Watch Options"}
+                </button>
 
+                <button
+                  type="button"
+                  onClick={openMyMovies}
+                  aria-label="My Movies"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "13px",
+                    border: "1px solid rgba(255,255,255,.16)",
+                    background: "rgba(15,15,15,.66)",
+                    color: "#fff",
+                    fontSize: "19px",
+                    cursor: "pointer",
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  🎬
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section
+            style={{
+              marginTop: "18px",
+              display: "grid",
+              gap: "14px",
+            }}
+          >
+            {!canWatchMovie && trailerPlayerUrl(movie) && (
+              <div
+                className="trailer-panel"
+                style={{
+                  margin: 0,
+                  borderRadius: "18px",
+                  overflow: "hidden",
+                }}
+              >
+                <div className="trailer-panel-heading">
+                  <span>🎞️</span>
+                  <strong>{t("trailer")}</strong>
+                </div>
+
+                <div className="bunny-player trailer-player">
+                  <iframe
+                    src={trailerPlayerUrl(movie)}
+                    title={`${movie.title} trailer`}
+                    loading="lazy"
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            )}
+
+            <div
+              id="nigfilm-player-section"
+              style={{
+                scrollMarginTop: "90px",
+              }}
+            >
               {canWatchMovie && playerUrl && (
                 <BunnyMoviePlayer
                   src={playerUrl}
@@ -3974,9 +4160,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                   filmId={movie.id}
                   userId={user?.id}
                   language={language}
-                  onProgressChange={
-                    handleWatchProgressChange
-                  }
+                  onProgressChange={handleWatchProgressChange}
                 />
               )}
 
@@ -3985,82 +4169,99 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                   ⏳ Video ɗin wannan film bai shirya a Bunny Stream ba tukuna.
                 </div>
               )}
-
-              {videoError && (
-                <div className="auth-error">
-                  {videoError}
-                </div>
-              )}
-
-              {paymentError && (
-                <div className="auth-error">
-                  {paymentError}
-                </div>
-              )}
-
-              {adUnlockError && (
-                <div className="auth-error">
-                  {adUnlockError}
-                </div>
-              )}
-
-              {adUnlockSuccess && (
-                <div className="admin-upload-success">
-                  {adUnlockSuccess}
-                </div>
-              )}
-
-              {!purchased &&
-                !hasPremium &&
-                !hasAdUnlock &&
-                adUnlockStatus && (
-                  <div className="movie-security-note">
-                    📺{" "}
-                    {language === "HAUSA"
-                      ? `Tallan da aka gama: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`
-                      : `Ads completed: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`}
-                  </div>
-                )}
-
-              <div className="details-actions">
-                <button
-                  type="button"
-                  className="buy-now-button watch-options-main-button"
-                  onClick={
-                    openWatchOptionsAtButton
-                  }
-                >
-                  ▶ WATCH OPTIONS
-                </button>
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={openMyMovies}
-                >
-                  🎬 My Movies
-                </button>
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={goHome}
-                >
-                  🎞️ More Movies
-                </button>
-              </div>
-
-              <div className="movie-security-note">
-                {purchased
-                  ? "🔒 Wannan film yana cikin My Movies ɗinka. Za ka iya kallonsa ko sauke shi."
-                  : hasPremium
-                    ? "👑 Premium ɗinka yana aiki. Kana da damar kallon wannan film."
-                    : hasAdUnlock
-                      ? "📺 Ka gama tallan da ake buƙata. Wannan film a buɗe yake na awa 24."
-                      : "🔒 Saya film, kunna Premium, ko kalli talla 5 domin samun damar kallon film."}
-              </div>
             </div>
-          </div>
+
+            {(videoError || paymentError || adUnlockError) && (
+              <div className="auth-error">
+                {videoError || paymentError || adUnlockError}
+              </div>
+            )}
+
+            {adUnlockSuccess && (
+              <div className="admin-upload-success">
+                {adUnlockSuccess}
+              </div>
+            )}
+
+            {!purchased &&
+              !hasPremium &&
+              !hasAdUnlock &&
+              adUnlockStatus && (
+                <div className="movie-security-note">
+                  📺{" "}
+                  {language === "HAUSA"
+                    ? `Tallan da aka gama: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`
+                    : `Ads completed: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`}
+                </div>
+              )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  canWatchMovie && (purchased || hasPremium)
+                    ? "1fr 1fr"
+                    : "1fr",
+                gap: "10px",
+              }}
+            >
+              {canWatchMovie && (purchased || hasPremium) && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => downloadMovie(movie)}
+                  style={{ minHeight: "46px" }}
+                >
+                  ⬇{" "}
+                  {language === "HAUSA"
+                    ? "Sauke Film"
+                    : "Download"}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={goHome}
+                style={{ minHeight: "46px" }}
+              >
+                🎞️{" "}
+                {language === "HAUSA"
+                  ? "Sauran Films"
+                  : "More Movies"}
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding: "13px 14px",
+                borderRadius: "14px",
+                background:
+                  "var(--card-bg, rgba(255,255,255,.04))",
+                border:
+                  "1px solid var(--border, rgba(212,175,55,.14))",
+                fontSize: "12px",
+                lineHeight: 1.55,
+                opacity: 0.88,
+              }}
+            >
+              {purchased
+                ? language === "HAUSA"
+                  ? "✓ Wannan film yana cikin My Movies ɗinka."
+                  : "✓ This movie is in your library."
+                : hasPremium
+                  ? language === "HAUSA"
+                    ? "👑 Premium ɗinka yana aiki."
+                    : "👑 Your Premium access is active."
+                  : hasAdUnlock
+                    ? language === "HAUSA"
+                      ? "📺 An buɗe wannan film ta hanyar talla."
+                      : "📺 This movie is unlocked through ads."
+                    : language === "HAUSA"
+                      ? "Za ka iya saya, amfani da Premium, ko kallon talla 5 domin buɗe film."
+                      : "Buy the movie, use Premium, or watch 5 ads to unlock it."}
+            </div>
+          </section>
 
           {relatedMovies.length > 0 && (
             <section
@@ -4071,22 +4272,18 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
               <div className="row-heading">
                 <h3>
                   {language === "HAUSA"
-                    ? "🎬 Makamantan Films"
-                    : "🎬 More Like This"}
+                    ? "Makamantan Films"
+                    : "More Like This"}
                 </h3>
 
-                <span>
-                  {relatedMovies.length}
-                </span>
+                <span>{relatedMovies.length}</span>
               </div>
 
               <MovieRow
                 films={relatedMovies}
                 posterSrc={posterSrc}
                 openFilm={openFilm}
-                handlePosterError={
-                  handlePosterError
-                }
+                handlePosterError={handlePosterError}
               />
             </section>
           )}

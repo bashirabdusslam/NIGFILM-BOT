@@ -3751,9 +3751,23 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
           {timeGreeting()}, {user.fullName}
         </p>
 
-        <h1>
-          NIG<span>FILM</span>
-        </h1>
+        <div className="brand">
+  <img
+    src="/nigfilm-logo.png"
+    alt="NIGFILM"
+    style={{
+      width: "44px",
+      height: "44px",
+      objectFit: "cover",
+      borderRadius: "12px",
+      flexShrink: 0,
+    }}
+  />
+
+  <h1>
+    NIG<span>FILM</span>
+  </h1>
+</div>
       </div>
 
       <div className="header-actions">

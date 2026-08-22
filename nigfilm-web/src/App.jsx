@@ -3752,17 +3752,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
         </p>
 
         <div className="brand">
-  <img
-    src="/nigfilm-logo.png"
-    alt="NIGFILM"
-    style={{
-      width: "44px",
-      height: "44px",
-      objectFit: "cover",
-      borderRadius: "12px",
-      flexShrink: 0,
-    }}
-  />
+ 
 
   <h1>
     NIG<span>FILM</span>

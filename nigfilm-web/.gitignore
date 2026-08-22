@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Android signing secrets
+android/key.properties
+*.jks
+*.keystore
+
+# Local Android/IDE files
+.idea/
+android/.idea/
+android/.idea-backup/

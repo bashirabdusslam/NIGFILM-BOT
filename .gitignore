@@ -3,3 +3,9 @@ node_modules/
 database.sqlite
 *.sqlite
 /src/generated/prisma
+
+# Local secrets and backups
+/nigfilm-keys/
+/database-backups/
+/.idea/
+/prisma/schema.backup.prisma

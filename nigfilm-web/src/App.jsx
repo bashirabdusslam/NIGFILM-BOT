@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
 import "./App.css";
 
@@ -333,7 +334,50 @@ function App() {
 
     applyHistoryState(state);
   }
+useEffect(() => {
+  let backListener;
+  let lastBackPress = 0;
 
+  const setupBackButton = async () => {
+    backListener = await CapacitorApp.addListener(
+      "backButton",
+      () => {
+        if (page !== "home") {
+          if (window.history.state?.nigfilm) {
+            window.history.back();
+          } else {
+            navigateTo("home", null, {
+              replace: true,
+            });
+          }
+
+          return;
+        }
+
+        const now = Date.now();
+
+        if (now - lastBackPress < 2000) {
+          CapacitorApp.exitApp();
+          return;
+        }
+
+        lastBackPress = now;
+
+        alert(
+          language === "HAUSA"
+            ? "Sake danna Back domin fita."
+            : "Press Back again to exit."
+        );
+      }
+    );
+  };
+
+  setupBackButton();
+
+  return () => {
+    backListener?.remove();
+  };
+}, [page, language]);
   // ===================================================
   // FILMS
   // ===================================================

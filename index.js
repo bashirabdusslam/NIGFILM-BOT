@@ -1239,7 +1239,7 @@ app.get(
               "Payment Successful",
 
             message:
-              "An tabbatar da payment É—inka. Film É—in ya shiga My Movies.",
+              "An tabbatar da payment dinka. Film id ya shiga My Movies.",
           })
         );
     } catch (error) {
@@ -1589,7 +1589,7 @@ if (!film) {
       return res.send(buffer);
     } catch (error) {
       console.error(
-        "âŒ WEB VIDEO STREAM ERROR:",
+        " WEB VIDEO STREAM ERROR:",
         error
       );
 
@@ -6995,10 +6995,8 @@ a {
 
 <body>
 
-<div class="card">
-
 <div class="icon">
-âœ…
+✅
 </div>
 
 <h1>
@@ -7006,12 +7004,12 @@ Payment Successful
 </h1>
 
 <p>
-An karÉ“i biyan kuÉ—inka cikin nasara.
-Ka koma Telegram domin karÉ“ar film É—inka.
+An karɓi biyan kuɗinka cikin nasara.
+Ka koma Telegram domin karɓar film ɗinka.
 </p>
 
 <a href="https://t.me/Nigfilm_bot">
-BuÉ—e NIGFILM BOT
+Buɗe NIGFILM BOT
 </a>
 
 </div>
@@ -7230,7 +7228,7 @@ app.post(
         await bot.telegram.sendMessage(
           order.telegramId,
 
-          "âœ… An tabbatar da biyan kuÉ—inka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT â¤ï¸"
+          "An tabbatar da biyan kudinka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT â¤ï¸"
         );
       } catch (
         messageError
@@ -7242,7 +7240,7 @@ app.post(
       }
 
       console.log(
-        "âœ… TELEGRAM PAYMENT PROCESSED:",
+        " TELEGRAM PAYMENT PROCESSED:",
         reference
       );
 
@@ -8312,7 +8310,7 @@ function buildWebPaymentPage({
   message,
 }) {
   const icon =
-    success ? "âœ…" : "âŒ";
+    success ? "✅" : "❌";
 
   const headingColor =
     success

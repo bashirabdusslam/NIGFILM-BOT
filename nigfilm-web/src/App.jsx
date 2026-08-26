@@ -224,6 +224,72 @@ function App() {
   const [authError, setAuthError] =
     useState("");
 
+// ===================================================
+// ADMIN FILM + STUDIO
+// ===================================================
+
+const [studios, setStudios] =
+  useState([]);
+
+const [adminCreateOpen, setAdminCreateOpen] =
+  useState(false);
+
+const [adminNewTitle, setAdminNewTitle] =
+  useState("");
+
+const [adminNewDescription, setAdminNewDescription] =
+  useState("");
+
+const [adminNewCategory, setAdminNewCategory] =
+  useState("Hausa");
+
+const [adminNewStudioId, setAdminNewStudioId] =
+  useState("");
+
+const [adminNewPrice, setAdminNewPrice] =
+  useState("");
+
+const [adminNewFeatured, setAdminNewFeatured] =
+  useState(false);
+
+const [adminCreateLoading, setAdminCreateLoading] =
+  useState(false);
+
+const [adminCreateError, setAdminCreateError] =
+  useState("");
+
+const [adminCreateSuccess, setAdminCreateSuccess] =
+  useState("");
+// ===================================================
+// MOVIE ROTATION
+// ===================================================
+
+const [rotationSeed, setRotationSeed] =
+  useState(0);
+  // ===================================================
+// ADMIN STUDIO STATES
+// ===================================================
+
+const [adminStudioOpen, setAdminStudioOpen] =
+  useState(false);
+
+const [adminStudioName, setAdminStudioName] =
+  useState("");
+
+const [adminStudioDescription, setAdminStudioDescription] =
+  useState("");
+
+const [adminStudioLogoUrl, setAdminStudioLogoUrl] =
+  useState("");
+
+const [adminStudioLoading, setAdminStudioLoading] =
+  useState(false);
+
+const [adminStudioError, setAdminStudioError] =
+  useState("");
+
+const [adminStudioSuccess, setAdminStudioSuccess] =
+  useState("");
   // ===================================================
   // LANGUAGE + THEME
   // ===================================================
@@ -263,7 +329,144 @@ function App() {
 
     return t("goodEvening");
   }
+  // ===================================================
+// ROTATE DISCOVERY MOVIES EVERY 6 HOURS
+// ===================================================
 
+useEffect(() => {
+  const interval = setInterval(() => {
+    setRotationSeed(
+      (current) => current + 1
+    );
+  }, 6 * 60 * 60 * 1000);
+
+  return () => {
+    clearInterval(interval);
+  };
+}, []);
+// ===================================================
+// LOAD STUDIOS WHEN APP STARTS
+// ===================================================
+
+useEffect(() => {
+  loadStudios();
+}, []);
+  // ===================================================
+// LOAD STUDIOS
+// ===================================================
+
+async function loadStudios() {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/studios`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa dauko studios."
+      );
+    }
+
+    setStudios(
+      Array.isArray(data?.studios)
+        ? data.studios
+        : []
+    );
+  } catch (error) {
+    console.error(
+      "LOAD STUDIOS ERROR:",
+      error
+    );
+
+    setStudios([]);
+  }
+}
+  // ===================================================
+// CREATE STUDIO
+// ===================================================
+
+async function createStudio() {
+  const token = getSessionToken();
+
+  const name =
+    adminStudioName.trim();
+
+  const description =
+    adminStudioDescription.trim();
+
+  const logoUrl =
+    adminStudioLogoUrl.trim();
+
+  if (!name) {
+    setAdminStudioError(
+      "Ka saka sunan Studio / Company."
+    );
+    return;
+  }
+
+  try {
+    setAdminStudioLoading(true);
+    setAdminStudioError("");
+    setAdminStudioSuccess("");
+
+    const response = await fetch(
+      `${API_URL}/api/admin/studios`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          name,
+          description,
+          logoUrl,
+        }),
+      }
+    );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa kara Studio."
+      );
+    }
+
+    setAdminStudioSuccess(
+      "✅ An kara Studio / Company cikin nasara."
+    );
+
+    setAdminStudioName("");
+    setAdminStudioDescription("");
+    setAdminStudioLogoUrl("");
+
+    await loadStudios();
+
+  } catch (error) {
+    console.error(
+      "CREATE STUDIO ERROR:",
+      error
+    );
+
+    setAdminStudioError(
+      error?.message ||
+        "An samu matsala wajen kara Studio."
+    );
+  } finally {
+    setAdminStudioLoading(false);
+  }
+}
   // ===================================================
   // PAGE
   // ===================================================
@@ -533,6 +736,11 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
     setAdminEditCategory,
   ] = useState("");
 
+  const [
+  adminEditStudioId,
+  setAdminEditStudioId,
+] = useState("");
+   
   const [
     adminEditPrice,
     setAdminEditPrice,
@@ -1747,9 +1955,13 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            plan: planId,
-          }),
+         body: JSON.stringify({
+  plan: planId,
+  returnTo: window.Capacitor?.isNativePlatform?.()
+    ? "app"
+    : "web",
+}),
+
         }
       );
 
@@ -2362,13 +2574,13 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                 "application/json",
             },
 
-            body: JSON.stringify({
-              webUserId:
-                user.id,
-
-              filmId:
-                film.id,
-            }),
+          body: JSON.stringify({
+  webUserId: user.id,
+  filmId: film.id,
+  returnTo: window.Capacitor?.isNativePlatform?.()
+    ? "app"
+    : "web",
+}),
           }
         );
 
@@ -2958,22 +3170,25 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
   // ===================================================
   // ADMIN - OPEN FILM EDITOR
   // ===================================================
-
-  function openAdminFilmEditor(film) {
-    if (!film?.id) {
-      return;
-    }
-
-    setAdminEditingFilm(film);
-    setAdminEditTitle(film.title || "");
-    setAdminEditDescription(film.description || "");
-    setAdminEditCategory(film.category || "");
-    setAdminEditPrice(String(film.price ?? ""));
-    setAdminEditFeatured(Boolean(film.featured));
-    setAdminManageError("");
-    setAdminManageSuccess("");
+   function openAdminFilmEditor(film) {
+  if (!film?.id) {
+    return;
   }
 
+  setAdminEditingFilm(film);
+  setAdminEditTitle(film.title || "");
+  setAdminEditDescription(film.description || "");
+  setAdminEditCategory(film.category || "");
+  setAdminEditStudioId(
+    film.studioId
+      ? String(film.studioId)
+      : ""
+  );
+  setAdminEditPrice(String(film.price ?? ""));
+  setAdminEditFeatured(Boolean(film.featured));
+  setAdminManageError("");
+  setAdminManageSuccess("");
+}
   // ===================================================
   // ADMIN - CLOSE FILM EDITOR
   // ===================================================
@@ -2987,6 +3202,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
     setAdminEditTitle("");
     setAdminEditDescription("");
     setAdminEditCategory("");
+    setAdminEditStudioId("");
     setAdminEditPrice("");
     setAdminEditFeatured(false);
     setAdminManageError("");
@@ -3007,6 +3223,10 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
     const description = adminEditDescription.trim();
     const category = adminEditCategory.trim();
     const price = Number(adminEditPrice);
+    const studioId =
+  adminEditStudioId
+    ? Number(adminEditStudioId)
+    : null;
 
     if (!title) {
       setAdminManageError("Ka rubuta sunan film.");
@@ -3027,6 +3247,20 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
       setAdminManageError("Ka saka price mai kyau.");
       return;
     }
+const isIndia =
+  category
+    .toLowerCase()
+    .includes("india");
+
+if (
+  isIndia &&
+  !studioId
+) {
+  setAdminManageError(
+    "Ka zaɓi Studio / Company na wannan film."
+  );
+  return;
+}
 
     try {
       setAdminSavingFilm(true);
@@ -3045,6 +3279,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
             title,
             description,
             category,
+            studioId,
             price,
             featured: adminEditFeatured,
           }),
@@ -3056,7 +3291,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
       if (!response.ok) {
         throw new Error(data?.message || "An kasa gyara film.");
       }
-
+  
       const updatedFilm = normalizeFilm(data?.film);
 
       if (updatedFilm) {
@@ -3072,6 +3307,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
         setAdminEditTitle(updatedFilm.title || "");
         setAdminEditDescription(updatedFilm.description || "");
         setAdminEditCategory(updatedFilm.category || "");
+        setAdminEditStudioId(updatedFilm.studioId ? String(updatedFilm.studioId) : "");
         setAdminEditPrice(String(updatedFilm.price ?? ""));
         setAdminEditFeatured(Boolean(updatedFilm.featured));
       } else {
@@ -3519,7 +3755,29 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
       search,
       activeCategory,
     ]);
+// ===================================================
+// DISCOVER AGAIN - ROTATING MOVIES
+// ===================================================
 
+const rotatingFilms = useMemo(() => {
+  const copy = [...films];
+
+  for (
+    let i = copy.length - 1;
+    i > 0;
+    i--
+  ) {
+    const j =
+      Math.floor(
+        Math.random() * (i + 1)
+      );
+
+    [copy[i], copy[j]] =
+      [copy[j], copy[i]];
+  }
+
+  return copy.slice(0, 12);
+}, [films, rotationSeed]);
   // ===================================================
   // AUTH PAGE
   // ===================================================
@@ -4902,151 +5160,251 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                   marginTop: "20px",
                 }}
               >
-                {adminFilteredFilms.map((film) => (
-                  <div key={film.id} className="admin-selected-film">
-                    <img
-                      src={posterSrc(film)}
-                      alt={film.title}
-                      onError={handlePosterError}
-                    />
+          {adminFilteredFilms.map((film) => (
+  <div
+    key={film.id}
+    style={{
+      display: "grid",
+      gap: "12px",
+    }}
+  >
+    <div className="admin-selected-film">
+      <img
+        src={posterSrc(film)}
+        alt={film.title}
+        onError={handlePosterError}
+      />
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3>{film.title}</h3>
-                      <p>
-                        {film.category || "Movie"} · ₦
-                        {Number(film.price || 0).toLocaleString()}
-                      </p>
-                      <p>{film.featured ? "⭐ Featured" : "Not Featured"}</p>
-                    </div>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        <h3>{film.title}</h3>
 
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => openAdminFilmEditor(film)}
-                    >
-                      ✏️ Edit
-                    </button>
-                  </div>
-                ))}
+        <p>
+          {film.category || "Movie"} · ₦
+          {Number(
+            film.price || 0
+          ).toLocaleString()}
+        </p>
+
+        <p>
+          {film.featured
+            ? "⭐ Featured"
+            : "Not Featured"}
+        </p>
+
+        {film.studio?.name && (
+          <p>
+            🏢 {film.studio.name}
+          </p>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="secondary-button"
+        onClick={() => {
+          if (
+            Number(
+              adminEditingFilm?.id
+            ) === Number(film.id)
+          ) {
+            closeAdminFilmEditor();
+          } else {
+            openAdminFilmEditor(
+              film
+            );
+          }
+        }}
+      >
+        {Number(
+          adminEditingFilm?.id
+        ) === Number(film.id)
+          ? "✖ Close"
+          : "✏️ Edit"}
+      </button>
+    </div>
+
+    {Number(
+      adminEditingFilm?.id
+    ) === Number(film.id) && (
+      <div
+        style={{
+          padding: "20px",
+          border:
+            "1px solid var(--border)",
+          borderRadius: "16px",
+          marginBottom: "10px",
+        }}
+      >
+        <p className="small-title">
+          EDIT MOVIE
+        </p>
+
+        <h2
+          style={{
+            fontSize: "24px",
+          }}
+        >
+          ✏️ {film.title}
+        </h2>
+
+        <div className="admin-upload-field">
+          <label>
+            Movie Title
+          </label>
+
+          <input
+            type="text"
+            value={adminEditTitle}
+            onChange={(event) =>
+              setAdminEditTitle(
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <div className="admin-upload-field">
+          <label>
+            Description
+          </label>
+
+          <textarea
+            rows={5}
+            value={
+              adminEditDescription
+            }
+            onChange={(event) =>
+              setAdminEditDescription(
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <div className="admin-upload-field">
+          <label>
+            Category
+          </label>
+
+          <input
+            type="text"
+            value={adminEditCategory}
+            onChange={(event) =>
+              setAdminEditCategory(
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <div className="admin-upload-field">
+          <label>
+            Price (₦)
+          </label>
+
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={adminEditPrice}
+            onChange={(event) =>
+              setAdminEditPrice(
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            margin: "18px 0",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={
+              adminEditFeatured
+            }
+            onChange={(event) =>
+              setAdminEditFeatured(
+                event.target.checked
+              )
+            }
+          />
+
+          ⭐ Show in Featured Movies
+        </label>
+
+        {adminManageError && (
+          <div className="auth-error">
+            ❌ {adminManageError}
+          </div>
+        )}
+
+        {adminManageSuccess && (
+          <div className="admin-upload-success">
+            {adminManageSuccess}
+          </div>
+        )}
+
+        <div className="details-actions">
+          <button
+            type="button"
+            className="buy-now-button"
+            disabled={
+              adminSavingFilm
+            }
+            onClick={
+              saveAdminFilmChanges
+            }
+          >
+            {adminSavingFilm
+              ? "💾 Saving..."
+              : "💾 Save Changes"}
+          </button>
+
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={
+              adminSavingFilm
+            }
+            onClick={
+              closeAdminFilmEditor
+            }
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+))}
+
               </div>
 
               {adminFilteredFilms.length === 0 && (
                 <div className="status">
-                  <p>Ba a samu film ba.</p>
+                  <p>
+                    Ba a samu film ba.
+                  </p>
                 </div>
               )}
 
-              {adminEditingFilm && (
-                <div
-                  style={{
-                    marginTop: "30px",
-                    paddingTop: "25px",
-                    borderTop: "1px solid var(--border)",
-                  }}
-                >
-                  <p className="small-title">EDIT MOVIE</p>
-                  <h2 style={{ fontSize: "24px" }}>
-                    ✏️ {adminEditingFilm.title}
-                  </h2>
-
-                  <div className="admin-upload-field">
-                    <label>Movie Title</label>
-                    <input
-                      type="text"
-                      value={adminEditTitle}
-                      onChange={(event) => setAdminEditTitle(event.target.value)}
-                    />
-                  </div>
-
-                  <div className="admin-upload-field">
-                    <label>Description</label>
-                    <textarea
-                      value={adminEditDescription}
-                      rows={5}
-                      onChange={(event) =>
-                        setAdminEditDescription(event.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="admin-upload-field">
-                    <label>Category</label>
-                    <input
-                      type="text"
-                      value={adminEditCategory}
-                      onChange={(event) =>
-                        setAdminEditCategory(event.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="admin-upload-field">
-                    <label>Price (₦)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={adminEditPrice}
-                      onChange={(event) => setAdminEditPrice(event.target.value)}
-                    />
-                  </div>
-
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      margin: "18px 0",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={adminEditFeatured}
-                      onChange={(event) =>
-                        setAdminEditFeatured(event.target.checked)
-                      }
-                    />
-                    ⭐ Show in Featured Movies
-                  </label>
-
-                  {adminManageError && (
-                    <div className="auth-error">❌ {adminManageError}</div>
-                  )}
-
-                  {adminManageSuccess && (
-                    <div className="admin-upload-success">
-                      {adminManageSuccess}
-                    </div>
-                  )}
-
-                  <div className="details-actions">
-                    <button
-                      type="button"
-                      className="buy-now-button"
-                      disabled={adminSavingFilm}
-                      onClick={saveAdminFilmChanges}
-                    >
-                      {adminSavingFilm ? "💾 Saving..." : "💾 Save Changes"}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      disabled={adminSavingFilm}
-                      onClick={closeAdminFilmEditor}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </main>
       </div>
     );
   }
-
   // ===================================================
   // ADMIN BUNNY UPLOAD PAGE
   // ===================================================
@@ -6485,6 +6843,19 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
                   trailerLabel={t("trailer")}
                 />
               )}
+           <MovieRow
+  title={
+    language === "HAUSA"
+      ? "Ka Sake Gano"
+      : "Discover Again"
+  }
+  films={rotatingFilms}
+  posterSrc={posterSrc}
+  openFilm={openFilm}
+  handlePosterError={handlePosterError}
+  autoSlide
+  limit={12}
+/>
 
               <MovieRow
                 title={t("latestMovies")}

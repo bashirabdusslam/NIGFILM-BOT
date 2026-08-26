@@ -467,6 +467,111 @@ async function createStudio() {
     setAdminStudioLoading(false);
   }
 }
+// ===================================================
+// CREATE NEW FILM
+// ===================================================
+
+async function createAdminFilm() {
+  const token = getSessionToken();
+
+  const title = adminNewTitle.trim();
+  const description = adminNewDescription.trim();
+  const category = adminNewCategory.trim();
+  const price = Number(adminNewPrice);
+
+  if (!title) {
+    setAdminCreateError("Ka saka sunan film.");
+    return;
+  }
+
+  if (!description) {
+    setAdminCreateError("Ka saka description.");
+    return;
+  }
+
+  if (!category) {
+    setAdminCreateError("Ka zabi category.");
+    return;
+  }
+
+  if (!Number.isInteger(price) || price < 0) {
+    setAdminCreateError("Ka saka price mai kyau.");
+    return;
+  }
+
+  const isIndia =
+    category.toLowerCase().includes("india");
+
+  if (isIndia && !adminNewStudioId) {
+    setAdminCreateError(
+      "Ka zabi Studio / Company na wannan film."
+    );
+    return;
+  }
+
+  try {
+    setAdminCreateLoading(true);
+    setAdminCreateError("");
+    setAdminCreateSuccess("");
+
+    const response = await fetch(
+      `${API_URL}/api/admin/films`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          title,
+          description,
+          category,
+          price,
+          studioId: adminNewStudioId
+            ? Number(adminNewStudioId)
+            : null,
+          featured: adminNewFeatured,
+        }),
+      }
+    );
+
+    const data = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa kirkirar film."
+      );
+    }
+
+    setAdminCreateSuccess(
+      "✅ An kirkiri film cikin nasara."
+    );
+
+    setAdminNewTitle("");
+    setAdminNewDescription("");
+    setAdminNewCategory("Hausa");
+    setAdminNewStudioId("");
+    setAdminNewPrice("");
+    setAdminNewFeatured(false);
+
+    await loadFilms();
+  } catch (error) {
+    console.error(
+      "CREATE ADMIN FILM ERROR:",
+      error
+    );
+
+    setAdminCreateError(
+      error?.message ||
+        "An samu matsala wajen kirkirar film."
+    );
+  } finally {
+    setAdminCreateLoading(false);
+  }
+}
   // ===================================================
   // PAGE
   // ===================================================
@@ -603,7 +708,10 @@ useEffect(() => {
     activeCategory,
     setActiveCategory,
   ] = useState("All");
-
+   const [
+  activeStudio,
+  setActiveStudio,
+] = useState(null);
   // ===================================================
   // MY MOVIES
   // ===================================================
@@ -1328,6 +1436,7 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
 
   function openFullCategory(category) {
     setSearch("");
+    setActiveStudio(null);
     setActiveCategory(category);
 
     setTimeout(() => {
@@ -1339,7 +1448,24 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
         });
     }, 50);
   }
+function openStudio(studio) {
+  if (!studio?.id) {
+    return;
+  }
 
+  setSearch("");
+  setActiveCategory("India Fassara");
+  setActiveStudio(studio);
+
+  setTimeout(() => {
+    document
+      .getElementById("movies")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }, 50);
+}
   function openWatchOptionsAtButton(event) {
     const rect =
       event.currentTarget.getBoundingClientRect();
@@ -1909,6 +2035,10 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
             "An kasa dauko Premium plans."
         );
       }
+console.log(
+  "LIVE PREMIUM PLANS FROM API:",
+  data?.plans
+);
 
       setPremiumPlans(
         Array.isArray(data?.plans)
@@ -3744,16 +3874,23 @@ if (
               );
           }
 
-          return (
-            matchesSearch &&
-            matchesCategory
-          );
+          const matchesStudio =
+  !activeStudio ||
+  Number(film.studioId) ===
+    Number(activeStudio.id);
+
+return (
+  matchesSearch &&
+  matchesCategory &&
+  matchesStudio
+);
         }
       );
     }, [
       films,
       search,
       activeCategory,
+      activeStudio,
     ]);
 // ===================================================
 // DISCOVER AGAIN - ROTATING MOVIES
@@ -5134,6 +5271,381 @@ const rotatingFilms = useMemo(() => {
               className="details-content"
               style={{ gridColumn: "1 / -1" }}
             >
+              <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "20px",
+  }}
+>
+  <button
+    type="button"
+    className="buy-now-button"
+    onClick={() => {
+      setAdminStudioOpen(
+        !adminStudioOpen
+      );
+
+      setAdminStudioError("");
+      setAdminStudioSuccess("");
+    }}
+  >
+    🏢 Add Studio / Company
+  </button>
+
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={() => {
+      setAdminCreateOpen(
+        !adminCreateOpen
+      );
+    }}
+  >
+    ➕ Add New Film
+  </button>
+</div>
+
+{adminStudioOpen && (
+  <div
+    style={{
+      padding: "20px",
+      border:
+        "1px solid var(--border)",
+      borderRadius: "16px",
+      marginBottom: "25px",
+    }}
+  >
+    <p className="small-title">
+      NEW STUDIO
+    </p>
+
+    <h3>
+      🏢 Add Studio / Company
+    </h3>
+
+    <div className="admin-upload-field">
+      <label>
+        Studio Name
+      </label>
+
+      <input
+        type="text"
+        value={adminStudioName}
+        placeholder="Misali: Algaita Dub Studio"
+        onChange={(event) =>
+          setAdminStudioName(
+            event.target.value
+          )
+        }
+      />
+    </div>
+  {adminEditCategory
+  .toLowerCase()
+  .includes("india") && (
+  <div className="admin-upload-field">
+
+    <label>
+      Studio / Company
+    </label>
+
+    <select
+      value={adminEditStudioId}
+      onChange={(event) =>
+        setAdminEditStudioId(
+          event.target.value
+        )
+      }
+    >
+      <option value="">
+        -- Choose Studio --
+      </option>
+
+      {studios.map((studio) => (
+        <option
+          key={studio.id}
+          value={studio.id}
+        >
+          {studio.name}
+        </option>
+      ))}
+    </select>
+
+    {studios.length === 0 && (
+      <small>
+        Babu Studio / Company tukuna.
+      </small>
+    )}
+
+  </div>
+)}
+    <div className="admin-upload-field">
+      <label>
+        Description
+      </label>
+
+      <textarea
+        rows={4}
+        value={
+          adminStudioDescription
+        }
+        placeholder="Takaitaccen bayani game da studio"
+        onChange={(event) =>
+          setAdminStudioDescription(
+            event.target.value
+          )
+        }
+      />
+    </div>
+
+    <div className="admin-upload-field">
+      <label>
+        Logo URL
+      </label>
+
+      <input
+        type="text"
+        value={
+          adminStudioLogoUrl
+        }
+        placeholder="https://..."
+        onChange={(event) =>
+          setAdminStudioLogoUrl(
+            event.target.value
+          )
+        }
+      />
+    </div>
+
+    {adminStudioError && (
+      <div className="auth-error">
+        ❌ {adminStudioError}
+      </div>
+    )}
+
+    {adminStudioSuccess && (
+      <div className="admin-upload-success">
+        {adminStudioSuccess}
+      </div>
+    )}
+
+    <div className="details-actions">
+      <button
+        type="button"
+        className="buy-now-button"
+        disabled={
+          adminStudioLoading
+        }
+        onClick={
+          createStudio
+        }
+      >
+        {adminStudioLoading
+          ? "Creating..."
+          : "🏢 Create Studio"}
+      </button>
+
+      <button
+        type="button"
+        className="secondary-button"
+        disabled={
+          adminStudioLoading
+        }
+        onClick={() =>
+          setAdminStudioOpen(
+            false
+          )
+        }
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+{adminCreateOpen && (
+  <div
+    style={{
+      padding: "20px",
+      border: "1px solid var(--border)",
+      borderRadius: "16px",
+      marginBottom: "25px",
+    }}
+  >
+    <p className="small-title">
+      NEW MOVIE
+    </p>
+
+    <h3>➕ Add New Film</h3>
+
+    <div className="admin-upload-field">
+      <label>Movie Title</label>
+      <input
+        type="text"
+        value={adminNewTitle}
+        placeholder="Sunan film"
+        onChange={(event) =>
+          setAdminNewTitle(event.target.value)
+        }
+      />
+    </div>
+
+    <div className="admin-upload-field">
+      <label>Description</label>
+      <textarea
+        rows={5}
+        value={adminNewDescription}
+        placeholder="Bayanin film"
+        onChange={(event) =>
+          setAdminNewDescription(event.target.value)
+        }
+      />
+    </div>
+
+    <div className="admin-upload-field">
+      <label>Category</label>
+
+      <select
+        value={adminNewCategory}
+        onChange={(event) => {
+          const value = event.target.value;
+
+          setAdminNewCategory(value);
+
+          if (
+            !value
+              .toLowerCase()
+              .includes("india")
+          ) {
+            setAdminNewStudioId("");
+          }
+        }}
+      >
+        <option value="Hausa">
+          Hausa
+        </option>
+
+        <option value="India Fassara">
+          India Fassara
+        </option>
+
+        <option value="American">
+          American
+        </option>
+
+        <option value="Series">
+          Series
+        </option>
+      </select>
+    </div>
+
+    {adminNewCategory
+      .toLowerCase()
+      .includes("india") && (
+      <div className="admin-upload-field">
+        <label>
+          Studio / Company
+        </label>
+
+        <select
+          value={adminNewStudioId}
+          onChange={(event) =>
+            setAdminNewStudioId(
+              event.target.value
+            )
+          }
+        >
+          <option value="">
+            -- Choose Studio --
+          </option>
+
+          {studios.map((studio) => (
+            <option
+              key={studio.id}
+              value={studio.id}
+            >
+              {studio.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    )}
+
+    <div className="admin-upload-field">
+      <label>Price (₦)</label>
+
+      <input
+        type="number"
+        min="0"
+        step="1"
+        value={adminNewPrice}
+        placeholder="300"
+        onChange={(event) =>
+          setAdminNewPrice(
+            event.target.value
+          )
+        }
+      />
+    </div>
+
+    <label
+      style={{
+        display: "flex",
+        gap: "10px",
+        alignItems: "center",
+        margin: "18px 0",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={adminNewFeatured}
+        onChange={(event) =>
+          setAdminNewFeatured(
+            event.target.checked
+          )
+        }
+      />
+
+      ⭐ Featured Film
+    </label>
+
+    {adminCreateError && (
+      <div className="auth-error">
+        ❌ {adminCreateError}
+      </div>
+    )}
+
+    {adminCreateSuccess && (
+      <div className="admin-upload-success">
+        {adminCreateSuccess}
+      </div>
+    )}
+
+    <div className="details-actions">
+      <button
+        type="button"
+        className="buy-now-button"
+        disabled={adminCreateLoading}
+        onClick={createAdminFilm}
+      >
+        {adminCreateLoading
+          ? "Creating..."
+          : "➕ Create Film"}
+      </button>
+
+      <button
+        type="button"
+        className="secondary-button"
+        disabled={adminCreateLoading}
+        onClick={() =>
+          setAdminCreateOpen(false)
+        }
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
               <p className="small-title">NIGFILM ADMIN</p>
               <h2>🎬 Manage Films</h2>
 
@@ -6695,13 +7207,13 @@ const rotatingFilms = useMemo(() => {
             <p className="small-title">
               {t("discover")}
             </p>
-
             <h2>
-              {activeCategory ===
-              "All"
-                ? t("latestMovies")
-                : activeCategory}
-            </h2>
+  {activeStudio
+    ? activeStudio.name
+    : activeCategory === "All"
+      ? t("latestMovies")
+      : activeCategory}
+</h2>
           </div>
 
           <span className="movie-count">
@@ -6711,7 +7223,83 @@ const rotatingFilms = useMemo(() => {
             Movies
           </span>
         </div>
+  {activeStudio && (
+  <div
+    style={{
+      marginBottom: "20px",
+      padding: "16px",
+      border: "1px solid var(--border)",
+      borderRadius: "16px",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        flexWrap: "wrap",
+      }}
+    >
+      {activeStudio.logoUrl && (
+        <img
+          src={activeStudio.logoUrl}
+          alt={activeStudio.name}
+          style={{
+            width: "60px",
+            height: "60px",
+            objectFit: "cover",
+            borderRadius: "14px",
+          }}
+        />
+      )}
 
+      <div>
+        <p
+          className="small-title"
+          style={{
+            marginBottom: "4px",
+          }}
+        >
+          INDIA FASSARA
+        </p>
+
+        <strong>
+          🏢 {activeStudio.name}
+        </strong>
+
+        {activeStudio.description && (
+          <p
+            style={{
+              margin: "5px 0 0",
+              opacity: 0.75,
+            }}
+          >
+            {activeStudio.description}
+          </p>
+        )}
+      </div>
+    </div>
+
+    <button
+      type="button"
+      className="secondary-button"
+      style={{
+        marginTop: "14px",
+      }}
+      onClick={() => {
+        setActiveStudio(null);
+        setActiveCategory(
+          "India Fassara"
+        );
+      }}
+    >
+      ←{" "}
+      {language === "HAUSA"
+        ? "Duk Studios"
+        : "All Studios"}
+    </button>
+  </div>
+)}
         {filmsLoading && (
           <div className="status">
             <div className="loader" />
@@ -6758,6 +7346,11 @@ const rotatingFilms = useMemo(() => {
           filteredFilms.length > 0 &&
           search.trim() && (
             <MovieRow
+            title={
+  activeStudio
+    ? activeStudio.name
+    : activeCategory
+}
               films={filteredFilms}
               posterSrc={posterSrc}
               openFilm={openFilm}
@@ -6894,7 +7487,80 @@ const rotatingFilms = useMemo(() => {
                     : "See All"
                 }
               />
+{studios.length > 0 && (
+  <section className="section movies-section">
+    <div className="section-heading">
+      <div>
+        <p className="small-title">
+          {language === "HAUSA"
+            ? "KAMFANONIN FASSARA"
+            : "DUBBING STUDIOS"}
+        </p>
 
+        <h2>
+          {language === "HAUSA"
+            ? "Studios / Companies"
+            : "Studios / Companies"}
+        </h2>
+      </div>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: "14px",
+      }}
+    >
+      {studios.map((studio) => (
+        <button
+          key={studio.id}
+          type="button"
+          className="preference-card"
+          onClick={() => openStudio(studio)}
+          style={{
+            textAlign: "left",
+            cursor: "pointer",
+            padding: "18px",
+            border: "1px solid var(--border)",
+            borderRadius: "16px",
+          }}
+        >
+          {studio.logoUrl && (
+            <img
+              src={studio.logoUrl}
+              alt={studio.name}
+              style={{
+                width: "56px",
+                height: "56px",
+                objectFit: "cover",
+                borderRadius: "12px",
+                marginBottom: "10px",
+              }}
+            />
+          )}
+
+          <strong
+            style={{
+              display: "block",
+              fontSize: "17px",
+              marginBottom: "6px",
+            }}
+          >
+            🏢 {studio.name}
+          </strong>
+
+          <small>
+            {language === "HAUSA"
+              ? "Danna ka ga fina-finansu"
+              : "Tap to view their movies"}
+          </small>
+        </button>
+      ))}
+    </div>
+  </section>
+)}
               <MovieRow
                 title={t("indiaMovies")}
                 films={films.filter((film) => {

@@ -1699,7 +1699,7 @@ if (!film) {
 
 app.post(
   "/api/admin/studios",
-  requireWebAdmin,
+  requireAdmin,
   async (req, res) => {
     try {
       const name = String(

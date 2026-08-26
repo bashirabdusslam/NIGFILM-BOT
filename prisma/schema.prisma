@@ -8,16 +8,266 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  telegramId String   @unique
+  id         Int        @id @default(autoincrement())
+  telegramId String     @unique
   firstName  String?
   lastName   String?
   username   String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime   @default(now())
+  carts      Cart[]
+  orders     Order[]
+  purchases  Purchase[]
+}
 
-  carts     Cart[]
-  orders    Order[]
-  purchases Purchase[]
+model WebUser {
+  id                   Int                   @id @default(autoincrement())
+  fullName             String
+  phone                String                @unique
+  passwordHash         String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  role                 WebUserRole           @default(USER)
+  language             AppLanguage           @default(HAUSA)
+  theme                AppTheme              @default(BLACK_GOLD)
+  adMovieUnlocks       AdMovieUnlock[]
+  adRewardAttempts     AdRewardAttempt[]
+  premiumOrders        PremiumOrder[]
+  premiumSubscriptions PremiumSubscription[]
+  webOrders            WebOrder[]
+  webPurchases         WebPurchase[]
+  webSessions          WebSession[]
+}
+
+model WebSession {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  webUserId Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      WebUser  @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([expiresAt])
+}
+
+model PremiumSubscription {
+  id               Int           @id @default(autoincrement())
+  webUserId        Int
+  plan             PremiumPlan
+  status           PremiumStatus @default(ACTIVE)
+  amount           Int
+  paymentReference String?       @unique
+  startsAt         DateTime      @default(now())
+  expiresAt        DateTime
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  user             WebUser       @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, status])
+}
+
+model PremiumOrder {
+  id               Int         @id @default(autoincrement())
+  webUserId        Int
+  plan             PremiumPlan
+  amount           Int
+  status           String      @default("pending")
+  paymentReference String      @unique
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  user             WebUser     @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([status])
+}
+
+model AdMovieUnlock {
+  id          Int            @id @default(autoincrement())
+  webUserId   Int
+  filmId      Int
+  watchedAds  Int            @default(0)
+  requiredAds Int            @default(5)
+  status      AdUnlockStatus @default(IN_PROGRESS)
+  unlockedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  film        Film           @relation(fields: [filmId], references: [id])
+  user        WebUser        @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@unique([webUserId, filmId])
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, status])
+}
+
+model AdRewardAttempt {
+  id               Int                   @id @default(autoincrement())
+  webUserId        Int
+  filmId           Int
+  attemptTokenHash String                @unique
+  status           AdRewardAttemptStatus @default(PENDING)
+  createdAt        DateTime              @default(now())
+  expiresAt        DateTime
+  rewardedAt       DateTime?
+  film             Film                  @relation(fields: [filmId], references: [id])
+  user             WebUser               @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([webUserId, filmId])
+}
+
+model Studio {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  logoUrl     String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  films Film[]
+
+  @@index([active])
+}
+
+model Film {
+  id                  Int               @id @default(autoincrement())
+  title               String
+  description         String
+  category            String
+  studioId            Int?
+  studio              Studio?           @relation(fields: [studioId], references: [id], onDelete: SetNull)
+  price               Int
+  posterFileId        String?
+  videoFileId         String?
+  createdAt           DateTime          @default(now())
+  webVideoUrl         String?
+  bunnyVideoId        String?
+  featured            Boolean           @default(false)
+  posterUrl           String?
+  trailerBunnyVideoId String?
+  trailerEnabled      Boolean           @default(false)
+  trailerUrl          String?
+  updatedAt           DateTime          @default(now()) @updatedAt
+  adMovieUnlocks      AdMovieUnlock[]
+  adRewardAttempts    AdRewardAttempt[]
+  carts               Cart[]
+  orders              Order[]
+  purchases           Purchase[]
+  webOrders           WebOrder[]
+  webPurchases        WebPurchase[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([featured])
+}
+
+model Order {
+  id                      Int        @id @default(autoincrement())
+  telegramId              String
+  filmId                  Int
+  amount                  Int
+  status                  String
+  paymentReference        String     @unique
+  createdAt               DateTime   @default(now())
+  accountName             String?
+  accountNumber           String?
+  bankName                String?
+  virtualAccountReference String?
+  cartFilmIds             String?
+  film                    Film       @relation(fields: [filmId], references: [id])
+  user                    User       @relation(fields: [telegramId], references: [telegramId])
+  purchases               Purchase[]
+
+  @@index([telegramId])
+  @@index([filmId])
+  @@index([status])
+}
+
+model WebOrder {
+  id               Int           @id @default(autoincrement())
+  webUserId        Int
+  filmId           Int
+  amount           Int
+  status           String        @default("pending")
+  paymentReference String        @unique
+  createdAt        DateTime      @default(now())
+  film             Film          @relation(fields: [filmId], references: [id])
+  user             WebUser       @relation(fields: [webUserId], references: [id])
+  webPurchases     WebPurchase[]
+
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([status])
+}
+
+model Purchase {
+  id         Int      @id @default(autoincrement())
+  telegramId String
+  filmId     Int
+  orderId    Int
+  createdAt  DateTime @default(now())
+  film       Film     @relation(fields: [filmId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User     @relation(fields: [telegramId], references: [telegramId])
+
+  @@index([telegramId])
+  @@index([filmId])
+  @@index([orderId])
+}
+
+model WebPurchase {
+  id        Int      @id @default(autoincrement())
+  webUserId Int
+  filmId    Int
+  orderId   Int
+  createdAt DateTime @default(now())
+  film      Film     @relation(fields: [filmId], references: [id])
+  order     WebOrder @relation(fields: [orderId], references: [id])
+  user      WebUser  @relation(fields: [webUserId], references: [id])
+
+  @@unique([webUserId, filmId])
+  @@index([webUserId])
+  @@index([filmId])
+  @@index([orderId])
+}
+
+model AdminSession {
+  id         Int    @id @default(autoincrement())
+  telegramId String @unique
+  step       String
+  filmData   String
+}
+
+model Cart {
+  id         Int      @id @default(autoincrement())
+  telegramId String
+  filmId     Int
+  createdAt  DateTime @default(now())
+  film       Film     @relation(fields: [filmId], references: [id])
+  user       User     @relation(fields: [telegramId], references: [telegramId])
+
+  @@unique([telegramId, filmId])
+  @@index([telegramId])
+  @@index([filmId])
+}
+
+model UserSession {
+  id         Int      @id @default(autoincrement())
+  telegramId String   @unique
+  step       String
+  data       String
+  createdAt  DateTime @default(now())
 }
 
 enum WebUserRole {
@@ -58,272 +308,4 @@ enum AdUnlockStatus {
   IN_PROGRESS
   UNLOCKED
   EXPIRED
-}
-
-model WebUser {
-  id           Int         @id @default(autoincrement())
-  fullName     String
-  phone        String      @unique
-  passwordHash String
-  role         WebUserRole @default(USER)
-
-  language AppLanguage @default(HAUSA)
-  theme    AppTheme    @default(BLACK_GOLD)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  webPurchases         WebPurchase[]
-  webOrders            WebOrder[]
-  webSessions          WebSession[]
-  premiumSubscriptions PremiumSubscription[]
-  premiumOrders        PremiumOrder[]
-
-  adMovieUnlocks   AdMovieUnlock[]
-  adRewardAttempts AdRewardAttempt[]
-}
-
-model WebSession {
-  id        Int      @id @default(autoincrement())
-  tokenHash String   @unique
-  webUserId Int
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
-
-  @@index([webUserId])
-  @@index([expiresAt])
-}
-
-model PremiumSubscription {
-  id               Int           @id @default(autoincrement())
-  webUserId        Int
-  plan             PremiumPlan
-  status           PremiumStatus @default(ACTIVE)
-  amount           Int
-  paymentReference String?       @unique
-  startsAt         DateTime      @default(now())
-  expiresAt        DateTime
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-
-  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
-
-  @@index([webUserId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([webUserId, status])
-}
-
-model PremiumOrder {
-  id               Int         @id @default(autoincrement())
-  webUserId        Int
-  plan             PremiumPlan
-  amount           Int
-  status           String      @default("pending")
-  paymentReference String      @unique
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-
-  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
-
-  @@index([webUserId])
-  @@index([status])
-}
-
-model AdMovieUnlock {
-  id Int @id @default(autoincrement())
-
-  webUserId Int
-  filmId    Int
-
-  watchedAds  Int @default(0)
-  requiredAds Int @default(5)
-
-  status AdUnlockStatus @default(IN_PROGRESS)
-
-  unlockedAt DateTime?
-  expiresAt  DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
-  film Film    @relation(fields: [filmId], references: [id])
-
-  @@unique([webUserId, filmId])
-  @@index([webUserId])
-  @@index([filmId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([webUserId, status])
-}
-
-model AdRewardAttempt {
-  id Int @id @default(autoincrement())
-
-  webUserId Int
-  filmId    Int
-
-  attemptTokenHash String @unique
-
-  status AdRewardAttemptStatus @default(PENDING)
-
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime
-  rewardedAt DateTime?
-
-  user WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
-  film Film    @relation(fields: [filmId], references: [id])
-
-  @@index([webUserId])
-  @@index([filmId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([webUserId, filmId])
-}
-
-model Film {
-  id          Int    @id @default(autoincrement())
-  title       String
-  description String
-  category    String
-  price       Int
-
-  posterFileId String?
-  posterUrl    String?
-
-  videoFileId String?
-
-  bunnyVideoId String?
-  webVideoUrl  String?
-
-  trailerBunnyVideoId String?
-  trailerUrl          String?
-  trailerEnabled      Boolean @default(false)
-
-  featured Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-
-  carts        Cart[]
-  orders       Order[]
-  purchases    Purchase[]
-  webOrders    WebOrder[]
-  webPurchases WebPurchase[]
-
-  adMovieUnlocks   AdMovieUnlock[]
-  adRewardAttempts AdRewardAttempt[]
-
-  @@index([category])
-  @@index([createdAt])
-  @@index([featured])
-}
-
-model Order {
-  id               Int      @id @default(autoincrement())
-  telegramId       String
-  filmId           Int
-  cartFilmIds      String?
-  amount           Int
-  status           String
-  paymentReference String   @unique
-  createdAt        DateTime @default(now())
-
-  accountName             String?
-  accountNumber           String?
-  bankName                String?
-  virtualAccountReference String?
-
-  film Film @relation(fields: [filmId], references: [id])
-  user User @relation(fields: [telegramId], references: [telegramId])
-
-  purchases Purchase[]
-
-  @@index([telegramId])
-  @@index([filmId])
-  @@index([status])
-}
-
-model WebOrder {
-  id               Int      @id @default(autoincrement())
-  webUserId        Int
-  filmId           Int
-  amount           Int
-  status           String   @default("pending")
-  paymentReference String   @unique
-  createdAt        DateTime @default(now())
-
-  user WebUser @relation(fields: [webUserId], references: [id])
-  film Film    @relation(fields: [filmId], references: [id])
-
-  webPurchases WebPurchase[]
-
-  @@index([webUserId])
-  @@index([filmId])
-  @@index([status])
-}
-
-model Purchase {
-  id         Int      @id @default(autoincrement())
-  telegramId String
-  filmId     Int
-  orderId    Int
-  createdAt  DateTime @default(now())
-
-  film  Film  @relation(fields: [filmId], references: [id])
-  order Order @relation(fields: [orderId], references: [id])
-  user  User  @relation(fields: [telegramId], references: [telegramId])
-
-  @@index([telegramId])
-  @@index([filmId])
-  @@index([orderId])
-}
-
-model WebPurchase {
-  id        Int      @id @default(autoincrement())
-  webUserId Int
-  filmId    Int
-  orderId   Int
-  createdAt DateTime @default(now())
-
-  user  WebUser  @relation(fields: [webUserId], references: [id])
-  film  Film     @relation(fields: [filmId], references: [id])
-  order WebOrder @relation(fields: [orderId], references: [id])
-
-  @@unique([webUserId, filmId])
-  @@index([webUserId])
-  @@index([filmId])
-  @@index([orderId])
-}
-
-model AdminSession {
-  id         Int    @id @default(autoincrement())
-  telegramId String @unique
-  step       String
-  filmData   String
-}
-
-model Cart {
-  id         Int      @id @default(autoincrement())
-  telegramId String
-  filmId     Int
-  createdAt  DateTime @default(now())
-
-  film Film @relation(fields: [filmId], references: [id])
-  user User @relation(fields: [telegramId], references: [telegramId])
-
-  @@unique([telegramId, filmId])
-  @@index([telegramId])
-  @@index([filmId])
-}
-
-model UserSession {
-  id         Int      @id @default(autoincrement())
-  telegramId String   @unique
-  step       String
-  data       String
-  createdAt  DateTime @default(now())
 }

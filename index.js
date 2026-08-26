@@ -1037,6 +1037,13 @@ app.post(
           },
         });
 
+
+       const returnTo =
+  req.body?.returnTo === "app"
+    ? "app"
+    : "web";
+
+
       // =================================
       // INITIALIZE PAYSTACK
       // =================================
@@ -1066,9 +1073,8 @@ app.post(
                 ) * 100,
 
               reference,
-
-              callback_url:
-                `${PUBLIC_BASE_URL}/web-payment-success`,
+            callback_url:
+  `${PUBLIC_BASE_URL}/web-payment-success?returnTo=${returnTo}`,
 
               metadata: {
                 type:
@@ -1159,7 +1165,6 @@ app.post(
     }
   }
 );
-
 // ======================================================
 // WEB PAYMENT CALLBACK
 // ======================================================
@@ -1167,7 +1172,27 @@ app.post(
 app.get(
   "/web-payment-success",
   async (req, res) => {
+    // =========================================
+    // DETERMINE WHERE USER SHOULD RETURN
+    // =========================================
+
+    const returnTo =
+      String(
+        req.query.returnTo || "web"
+      ).toLowerCase() === "app"
+        ? "app"
+        : "web";
+
+    const returnUrl =
+      returnTo === "app"
+        ? "com.nigfilm.app://payment-success"
+        : WEB_APP_URL;
+
     try {
+      // =========================================
+      // GET PAYMENT REFERENCE
+      // =========================================
+
       const reference =
         String(
           req.query.reference || ""
@@ -1179,38 +1204,53 @@ app.get(
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Payment Reference Missing",
+
               message:
                 "Ba a samu payment reference ba.",
+
+              returnUrl,
             })
           );
       }
+
+      // =========================================
+      // VERIFY PAYMENT WITH PAYSTACK
+      // =========================================
 
       const verification =
         await verifyPaystackTransaction(
           reference
         );
 
-      if (
-        !verification.success
-      ) {
+      if (!verification.success) {
         return res
           .status(400)
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Payment Not Confirmed",
+
               message:
                 verification.message,
+
+              returnUrl,
             })
           );
       }
 
+      // =========================================
+      // PROCESS FILM PURCHASE
+      // =========================================
+
       const result =
         await processWebFilmPayment({
           reference,
+
           paidAmount:
             verification.amount,
         });
@@ -1221,13 +1261,21 @@ app.get(
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Payment Problem",
+
               message:
                 result.message,
+
+              returnUrl,
             })
           );
       }
+
+      // =========================================
+      // SUCCESS
+      // =========================================
 
       return res
         .status(200)
@@ -1239,12 +1287,14 @@ app.get(
               "Payment Successful",
 
             message:
-              "An tabbatar da payment dinka. Film id ya shiga My Movies.",
+              "An tabbatar da payment ɗinka. Film ɗin ya shiga My Movies.",
+
+            returnUrl,
           })
         );
     } catch (error) {
       console.error(
-        "âŒ WEB PAYMENT CALLBACK ERROR:",
+        "❌ WEB PAYMENT CALLBACK ERROR:",
         error
       );
 
@@ -1259,6 +1309,8 @@ app.get(
 
             message:
               "An samu matsala wajen tabbatar da payment.",
+
+            returnUrl,
           })
         );
     }
@@ -1271,6 +1323,18 @@ app.get(
 app.get(
   "/premium-payment-success",
   async (req, res) => {
+    const returnTo =
+      String(
+        req.query.returnTo || "web"
+      ).toLowerCase() === "app"
+        ? "app"
+        : "web";
+
+    const returnUrl =
+      returnTo === "app"
+        ? "com.nigfilm.app://payment-success"
+        : WEB_APP_URL;
+
     try {
       const reference =
         String(
@@ -1283,10 +1347,14 @@ app.get(
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Premium Payment Reference Missing",
+
               message:
                 "Ba a samu Premium payment reference ba.",
+
+              returnUrl,
             })
           );
       }
@@ -1296,18 +1364,20 @@ app.get(
           reference
         );
 
-      if (
-        !verification.success
-      ) {
+      if (!verification.success) {
         return res
           .status(400)
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Premium Payment Not Confirmed",
+
               message:
                 verification.message,
+
+              returnUrl,
             })
           );
       }
@@ -1326,10 +1396,14 @@ app.get(
           .send(
             buildWebPaymentPage({
               success: false,
+
               title:
                 "Premium Activation Problem",
+
               message:
                 result.message,
+
+              returnUrl,
             })
           );
       }
@@ -1339,13 +1413,16 @@ app.get(
         .send(
           buildWebPaymentPage({
             success: true,
+
             title:
               "Premium Activated",
+
             message:
-              "An tabbatar da payment dinka. NIGFILM Premium ya kunna cikin nasara.",
+              "An tabbatar da payment ɗinka. NIGFILM Premium ya kunna cikin nasara.",
+
+            returnUrl,
           })
         );
-
     } catch (error) {
       console.error(
         "❌ PREMIUM PAYMENT CALLBACK ERROR:",
@@ -1357,15 +1434,20 @@ app.get(
         .send(
           buildWebPaymentPage({
             success: false,
+
             title:
               "Premium Payment Error",
+
             message:
               "An samu matsala wajen kunna Premium.",
+
+            returnUrl,
           })
         );
     }
   }
 );
+
 // ======================================================
 // WEB MY MOVIES API
 // ======================================================
@@ -1597,6 +1679,208 @@ if (!film) {
         success: false,
         message:
           "An samu matsala wajen kunna film.",
+      });
+    }
+  }
+);
+// ======================================================
+// ADMIN - CREATE STUDIO
+// ======================================================
+
+app.post(
+  "/api/admin/studios",
+  requireWebAdmin,
+  async (req, res) => {
+    try {
+      const name = String(
+        req.body?.name || ""
+      ).trim();
+
+      const description = String(
+        req.body?.description || ""
+      ).trim();
+
+      const logoUrl = String(
+        req.body?.logoUrl || ""
+      ).trim();
+
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Studio/company name is required.",
+        });
+      }
+
+      const slug = name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+      if (!slug) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid studio name.",
+        });
+      }
+
+      const existing =
+        await prisma.studio.findFirst({
+          where: {
+            OR: [
+              {
+                name: {
+                  equals: name,
+                  mode: "insensitive",
+                },
+              },
+              {
+                slug,
+              },
+            ],
+          },
+        });
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Wannan studio/company yana nan tuni.",
+        });
+      }
+
+      const studio =
+        await prisma.studio.create({
+          data: {
+            name,
+            slug,
+            description:
+              description || null,
+            logoUrl:
+              logoUrl || null,
+          },
+        });
+
+      return res.status(201).json({
+        success: true,
+        studio,
+      });
+    } catch (error) {
+      console.error(
+        "CREATE STUDIO ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen kara studio.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// PUBLIC - LIST STUDIOS
+// ======================================================
+
+app.get(
+  "/api/studios",
+  async (req, res) => {
+    try {
+      const studios =
+        await prisma.studio.findMany({
+          where: {
+            active: true,
+          },
+
+          orderBy: {
+            name: "asc",
+          },
+
+          include: {
+            _count: {
+              select: {
+                films: true,
+              },
+            },
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+        count: studios.length,
+        studios,
+      });
+    } catch (error) {
+      console.error(
+        "LIST STUDIOS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen dauko studios.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// PUBLIC - GET ONE STUDIO + FILMS
+// ======================================================
+
+app.get(
+  "/api/studios/:slug",
+  async (req, res) => {
+    try {
+      const slug = String(
+        req.params.slug || ""
+      ).trim();
+
+      const studio =
+        await prisma.studio.findUnique({
+          where: {
+            slug,
+          },
+
+          include: {
+            films: {
+              orderBy: {
+                createdAt: "desc",
+              },
+            },
+          },
+        });
+
+      if (
+        !studio ||
+        !studio.active
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Studio bai samu ba.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        studio,
+      });
+    } catch (error) {
+      console.error(
+        "GET STUDIO ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen dauko studio.",
       });
     }
   }
@@ -2363,7 +2647,47 @@ app.patch(
           });
         }
       }
+           let studioId;
 
+      if (req.body?.studioId !== undefined) {
+        if (
+          req.body.studioId === null ||
+          req.body.studioId === ""
+        ) {
+          studioId = null;
+        } else {
+          studioId = Number(req.body.studioId);
+
+          if (
+            !Number.isInteger(studioId) ||
+            studioId <= 0
+          ) {
+            return res.status(400).json({
+              success: false,
+              message:
+                "Studio ID bai dace ba.",
+            });
+          }
+
+          const studio =
+            await prisma.studio.findUnique({
+              where: {
+                id: studioId,
+              },
+              select: {
+                id: true,
+              },
+            });
+
+          if (!studio) {
+            return res.status(404).json({
+              success: false,
+              message:
+                "Ba a samu wannan studio/company ba.",
+            });
+          }
+        }
+      }
       let featured;
 
       if (
@@ -2644,6 +2968,58 @@ app.post(
         req.body?.featured === true;
 
       // =================================
+      // STUDIO / COMPANY
+      // =================================
+
+      const rawStudioId =
+        req.body?.studioId;
+
+      let studioId = null;
+
+      if (
+        rawStudioId !== undefined &&
+        rawStudioId !== null &&
+        rawStudioId !== ""
+      ) {
+        studioId =
+          Number(rawStudioId);
+
+        if (
+          !Number.isInteger(studioId) ||
+          studioId <= 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Studio ID bai dace ba.",
+          });
+        }
+
+        const studio =
+          await prisma.studio.findUnique({
+            where: {
+              id: studioId,
+            },
+          });
+
+        if (!studio) {
+          return res.status(404).json({
+            success: false,
+            message:
+              "Ba a samu wannan studio/company ba.",
+          });
+        }
+
+        if (!studio.active) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Wannan studio/company ba ya aiki a yanzu.",
+          });
+        }
+      }
+
+      // =================================
       // VALIDATION
       // =================================
 
@@ -2692,10 +3068,10 @@ app.post(
             title,
             description,
             category,
+            studioId,
             price,
             featured,
 
-            // Za mu saka poster/video daga baya
             posterFileId: null,
             posterUrl: null,
 
@@ -2712,6 +3088,18 @@ app.post(
             title: true,
             description: true,
             category: true,
+
+            studioId: true,
+
+            studio: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+              },
+            },
+
             price: true,
 
             posterFileId: true,
@@ -2734,7 +3122,8 @@ app.post(
       console.log(
         "✅ ADMIN FILM CREATED:",
         film.id,
-        film.title
+        film.title,
+        film.studio?.name || "No studio"
       );
 
       return res.status(201).json({
@@ -3937,6 +4326,11 @@ app.post(
           },
         });
 
+const returnTo =
+  req.body?.returnTo === "app"
+    ? "app"
+    : "web";
+
       // =================================
       // INITIALIZE PAYSTACK
       // =================================
@@ -3965,10 +4359,8 @@ app.post(
                 ) * 100,
 
               reference,
-
-              callback_url:
-                `${PUBLIC_BASE_URL}/premium-payment-success`,
-
+           callback_url:
+  `${PUBLIC_BASE_URL}/premium-payment-success?returnTo=${returnTo}`,
               metadata: {
                 type:
                   "web_premium_subscription",
@@ -8431,7 +8823,7 @@ ${escapeHtml(title)}
 ${escapeHtml(message)}
 </p>
 
-<a href="${escapeHtml(WEB_APP_URL)}">
+<a href="${escapeHtml(returnUrl)}">
 Komawa NIGFILM
 </a>
 

@@ -143,10 +143,20 @@ app.get("/api/films", async (req, res) => {
         id: true,
         title: true,
         description: true,
-        category: true,
-        price: true,
+       category: true,
+price: true,
+studioId: true,
 
-        posterFileId: true,
+studio: {
+  select: {
+    id: true,
+    name: true,
+    slug: true,
+    logoUrl: true,
+  },
+},
+
+posterFileId: true,
         posterUrl: true,
 
         bunnyVideoId: true,

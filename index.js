@@ -2766,7 +2766,9 @@ app.patch(
         data.featured =
           featured;
       }
-
+           if (studioId !== undefined) {
+        data.studioId = studioId;
+      }
       if (
         Object.keys(data).length === 0
       ) {
@@ -2789,8 +2791,17 @@ app.patch(
             id: true,
             title: true,
             description: true,
-            category: true,
+                        category: true,
             price: true,
+            studioId: true,
+
+            studio: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
 
             posterFileId: true,
             posterUrl: true,
@@ -3259,7 +3270,6 @@ async function requireWebUser(
 // ======================================================
 // NIGFILM PREMIUM PLANS
 // ======================================================
-
 const PREMIUM_PLANS = {
   WEEKLY: {
     name: "Weekly",
@@ -3269,7 +3279,7 @@ const PREMIUM_PLANS = {
 
   MONTHLY: {
     name: "Monthly",
-    amount: 3000,
+    amount: 2500,
     durationDays: 30,
   },
 

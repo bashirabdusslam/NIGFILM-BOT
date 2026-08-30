@@ -1,4 +1,4 @@
-/* =====================================================
+﻿/* =====================================================
    NIGFILM — COMPLETE APP.CSS
    Black & Gold / White & Gold + Responsive Streaming UI
 ===================================================== */
@@ -2657,3 +2657,800 @@ img { max-width: 100%; }
       repeat(4, minmax(0, 1fr));
   }
 }
+
+
+/* =====================================================
+   NIGFILM PUBLIC LANDING + LEGAL PAGES
+   CLEAN BLACK/GOLD + WHITE/GOLD VERSION
+   ===================================================== */
+
+/* ---------- PUBLIC ROOT ---------- */
+
+.public-site {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(212,175,55,.09), transparent 28%),
+    var(--bg);
+  color: var(--text);
+}
+
+.public-main {
+  width: 100%;
+  min-height: calc(100vh - 80px);
+}
+
+/* ---------- HEADER ---------- */
+
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  width: 100%;
+  min-height: 68px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+
+  padding: 12px max(18px, calc((100% - var(--max-width)) / 2));
+
+  border-bottom: 1px solid var(--border);
+
+  background: var(--nav);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+
+  box-shadow: 0 5px 22px var(--shadow);
+}
+
+.public-brand,
+.public-footer-brand {
+  display: inline-flex;
+  align-items: center;
+
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: 1.5px;
+
+  line-height: 1;
+}
+
+.public-brand span,
+.public-footer-brand span {
+  color: var(--gold);
+}
+
+.public-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.public-nav button,
+.public-footer-links button {
+  border: 0;
+  border-radius: 9px;
+
+  padding: 9px 11px;
+
+  background: transparent;
+  color: var(--muted);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  transition:
+    color .2s ease,
+    background .2s ease;
+}
+
+.public-nav button:hover,
+.public-footer-links button:hover {
+  color: var(--gold);
+  background: rgba(212,175,55,.07);
+}
+
+.public-cta {
+  min-height: 38px;
+
+  border: 1px solid var(--gold) !important;
+  border-radius: 9px !important;
+
+  padding: 0 15px !important;
+
+  background: var(--gold) !important;
+  color: #080808 !important;
+
+  font-weight: 900 !important;
+
+  box-shadow: 0 7px 20px rgba(212,175,55,.18);
+}
+
+.public-cta:hover {
+  background: var(--gold-light) !important;
+  border-color: var(--gold-light) !important;
+}
+
+/* ---------- HERO ---------- */
+
+.public-hero {
+  width: min(calc(100% - 36px), var(--max-width));
+
+  margin: 34px auto 28px;
+}
+
+.public-hero-content {
+  position: relative;
+
+  overflow: hidden;
+
+  padding: clamp(30px, 6vw, 70px);
+
+  border: 1px solid var(--border);
+  border-radius: 24px;
+
+  background:
+    radial-gradient(circle at 92% 12%, rgba(212,175,55,.17), transparent 32%),
+    var(--surface);
+
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.public-hero-content::after {
+  content: "";
+
+  position: absolute;
+  right: -100px;
+  bottom: -140px;
+
+  width: 330px;
+  height: 330px;
+
+  border-radius: 50%;
+
+  background: rgba(212,175,55,.055);
+
+  pointer-events: none;
+}
+
+.public-eyebrow {
+  position: relative;
+  z-index: 2;
+
+  display: inline-block;
+
+  margin-bottom: 13px;
+  padding: 6px 10px;
+
+  border: 1px solid rgba(212,175,55,.32);
+  border-radius: 999px;
+
+  background: rgba(212,175,55,.08);
+  color: var(--gold);
+
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1.7px;
+
+  text-transform: uppercase;
+}
+
+.public-hero h1 {
+  position: relative;
+  z-index: 2;
+
+  max-width: 760px;
+
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: clamp(38px, 7vw, 72px);
+  font-weight: 950;
+
+  line-height: .97;
+  letter-spacing: -1.8px;
+}
+
+.public-hero h1 span {
+  color: var(--gold);
+}
+
+.public-hero-description {
+  position: relative;
+  z-index: 2;
+
+  max-width: 650px;
+
+  margin: 19px 0 0;
+
+  color: var(--muted);
+
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.public-hero-actions {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  margin-top: 25px;
+}
+
+.public-primary-button,
+.public-secondary-button {
+  min-height: 44px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 19px;
+
+  border-radius: 10px;
+
+  font-size: 12px;
+  font-weight: 900;
+
+  transition:
+    transform .2s ease,
+    border-color .2s ease,
+    background .2s ease;
+}
+
+.public-primary-button {
+  border: 1px solid var(--gold);
+
+  background: var(--gold);
+  color: #080808;
+
+  box-shadow: 0 9px 24px rgba(212,175,55,.18);
+}
+
+.public-primary-button:hover {
+  transform: translateY(-1px);
+
+  background: var(--gold-light);
+  border-color: var(--gold-light);
+}
+
+.public-secondary-button {
+  border: 1px solid var(--border);
+
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.public-secondary-button:hover {
+  transform: translateY(-1px);
+
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* ---------- SECTIONS ---------- */
+
+.public-section {
+  width: min(calc(100% - 36px), var(--max-width));
+
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.public-section-heading {
+  max-width: 700px;
+
+  margin-bottom: 18px;
+}
+
+.public-section-heading h2,
+.public-about h2,
+.public-rights-preview h2 {
+  margin: 0 0 7px;
+
+  color: var(--text);
+
+  font-size: clamp(22px, 4vw, 31px);
+  font-weight: 900;
+}
+
+.public-section-heading p,
+.public-about p,
+.public-rights-preview p {
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.public-feature-grid {
+  display: grid;
+
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+  gap: 13px;
+}
+
+.public-feature-card {
+  min-width: 0;
+
+  padding: 20px;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  background: var(--surface);
+
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
+
+  transition:
+    transform .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+
+.public-feature-card:hover {
+  transform: translateY(-3px);
+
+  border-color: rgba(212,175,55,.65);
+
+  box-shadow: 0 15px 36px var(--shadow);
+}
+
+.public-feature-icon {
+  width: 39px;
+  height: 39px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 14px;
+
+  border: 1px solid rgba(212,175,55,.28);
+  border-radius: 11px;
+
+  background: rgba(212,175,55,.08);
+  color: var(--gold);
+
+  font-size: 18px;
+}
+
+.public-feature-card h3 {
+  margin: 0 0 7px;
+
+  color: var(--text);
+
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.public-feature-card p {
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+/* ---------- ABOUT / RIGHTS ---------- */
+
+.public-about,
+.public-rights-preview {
+  padding: clamp(22px, 5vw, 42px);
+
+  border: 1px solid var(--border);
+  border-radius: 20px;
+
+  background:
+    radial-gradient(circle at 94% 10%, rgba(212,175,55,.07), transparent 35%),
+    var(--surface);
+
+  box-shadow: 0 13px 36px var(--shadow);
+}
+
+.public-rights-preview {
+  border-left: 3px solid var(--gold);
+}
+
+/* ---------- FOOTER ---------- */
+
+.public-footer {
+  margin-top: 40px;
+
+  border-top: 1px solid var(--border);
+
+  background: var(--surface);
+}
+
+.public-footer > div {
+  width: min(calc(100% - 36px), var(--max-width));
+
+  margin: 0 auto;
+  padding: 28px 0;
+}
+
+.public-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+
+  margin-top: 15px;
+}
+
+.public-footer-copy {
+  margin: 18px 0 0;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* ---------- LEGAL PAGES ---------- */
+
+.legal-main {
+  min-height: calc(100vh - 68px);
+
+  padding: 30px 18px 55px;
+
+  background:
+    radial-gradient(circle at 90% 0%, rgba(212,175,55,.07), transparent 28%),
+    var(--bg);
+}
+
+.legal-back-button {
+  width: min(100%, 860px);
+
+  display: block;
+
+  margin: 0 auto 12px;
+  padding: 8px 2px;
+
+  border: 0;
+
+  background: transparent;
+  color: var(--gold);
+
+  text-align: left;
+
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.legal-card {
+  width: min(100%, 860px);
+
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 45px);
+
+  border: 1px solid var(--border);
+  border-radius: 20px;
+
+  background: var(--surface);
+
+  box-shadow: 0 18px 48px var(--shadow);
+}
+
+.legal-card h1 {
+  margin: 0 0 8px;
+
+  color: var(--text);
+
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 950;
+
+  line-height: 1.04;
+}
+
+.legal-subtitle {
+  margin: 0 0 5px;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.legal-updated {
+  display: block;
+
+  margin: 5px 0 25px;
+
+  color: var(--gold);
+
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.legal-content {
+  color: var(--muted);
+
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.legal-content h2,
+.legal-content h3 {
+  margin: 28px 0 8px;
+
+  color: var(--text);
+
+  font-weight: 900;
+}
+
+.legal-content h2 {
+  font-size: 18px;
+}
+
+.legal-content h3 {
+  font-size: 15px;
+}
+
+.legal-content p {
+  margin: 0 0 13px;
+
+  color: var(--muted);
+}
+
+.legal-content ul,
+.legal-content ol {
+  margin: 8px 0 17px;
+  padding-left: 22px;
+}
+
+.legal-content li {
+  margin-bottom: 7px;
+
+  color: var(--muted);
+}
+
+.legal-content strong {
+  color: var(--text);
+}
+
+.takedown-notice {
+  margin: 20px 0;
+  padding: 15px;
+
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 11px;
+
+  background: var(--surface-2);
+  color: var(--text);
+
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+/* ---------- AUTH BACK TO LANDING ---------- */
+
+.auth-back-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  margin: 0 0 18px;
+  padding: 7px 0;
+
+  border: 0;
+
+  background: transparent;
+  color: var(--muted);
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.auth-back-home:hover {
+  color: var(--gold);
+}
+
+/* =====================================================
+   WHITE + GOLD
+   Uses exact NIGFILM theme
+   ===================================================== */
+
+:root[data-theme="WHITE_GOLD"] .public-site {
+  background:
+    radial-gradient(circle at 88% 4%, rgba(212,175,55,.11), transparent 28%),
+    #f7f4ec;
+}
+
+:root[data-theme="WHITE_GOLD"] .public-header {
+  background: rgba(255,255,255,.97);
+
+  box-shadow: 0 5px 22px rgba(67,52,16,.08);
+}
+
+:root[data-theme="WHITE_GOLD"] .public-hero-content {
+  background:
+    radial-gradient(circle at 92% 12%, rgba(212,175,55,.17), transparent 34%),
+    #ffffff;
+
+  border-color: #ded5bf;
+
+  box-shadow: 0 18px 48px rgba(67,52,16,.10);
+}
+
+:root[data-theme="WHITE_GOLD"] .public-feature-card,
+:root[data-theme="WHITE_GOLD"] .public-about,
+:root[data-theme="WHITE_GOLD"] .public-rights-preview,
+:root[data-theme="WHITE_GOLD"] .legal-card {
+  background: #ffffff;
+
+  border-color: #ded5bf;
+
+  box-shadow: 0 14px 34px rgba(67,52,16,.08);
+}
+
+:root[data-theme="WHITE_GOLD"] .public-secondary-button,
+:root[data-theme="WHITE_GOLD"] .takedown-notice {
+  background: #f4efe3;
+}
+
+:root[data-theme="WHITE_GOLD"] .public-footer {
+  background: #ffffff;
+}
+
+:root[data-theme="WHITE_GOLD"] .legal-main {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(212,175,55,.10), transparent 30%),
+    #f7f4ec;
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+
+@media (max-width: 900px) {
+  .public-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .public-nav button:not(.public-cta) {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .public-header {
+    min-height: 60px;
+
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+
+  .public-brand {
+    font-size: 21px;
+  }
+
+  .public-cta {
+    min-height: 34px;
+
+    padding: 0 11px !important;
+
+    font-size: 10px !important;
+  }
+
+  .public-hero {
+    width: calc(100% - 24px);
+
+    margin-top: 18px;
+    margin-bottom: 16px;
+  }
+
+  .public-hero-content {
+    padding: 28px 20px;
+
+    border-radius: 18px;
+  }
+
+  .public-hero h1 {
+    font-size: clamp(35px, 13vw, 50px);
+
+    letter-spacing: -1px;
+  }
+
+  .public-hero-description {
+    margin-top: 14px;
+
+    font-size: 11px;
+    line-height: 1.65;
+  }
+
+  .public-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    margin-top: 19px;
+  }
+
+  .public-primary-button,
+  .public-secondary-button {
+    width: 100%;
+
+    min-height: 42px;
+  }
+
+  .public-section {
+    width: calc(100% - 24px);
+
+    padding: 22px 0;
+  }
+
+  .public-feature-grid {
+    grid-template-columns: 1fr;
+
+    gap: 10px;
+  }
+
+  .public-feature-card {
+    padding: 17px;
+
+    border-radius: 14px;
+  }
+
+  .public-about,
+  .public-rights-preview {
+    padding: 20px;
+
+    border-radius: 16px;
+  }
+
+  .public-footer > div {
+    width: calc(100% - 24px);
+
+    padding: 22px 0;
+  }
+
+  .legal-main {
+    padding: 18px 12px 38px;
+  }
+
+  .legal-card {
+    padding: 21px 17px;
+
+    border-radius: 16px;
+  }
+
+  .legal-card h1 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 400px) {
+  .public-brand {
+    font-size: 19px;
+  }
+
+  .public-hero-content {
+    padding: 24px 17px;
+  }
+
+  .public-hero h1 {
+    font-size: 35px;
+  }
+
+  .public-feature-icon {
+    width: 36px;
+    height: 36px;
+
+    font-size: 16px;
+  }
+}
+

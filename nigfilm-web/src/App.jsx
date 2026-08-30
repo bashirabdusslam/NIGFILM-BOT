@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
 import "./App.css";
+import PublicPages from "./PublicPages";
 
 // =====================================================
 // CONFIG
@@ -578,6 +579,9 @@ async function createAdminFilm() {
 
   const [page, setPage] =
     useState("home");
+
+  const [publicPage, setPublicPage] =
+    useState("landing");
 
   const [
     selectedFilm,
@@ -1831,6 +1835,7 @@ function openStudio(studio) {
       "nigfilm_session_token"
     );
 
+    setPublicPage("landing");
     setUser(null);
     setMyMovies([]);
 
@@ -3920,9 +3925,39 @@ const rotatingFilms = useMemo(() => {
   // ===================================================
 
   if (!user) {
+    if (publicPage !== "auth") {
+      return (
+        <PublicPages
+          page={publicPage}
+          setPage={setPublicPage}
+          onLogin={() => {
+            setAuthMode("login");
+            setAuthError("");
+            setPublicPage("auth");
+          }}
+          onRegister={() => {
+            setAuthMode("register");
+            setAuthError("");
+            setPublicPage("auth");
+          }}
+        />
+      );
+    }
+
     return (
       <div className="auth-page">
         <div className="auth-card">
+          <button
+            type="button"
+            className="auth-back-home"
+            onClick={() => {
+              setAuthError("");
+              setPublicPage("landing");
+            }}
+          >
+            ← Back to Home
+          </button>
+
           <div className="auth-logo">
             NIG<span>FILM</span>
           </div>
@@ -9779,3 +9814,7 @@ async function readJson(
 }
 
 export default App;
+
+
+
+

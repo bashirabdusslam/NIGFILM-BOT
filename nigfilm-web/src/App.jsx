@@ -3930,6 +3930,9 @@ const rotatingFilms = useMemo(() => {
         <PublicPages
           page={publicPage}
           setPage={setPublicPage}
+                    films={films}
+          filmsLoading={filmsLoading}
+          apiUrl={API_URL}
           onLogin={() => {
             setAuthMode("login");
             setAuthError("");

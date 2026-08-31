@@ -1,4 +1,4 @@
-﻿import React from "react";
+﻿
 
 const LEGAL_PAGES = {
   terms: {
@@ -153,6 +153,9 @@ function LandingPage({
   setPage,
   onLogin,
   onRegister,
+  films = [],
+  filmsLoading = false,
+  apiUrl = "",
 }) {
   return (
     <main className="public-main">
@@ -254,7 +257,74 @@ function LandingPage({
           </article>
         </div>
       </section>
+            <section className="public-section public-movies-section">
+        <div className="public-section-heading">
+          <p>NOW ON NIGFILM</p>
 
+          <h2>Discover movies on NIGFILM</h2>
+
+          <span>
+            Explore some of the movies currently available on our platform.
+          </span>
+        </div>
+
+        {filmsLoading ? (
+          <div className="public-movies-loading">
+            Loading movies...
+          </div>
+        ) : films.length > 0 ? (
+          <div className="public-movie-grid">
+            {films.slice(0, 8).map((film) => (
+              <article
+                className="public-movie-card"
+                key={film.id}
+              >
+               <div className="public-movie-poster">
+                  {film.posterUrl ? (
+                    <img
+                      src={
+                        film.posterUrl?.startsWith("http")
+                          ? film.posterUrl
+                          : `${apiUrl}${film.posterUrl}`
+                      }
+                      alt={`${film.title || "Movie"} poster`}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="public-movie-placeholder">
+                      🎬
+                    </div>
+                  )}
+                </div>
+
+                <div className="public-movie-info">
+                  <h3>{film.title || "NIGFILM Movie"}</h3>
+
+                  <p>
+                    {film.studio?.name ||
+                      film.category ||
+                      "Available on NIGFILM"}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="public-movies-loading">
+            Movies will appear here as they become available.
+          </div>
+        )}
+
+        <div className="public-movies-action">
+          <button
+            type="button"
+            className="public-primary-button"
+            onClick={onRegister}
+          >
+            Create Account to Explore
+          </button>
+        </div>
+      </section>
       <section className="public-section public-about">
         <div>
           <p className="public-eyebrow">
@@ -849,6 +919,9 @@ export default function PublicPages({
   setPage,
   onLogin,
   onRegister,
+  films = [],
+  filmsLoading = false,
+  apiUrl = "",
 }) {
   let content = null;
 
@@ -871,10 +944,13 @@ export default function PublicPages({
   } else {
     content = (
       <LandingPage
-        setPage={setPage}
-        onLogin={onLogin}
-        onRegister={onRegister}
-      />
+  setPage={setPage}
+  onLogin={onLogin}
+  onRegister={onRegister}
+  films={films}
+  filmsLoading={filmsLoading}
+  apiUrl={apiUrl}
+/>
     );
   }
 
@@ -893,4 +969,3 @@ export default function PublicPages({
     </div>
   );
 }
-

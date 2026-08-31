@@ -3719,3 +3719,139 @@ img { max-width: 100%; }
     padding: 13px;
   }
 }
+/* =====================================================
+   NIGFILM PUBLIC REAL MOVIES
+   ===================================================== */
+
+.public-movies-section {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+.public-movie-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.public-movie-card {
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px var(--shadow);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.public-movie-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--gold);
+}
+
+.public-movie-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.public-movie-poster img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.public-movie-placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+}
+
+.public-movie-info {
+  padding: 13px 14px 15px;
+}
+
+.public-movie-info h3 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-movie-info p {
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-movies-loading {
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.public-movies-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .public-movie-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .public-movies-section {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .public-movie-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .public-movie-card {
+    border-radius: 13px;
+  }
+
+  .public-movie-info {
+    padding: 10px 10px 12px;
+  }
+
+  .public-movie-info h3 {
+    font-size: 12px;
+  }
+
+  .public-movie-info p {
+    margin-top: 4px;
+    font-size: 9.5px;
+  }
+
+  .public-movies-action {
+    margin-top: 18px;
+  }
+}

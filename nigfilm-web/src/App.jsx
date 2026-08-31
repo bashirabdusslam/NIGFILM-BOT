@@ -582,7 +582,41 @@ async function createAdminFilm() {
 
   const [publicPage, setPublicPage] =
     useState("landing");
+useEffect(() => {
+  if (user) return;
 
+  const currentState = window.history.state || {};
+
+  if (!currentState.nigfilmPublicPage) {
+    window.history.replaceState(
+      {
+        ...currentState,
+        nigfilmPublicPage: "landing",
+      },
+      ""
+    );
+  }
+
+  const handlePublicBack = (event) => {
+    const nextPage =
+      event.state?.nigfilmPublicPage || "landing";
+
+    setPublicPage(nextPage);
+    setAuthError("");
+  };
+
+  window.addEventListener(
+    "popstate",
+    handlePublicBack
+  );
+
+  return () => {
+    window.removeEventListener(
+      "popstate",
+      handlePublicBack
+    );
+  };
+}, [user]);
   const [
     selectedFilm,
     setSelectedFilm,
@@ -3936,6 +3970,13 @@ const rotatingFilms = useMemo(() => {
           onLogin={() => {
             setAuthMode("login");
             setAuthError("");
+            window.history.pushState(
+  {
+    ...(window.history.state || {}),
+    nigfilmPublicPage: "auth",
+  },
+  ""
+);
             setPublicPage("auth");
           }}
           onRegister={() => {

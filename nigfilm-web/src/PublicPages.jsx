@@ -75,8 +75,7 @@ function PublicHeader({
         </button>
 
         <button
-          type="button"
-          onClick={onLogin}
+          type="button" className="public-login-link" onClick={onLogin}
         >
           Login
         </button>
@@ -206,7 +205,7 @@ function LandingPage({
         </div>
 
         <div className="public-feature-grid">
-          <article>
+          <article className="public-feature-card">
             <span className="public-feature-icon">
               🎬
             </span>
@@ -218,7 +217,7 @@ function LandingPage({
             </p>
           </article>
 
-          <article>
+          <article className="public-feature-card">
             <span className="public-feature-icon">
               ▶
             </span>
@@ -230,7 +229,7 @@ function LandingPage({
             </p>
           </article>
 
-          <article>
+          <article className="public-feature-card">
             <span className="public-feature-icon">
               🏢
             </span>
@@ -242,7 +241,7 @@ function LandingPage({
             </p>
           </article>
 
-          <article>
+          <article className="public-feature-card">
             <span className="public-feature-icon">
               🔐
             </span>
@@ -894,3 +893,4 @@ export default function PublicPages({
     </div>
   );
 }
+

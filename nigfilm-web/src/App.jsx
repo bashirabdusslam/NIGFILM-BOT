@@ -3979,11 +3979,20 @@ const rotatingFilms = useMemo(() => {
 );
             setPublicPage("auth");
           }}
-          onRegister={() => {
-            setAuthMode("register");
-            setAuthError("");
-            setPublicPage("auth");
-          }}
+        onRegister={() => {
+  setAuthMode("register");
+  setAuthError("");
+
+  window.history.pushState(
+    {
+      ...(window.history.state || {}),
+      nigfilmPublicPage: "auth",
+    },
+    ""
+  );
+
+  setPublicPage("auth");
+}}
         />
       );
     }
@@ -3994,10 +4003,10 @@ const rotatingFilms = useMemo(() => {
           <button
             type="button"
             className="auth-back-home"
-            onClick={() => {
-              setAuthError("");
-              setPublicPage("landing");
-            }}
+           onClick={() => {
+  setAuthError("");
+  window.history.back();
+}}
           >
             ← Back to Home
           </button>

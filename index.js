@@ -8715,11 +8715,11 @@ function securelyCompareHashes(
 // ======================================================
 // WEB PAYMENT HTML
 // ======================================================
-
 function buildWebPaymentPage({
   success,
   title,
   message,
+  returnUrl = "https://nigfilm-web.vercel.app",
 }) {
   const icon =
     success ? "✅" : "❌";

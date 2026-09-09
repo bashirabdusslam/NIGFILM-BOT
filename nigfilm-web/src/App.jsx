@@ -724,6 +724,41 @@ useEffect(() => {
     backListener?.remove();
   };
 }, [page, language]);
+useEffect(() => {
+  let urlListener;
+
+  const setupPaymentDeepLink = async () => {
+    urlListener = await CapacitorApp.addListener(
+      "appUrlOpen",
+      ({ url }) => {
+        if (
+          !url ||
+          !url.startsWith(
+            "com.nigfilm.app://payment-success"
+          )
+        ) {
+          return;
+        }
+
+        // Payment ya gama; dawo da user cikin NIGFILM.
+        setPaymentError("");
+
+        navigateTo("home", null, {
+          replace: true,
+        });
+
+        // Refresh app state bayan dawowa daga Paystack.
+        window.location.reload();
+      }
+    );
+  };
+
+  setupPaymentDeepLink();
+
+  return () => {
+    urlListener?.remove();
+  };
+}, []);
   // ===================================================
   // FILMS
   // ===================================================
@@ -1578,15 +1613,24 @@ function openStudio(studio) {
     navigateTo("profile");
   }
 
-  function openPremium() {
-    setPremiumSubscribeError("");
-    navigateTo("premium");
+function openPremium() {
+  if (!requireAuth("login")) {
+    return;
   }
 
+  setPremiumSubscribeError("");
+  navigateTo("premium");
+}
+
+
   function openMyMovies() {
-    navigateTo("myMovies");
-    loadMyMovies(false);
+  if (!requireAuth("login")) {
+    return;
   }
+
+  navigateTo("myMovies");
+  loadMyMovies(false);
+}
 
   function goBack() {
     if (window.history.state?.nigfilm) {
@@ -2336,13 +2380,16 @@ console.log(
   // ===================================================
   // WATCH REAL GOOGLE REWARDED AD
   // ===================================================
+   async function watchRewardedAd(filmId) {
+  if (!requireAuth("login")) {
+    return;
+  }
 
-  async function watchRewardedAd(filmId) {
-    const token =
-      getSessionToken();
+  const token =
+    getSessionToken();
 
-    const id =
-      Number(filmId);
+  const id =
+    Number(filmId);
 
     if (
       !token ||
@@ -2705,14 +2752,13 @@ console.log(
   // ===================================================
   // BUY MOVIE
   // ===================================================
-
-  async function buyMovie(
-    film
-  ) {
-    if (!user?.id) {
-      return;
-    }
-
+async function buyMovie(
+  film
+) {
+  if (!requireAuth("login")) {
+    return;
+  }
+  
     if (
       isPurchased(film.id)
     ) {
@@ -3954,33 +4000,16 @@ const rotatingFilms = useMemo(() => {
 
   return copy.slice(0, 12);
 }, [films, rotationSeed]);
-  // ===================================================
-  // AUTH PAGE
-  // ===================================================
+// ===================================================
+// GUEST AUTH GATE
+// ===================================================
 
-  if (!user) {
-    if (publicPage !== "auth") {
-      return (
-        <PublicPages
-          page={publicPage}
-          setPage={setPublicPage}
-                    films={films}
-          filmsLoading={filmsLoading}
-          apiUrl={API_URL}
-          onLogin={() => {
-            setAuthMode("login");
-            setAuthError("");
-            window.history.pushState(
-  {
-    ...(window.history.state || {}),
-    nigfilmPublicPage: "auth",
-  },
-  ""
-);
-            setPublicPage("auth");
-          }}
-        onRegister={() => {
-  setAuthMode("register");
+function requireAuth(mode = "login") {
+  if (user) {
+    return true;
+  }
+
+  setAuthMode(mode);
   setAuthError("");
 
   window.history.pushState(
@@ -3992,23 +4021,38 @@ const rotatingFilms = useMemo(() => {
   );
 
   setPublicPage("auth");
-}}
-        />
-      );
-    }
 
+  return false;
+
+}
+  // ===================================================
+  // AUTH PAGE
+  // ===================================================
+
+  if (!user && publicPage === "auth") {
     return (
       <div className="auth-page">
         <div className="auth-card">
           <button
             type="button"
             className="auth-back-home"
-           onClick={() => {
-  setAuthError("");
-  window.history.back();
-}}
+            onClick={() => {
+              setAuthError("");
+              setPublicPage("landing");
+              setPage("home");
+
+              window.history.replaceState(
+                {
+                  nigfilm: true,
+                  page: "home",
+                  filmId: null,
+                },
+                "",
+                window.location.href
+              );
+            }}
           >
-            ← Back to Home
+            ← Back to Movies
           </button>
 
           <div className="auth-logo">
@@ -4023,16 +4067,12 @@ const rotatingFilms = useMemo(() => {
             <button
               type="button"
               className={
-                authMode ===
-                "register"
+                authMode === "register"
                   ? "active"
                   : ""
               }
               onClick={() => {
-                setAuthMode(
-                  "register"
-                );
-
+                setAuthMode("register");
                 setAuthError("");
               }}
             >
@@ -4042,16 +4082,12 @@ const rotatingFilms = useMemo(() => {
             <button
               type="button"
               className={
-                authMode ===
-                "login"
+                authMode === "login"
                   ? "active"
                   : ""
               }
               onClick={() => {
-                setAuthMode(
-                  "login"
-                );
-
+                setAuthMode("login");
                 setAuthError("");
               }}
             >
@@ -4059,22 +4095,17 @@ const rotatingFilms = useMemo(() => {
             </button>
           </div>
 
-          {authMode ===
-          "register" ? (
+          {authMode === "register" ? (
             <form
               className="auth-form"
-              onSubmit={
-                handleRegister
-              }
+              onSubmit={handleRegister}
             >
-              <h2>
-                Create Account
-              </h2>
+              <h2>Create Account</h2>
 
               <p>
-                Ƙirƙiri account
-                domin siya da kallon
-                fina-finai.
+                Ƙirƙiri account domin kallon
+                fina-finai da samun cikakken damar
+                NIGFILM.
               </p>
 
               <label>
@@ -4084,12 +4115,9 @@ const rotatingFilms = useMemo(() => {
                   type="text"
                   value={fullName}
                   placeholder="Full name"
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setFullName(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   required
@@ -4103,12 +4131,9 @@ const rotatingFilms = useMemo(() => {
                   type="tel"
                   value={phone}
                   placeholder="08012345678"
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setPhone(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   required
@@ -4122,12 +4147,9 @@ const rotatingFilms = useMemo(() => {
                   type="password"
                   value={password}
                   placeholder="Aƙalla haruffa 6"
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setPassword(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   minLength={6}
@@ -4144,9 +4166,7 @@ const rotatingFilms = useMemo(() => {
               <button
                 type="submit"
                 className="auth-submit"
-                disabled={
-                  authLoading
-                }
+                disabled={authLoading}
               >
                 {authLoading
                   ? "Ana ƙirƙira..."
@@ -4158,13 +4178,8 @@ const rotatingFilms = useMemo(() => {
                 <button
                   type="button"
                   onClick={() => {
-                    setAuthMode(
-                      "login"
-                    );
-
-                    setAuthError(
-                      ""
-                    );
+                    setAuthMode("login");
+                    setAuthError("");
                   }}
                 >
                   Login
@@ -4174,17 +4189,12 @@ const rotatingFilms = useMemo(() => {
           ) : (
             <form
               className="auth-form"
-              onSubmit={
-                handleLogin
-              }
+              onSubmit={handleLogin}
             >
-              <h2>
-                Welcome Back
-              </h2>
+              <h2>Welcome Back</h2>
 
               <p>
-                Shiga NIGFILM
-                account ɗinka.
+                Shiga NIGFILM account ɗinka.
               </p>
 
               <label>
@@ -4194,12 +4204,9 @@ const rotatingFilms = useMemo(() => {
                   type="tel"
                   value={phone}
                   placeholder="08012345678"
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setPhone(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   required
@@ -4213,12 +4220,9 @@ const rotatingFilms = useMemo(() => {
                   type="password"
                   value={password}
                   placeholder="Password"
-                  onChange={(
-                    event
-                  ) =>
+                  onChange={(event) =>
                     setPassword(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   required
@@ -4234,9 +4238,7 @@ const rotatingFilms = useMemo(() => {
               <button
                 type="submit"
                 className="auth-submit"
-                disabled={
-                  authLoading
-                }
+                disabled={authLoading}
               >
                 {authLoading
                   ? "Ana shiga..."
@@ -4248,13 +4250,8 @@ const rotatingFilms = useMemo(() => {
                 <button
                   type="button"
                   onClick={() => {
-                    setAuthMode(
-                      "register"
-                    );
-
-                    setAuthError(
-                      ""
-                    );
+                    setAuthMode("register");
+                    setAuthError("");
                   }}
                 >
                   Register
@@ -4266,8 +4263,7 @@ const rotatingFilms = useMemo(() => {
       </div>
     );
   }
-
-  // ===================================================
+// ===================================================
   // COMMON HEADER
   // ===================================================
 
@@ -4275,7 +4271,8 @@ const rotatingFilms = useMemo(() => {
     <header className="header">
       <div>
         <p className="welcome">
-          {timeGreeting()}, {user.fullName}
+          {timeGreeting()}
+{user?.fullName ? `, ${user.fullName}` : ""}
         </p>
 
         <div className="brand">
@@ -4318,7 +4315,10 @@ const rotatingFilms = useMemo(() => {
           type="button"
           className="profile"
           title={t("profile")}
-          onClick={openProfile}
+          onClick={() => {
+  if (!requireAuth("login")) return;
+  openProfile();
+}}
         >
           👤
         </button>
@@ -4589,8 +4589,12 @@ const rotatingFilms = useMemo(() => {
               >
                 <button
                   type="button"
-                  onClick={(event) => {
-                    if (canWatchMovie) {
+                 onClick={(event) => {
+  if (!user) {
+    if (!requireAuth("login")) return;
+  }
+
+  if (canWatchMovie) {
                       document
                         .getElementById("nigfilm-player-section")
                         ?.scrollIntoView({

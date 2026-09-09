@@ -801,7 +801,7 @@ img { max-width: 100%; }
   width: min(calc(100% - 30px), 620px);
   height: 60px;
   display: grid !important;
-  grid-template-columns: repeat(4,1fr);
+  grid-template-columns: repeat(5, 1fr);
   transform: translateX(-50%);
   overflow: hidden;
   border: 1px solid var(--border);

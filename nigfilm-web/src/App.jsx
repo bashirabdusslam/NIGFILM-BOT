@@ -1609,9 +1609,13 @@ function openStudio(studio) {
     setWatchOptionsOpen(true);
   }
 
-  function openProfile() {
-    navigateTo("profile");
+function openProfile() {
+  if (!requireAuth("login")) {
+    return;
   }
+
+  navigateTo("profile");
+}
 
 function openPremium() {
   if (!requireAuth("login")) {

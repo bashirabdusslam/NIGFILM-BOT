@@ -4003,7 +4003,6 @@ const rotatingFilms = useMemo(() => {
 // ===================================================
 // GUEST AUTH GATE
 // ===================================================
-
 function requireAuth(mode = "login") {
   if (user) {
     return true;
@@ -4011,19 +4010,9 @@ function requireAuth(mode = "login") {
 
   setAuthMode(mode);
   setAuthError("");
-
-  window.history.pushState(
-    {
-      ...(window.history.state || {}),
-      nigfilmPublicPage: "auth",
-    },
-    ""
-  );
-
   setPublicPage("auth");
 
   return false;
-
 }
   // ===================================================
   // AUTH PAGE

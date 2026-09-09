@@ -1493,6 +1493,9 @@ const [adUnlockSuccess, setAdUnlockSuccess] =
         ?.focus();
     }, 300);
   }
+  function goAllMovies() {
+  navigateTo("allMovies");
+}
 
   function openFilm(film) {
     const movie = normalizeFilm(film);
@@ -5143,6 +5146,7 @@ function requireAuth(mode = "login") {
           page={page}
           goHome={goHome}
           goSearch={goSearch}
+          goAllMovies={goAllMovies}
           loadMyMovies={
             openMyMovies
           }
@@ -5259,6 +5263,7 @@ function requireAuth(mode = "login") {
           page={page}
           goHome={goHome}
           goSearch={goSearch}
+          goAllMovies={goAllMovies}
           loadMyMovies={
             openMyMovies
           }
@@ -5269,7 +5274,62 @@ function requireAuth(mode = "login") {
       </div>
     );
   }
+// ===================================================
+// ALL MOVIES PAGE
+// ===================================================
 
+if (
+  page === "allMovies"
+) {
+  return (
+    <div className="app">
+      {header}
+
+      <section className="section movies-section">
+        <div className="section-heading">
+          <div>
+            <p className="small-title">
+              BROWSE EVERYTHING
+            </p>
+
+            <h2>
+              All Movies
+            </h2>
+          </div>
+
+          <span className="movie-count">
+            {films.length} Movies
+          </span>
+        </div>
+
+        {films.length === 0 ? (
+          <div className="status">
+            <p>
+              🎬 Babu fina-finai a yanzu.
+            </p>
+          </div>
+        ) : (
+          <MovieGrid
+            films={films}
+            posterSrc={posterSrc}
+            openFilm={openFilm}
+            purchased={false}
+            handlePosterError={handlePosterError}
+          />
+        )}
+      </section>
+
+      <BottomNav
+        page={page}
+        goHome={goHome}
+        goSearch={goSearch}
+        goAllMovies={goAllMovies}
+        loadMyMovies={openMyMovies}
+        openProfile={openProfile}
+      />
+    </div>
+  );
+}
   // ===================================================
   // ADMIN SECURITY CHECK
   // ===================================================
@@ -6747,6 +6807,7 @@ function requireAuth(mode = "login") {
           page={page}
           goHome={goHome}
           goSearch={goSearch}
+          goAllMovies={goAllMovies}
           loadMyMovies={
             openMyMovies
           }
@@ -6926,6 +6987,7 @@ function requireAuth(mode = "login") {
           page={page}
           goHome={goHome}
           goSearch={goSearch}
+          goAllMovies={goAllMovies}
           loadMyMovies={openMyMovies}
           openProfile={openProfile}
         />
@@ -7142,6 +7204,7 @@ function requireAuth(mode = "login") {
           page={page}
           goHome={goHome}
           goSearch={goSearch}
+          goAllMovies={goAllMovies}
           loadMyMovies={
             openMyMovies
           }
@@ -7715,6 +7778,7 @@ function requireAuth(mode = "login") {
         page={page}
         goHome={goHome}
         goSearch={goSearch}
+          goAllMovies={goAllMovies}
         loadMyMovies={
           loadMyMovies
         }
@@ -9737,6 +9801,7 @@ function BottomNav({
   page,
   goHome,
   goSearch,
+   goAllMovies,
   loadMyMovies,
   openProfile,
 }) {
@@ -9769,7 +9834,20 @@ function BottomNav({
           <span>🔍</span>
           Search
         </button>
-
+<button
+  type="button"
+  className={
+    page === "allMovies"
+      ? "active"
+      : ""
+  }
+  onClick={
+    goAllMovies
+  }
+>
+  <span>🍿</span>
+  All Movies
+</button>
         <button
           type="button"
           className={
@@ -9864,6 +9942,7 @@ async function readJson(
 }
 
 export default App;
+
 
 
 

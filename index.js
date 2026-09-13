@@ -34,9 +34,10 @@ const WEB_APP_URL =
   process.env.WEB_APP_URL ||
   "http://localhost:5173";
 
-const TELEGRAM_WEBHOOK_URL =
+const TELEGRAM_WEBHOOK_URL = (
   process.env.TELEGRAM_WEBHOOK_URL ||
-  "https://nigfilm-bot.onrender.com/telegram-webhook";
+  `${PUBLIC_BASE_URL}/telegram-webhook`
+).trim();
 
 // ======================================================
 // EXPRESS JSON + RAW BODY

@@ -1613,6 +1613,131 @@ if (!film) {
       "Ba a samu wannan film ba.",
   });
 }
+// =================================
+// BUNNY VIDEO - BYPASS RENDER
+// =================================
+
+if (film?.bunnyVideoId) {
+  const libraryId =
+    process.env.BUNNY_STREAM_LIBRARY_ID;
+
+  const apiKey =
+    process.env.BUNNY_STREAM_API_KEY;
+
+  const tokenKey =
+    process.env.BUNNY_STREAM_TOKEN_KEY;
+
+  const cdnHostname =
+    process.env.BUNNY_STREAM_CDN_HOSTNAME;
+
+  if (
+    !libraryId ||
+    !apiKey ||
+    !tokenKey ||
+    !cdnHostname
+  ) {
+    return res.status(500).json({
+      success: false,
+      message:
+        "Bunny video config bai cika ba.",
+    });
+  }
+
+  const infoResponse =
+    await fetch(
+      `https://video.bunnycdn.com/library/${libraryId}/videos/${film.bunnyVideoId}`,
+      {
+        headers: {
+          AccessKey: apiKey,
+          Accept: "application/json",
+        },
+      }
+    );
+
+  if (!infoResponse.ok) {
+    return res.status(502).json({
+      success: false,
+      message:
+        "An kasa samun bayanin video daga Bunny.",
+    });
+  }
+
+  const bunnyVideo =
+    await infoResponse.json();
+
+  const available =
+    String(
+      bunnyVideo.availableResolutions || ""
+    )
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const preferred =
+    [
+      "1080p",
+      "720p",
+      "480p",
+      "360p",
+      "240p",
+    ].find((resolution) =>
+      available.includes(resolution)
+    );
+
+  if (!preferred) {
+    return res.status(409).json({
+      success: false,
+      message:
+        "Film bai gama processing ba tukuna.",
+    });
+  }
+
+  const hostname =
+    cdnHostname
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
+
+  const bunnyPath =
+    `/${film.bunnyVideoId}/play_${preferred}.mp4`;
+
+  const expires =
+    Math.floor(Date.now() / 1000) +
+    15 * 60;
+
+  const signaturePayload =
+    `${bunnyPath}${expires}`;
+
+  const signature =
+    crypto
+      .createHmac("sha256", tokenKey)
+      .update(signaturePayload)
+      .digest("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/g, "");
+
+  const token =
+    `HS256-${signature}`;
+
+  const bunnyVideoUrl =
+    `https://${hostname}${bunnyPath}` +
+    `?token=${encodeURIComponent(token)}` +
+    `&expires=${expires}`;
+
+  console.log(
+    "▶️ WEB VIDEO REDIRECT TO BUNNY:",
+    {
+      webUserId,
+      filmId,
+      resolution: preferred,
+    }
+  );
+
+  return res.redirect(
+    302,
+    bunnyVideoUrl
+  );
+}
       if (!film?.videoFileId) {
         return res.status(404).json({
           success: false,

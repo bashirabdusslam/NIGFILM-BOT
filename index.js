@@ -2374,122 +2374,24 @@ if (!purchase && !activePremium) {
         `https://${hostname}${bunnyPath}` +
         `?token=${encodeURIComponent(token)}` +
         `&expires=${expires}`;
+// =================================
+// REDIRECT USER DIRECTLY TO BUNNY
+// =================================
 
-      // =================================
-      // FETCH VIDEO FROM BUNNY
-      // =================================
+console.log(
+  "⬇️ DIRECT BUNNY DOWNLOAD:",
+  {
+    webUserId,
+    filmId,
+    resolution: preferred,
+  }
+);
 
-      const videoResponse =
-        await fetch(
-          bunnyDownloadUrl
-        );
-
-      if (
-        !videoResponse.ok ||
-        !videoResponse.body
-      ) {
-        const errorText =
-          await videoResponse.text();
-
-        console.error(
-          "âŒ BUNNY DOWNLOAD FETCH ERROR:",
-          videoResponse.status,
-          errorText
-        );
-
-        return res.status(502).json({
-          success: false,
-          message:
-            "An kasa É—auko film domin download.",
-        });
-      }
-
-      // =================================
-      // DOWNLOAD HEADERS
-      // =================================
-
-      const safeTitle =
-        String(
-          film.title ||
-            "NIGFILM"
-        )
-          .replace(
-            /[<>:"/\\|?*\x00-\x1F]/g,
-            "_"
-          )
-          .trim();
-
-      const fileName =
-        `${safeTitle}.mp4`;
-
-      res.setHeader(
-        "Content-Type",
-        videoResponse.headers.get(
-          "content-type"
-        ) || "video/mp4"
-      );
-
-      const contentLength =
-        videoResponse.headers.get(
-          "content-length"
-        );
-
-      if (contentLength) {
-        res.setHeader(
-          "Content-Length",
-          contentLength
-        );
-      }
-
-      // Wannan ne yake tilasta DOWNLOAD
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(
-          fileName
-        )}`
-      );
-
-      res.setHeader(
-        "Cache-Control",
-        "private, no-store"
-      );
-
-      console.log(
-        "â¬‡ï¸ WEB MOVIE DOWNLOAD STARTED:",
-        {
-          webUserId,
-          filmId,
-          resolution: preferred,
-        }
-      );
-
-      // =================================
-      // STREAM DIRECTLY
-      // Kada mu saka 500MB cikin RAM
-      // =================================
-
-      const stream =
-        Readable.fromWeb(
-          videoResponse.body
-        );
-
-      stream.on(
-        "error",
-        (error) => {
-          console.error(
-            "âŒ DOWNLOAD STREAM ERROR:",
-            error
-          );
-
-          if (!res.headersSent) {
-            res.sendStatus(500);
-          } else {
-            res.destroy(error);
-          }
-        }
-      );
-
-      stream.pipe(res);
+return res.redirect(
+  302,
+  bunnyDownloadUrl
+);
+     
     } catch (error) {
       console.error(
         "âŒ DIRECT DOWNLOAD ERROR:",

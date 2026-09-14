@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import crypto from "crypto";
 import { Markup } from "telegraf";
 import { Readable } from "node:stream";
@@ -8924,17 +8924,18 @@ const server =
       );
 
       try {
-        await bot.telegram.setWebhook(
-          TELEGRAM_WEBHOOK_URL
-        );
+        await bot.telegram.deleteWebhook({
+          drop_pending_updates: false
+        });
+
+        await bot.launch();
 
         console.log(
-          "âœ… Telegram Webhook an saita:",
-          TELEGRAM_WEBHOOK_URL
+          "Telegram polling started successfully."
         );
       } catch (error) {
         console.error(
-          "âŒ SET TELEGRAM WEBHOOK ERROR:",
+          "START TELEGRAM POLLING ERROR:",
           error
         );
       }
@@ -8971,6 +8972,10 @@ async function gracefulShutdown(
   server.close(
     async () => {
       try {
+        try {
+          bot.stop(signal);
+        } catch {}
+
         await prisma.$disconnect();
 
         console.log(

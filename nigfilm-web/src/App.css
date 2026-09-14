@@ -3855,3 +3855,41 @@ img { max-width: 100%; }
     margin-top: 18px;
   }
 }
+
+/* PASSWORD VISIBILITY */
+.auth-form label {
+  position: relative;
+}
+
+.auth-form label:has(.password-toggle) input {
+  padding-right: 52px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.password-toggle:hover {
+  background: rgba(212, 175, 55, 0.12);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+}

@@ -220,6 +220,9 @@ function App() {
   const [password, setPassword] =
     useState("");
 
+  const [showPassword, setShowPassword] =
+    useState(false);
+
   const [authLoading, setAuthLoading] =
     useState(false);
 
@@ -4141,7 +4144,7 @@ function requireAuth(mode = "login") {
                 Password
 
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   placeholder="Aƙalla haruffa 6"
                   onChange={(event) =>
@@ -4152,6 +4155,21 @@ function requireAuth(mode = "login") {
                   minLength={6}
                   required
                 />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword((current) => !current)
+                  }
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
               </label>
 
               {authError && (
@@ -4214,7 +4232,7 @@ function requireAuth(mode = "login") {
                 Password
 
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   placeholder="Password"
                   onChange={(event) =>
@@ -4224,6 +4242,21 @@ function requireAuth(mode = "login") {
                   }
                   required
                 />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() =>
+                    setShowPassword((current) => !current)
+                  }
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
               </label>
 
               {authError && (

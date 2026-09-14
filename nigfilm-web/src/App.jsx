@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
 import "./App.css";
@@ -11,7 +11,7 @@ import PublicPages from "./PublicPages";
 const API_URL =
   globalThis.__NIGFILM_CONFIG__?.API_URL ||
   import.meta.env.VITE_API_URL ||
-  "https://nigfilm-bot-production.up.railway.app";
+   "https://nigfilm-bot-production.up.railway.app";
 
 const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
@@ -88,7 +88,7 @@ const UI_TEXT = {
     discover: "GANO",
     latestMovies: "Sabbin Fina-finai",
     trailers: "Tallan Fina-finai",
-    featured: "ZaÃ‰â€œaÃ‰â€œÃ‰â€œun Fina-finai",
+    featured: "Zaɓaɓɓun Fina-finai",
     hausaMovies: "Fina-finan Hausa",
     indiaMovies: "India Fassara",
     americanMovies: "Fina-finan Amurka",
@@ -446,7 +446,7 @@ async function createStudio() {
     }
 
     setAdminStudioSuccess(
-      "Ã¢Å“â€¦ An kara Studio / Company cikin nasara."
+      "✅ An kara Studio / Company cikin nasara."
     );
 
     setAdminStudioName("");
@@ -549,7 +549,7 @@ async function createAdminFilm() {
     }
 
     setAdminCreateSuccess(
-      "Ã¢Å“â€¦ An kirkiri film cikin nasara."
+      "✅ An kirkiri film cikin nasara."
     );
 
     setAdminNewTitle("");
@@ -1704,7 +1704,7 @@ function openPremium() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-            "An kasa Ã‰â€”auko fina-finai."
+            "An kasa ɗauko fina-finai."
         );
       }
 
@@ -1724,7 +1724,7 @@ function openPremium() {
 
       setFilmsError(
         error?.message ||
-          "An samu matsala wajen Ã‰â€”auko fina-finai."
+          "An samu matsala wajen ɗauko fina-finai."
       );
     } finally {
       setFilmsLoading(false);
@@ -1996,7 +1996,7 @@ function openPremium() {
       if (!response.ok) {
         throw new Error(
           data?.message ||
-            "An kasa Ã‰â€”auko My Movies."
+            "An kasa ɗauko My Movies."
         );
       }
 
@@ -2022,7 +2022,7 @@ function openPremium() {
 
       setMyMoviesError(
         error?.message ||
-          "An samu matsala wajen Ã‰â€”auko fina-finan da ka saya."
+          "An samu matsala wajen ɗauko fina-finan da ka saya."
       );
     } finally {
       setMyMoviesLoading(false);
@@ -2337,7 +2337,7 @@ console.log(
     if (!response.ok) {
       throw new Error(
         data?.message ||
-          "An kasa tabbatar da reward Ã‰â€”in talla."
+          "An kasa tabbatar da reward ɗin talla."
       );
     }
 
@@ -2371,14 +2371,14 @@ console.log(
     if (normalized.unlocked) {
       setAdUnlockSuccess(
         language === "HAUSA"
-          ? "Ã¢Å“â€¦ Ka gama talla 5. An buÃ‰â€”e wannan film na awa 24."
-          : "Ã¢Å“â€¦ You completed 5 ads. This movie is unlocked for 24 hours."
+          ? "✅ Ka gama talla 5. An buɗe wannan film na awa 24."
+          : "✅ You completed 5 ads. This movie is unlocked for 24 hours."
       );
     } else {
       setAdUnlockSuccess(
         language === "HAUSA"
-          ? `Ã¢Å“â€¦ An kirga tallar. ${normalized.watchedAds}/${normalized.requiredAds} sun cika.`
-          : `Ã¢Å“â€¦ Ad counted. ${normalized.watchedAds}/${normalized.requiredAds} completed.`
+          ? `✅ An kirga tallar. ${normalized.watchedAds}/${normalized.requiredAds} sun cika.`
+          : `✅ Ad counted. ${normalized.watchedAds}/${normalized.requiredAds} completed.`
       );
     }
 
@@ -2413,8 +2413,8 @@ console.log(
     ) {
       setAdUnlockSuccess(
         language === "HAUSA"
-          ? "Ã¢Å“â€¦ Wannan film a buÃ‰â€”e yake yanzu."
-          : "Ã¢Å“â€¦ This movie is already unlocked."
+          ? "✅ Wannan film a buɗe yake yanzu."
+          : "✅ This movie is already unlocked."
       );
       return;
     }
@@ -2567,8 +2567,8 @@ console.log(
                   ) {
                     setAdUnlockSuccess(
                       language === "HAUSA"
-                        ? "Ã¢Å“â€¦ Wannan film a buÃ‰â€”e yake yanzu."
-                        : "Ã¢Å“â€¦ This movie is already unlocked."
+                        ? "✅ Wannan film a buɗe yake yanzu."
+                        : "✅ This movie is already unlocked."
                     );
                   }
 
@@ -2835,7 +2835,7 @@ async function buyMovie(
 
       setPaymentError(
         error?.message ||
-          "An samu matsala wajen buÃ‰â€”e Paystack."
+          "An samu matsala wajen buɗe Paystack."
       );
     } finally {
       setPaymentLoading(false);
@@ -2975,7 +2975,7 @@ async function buyMovie(
       filmId <= 0
     ) {
       setUploadError(
-        "Ka zaÃ‰â€œi film da farko."
+        "Ka zaɓi film da farko."
       );
 
       return;
@@ -2983,7 +2983,7 @@ async function buyMovie(
 
     if (!adminVideoFile) {
       setUploadError(
-        "Ka zaÃ‰â€œi sabon video da za a saka."
+        "Ka zaɓi sabon video da za a saka."
       );
 
       return;
@@ -3134,7 +3134,7 @@ async function buyMovie(
               );
 
               setUploadSuccess(
-                `Ã¢Å“â€¦ "${data?.film?.title || adminVideoFile.name}" an maye gurbin video Ã‰â€”insa cikin nasara. Bunny zai sake transcoding.`
+                `✅ "${data?.film?.title || adminVideoFile.name}" an maye gurbin video ɗinsa cikin nasara. Bunny zai sake transcoding.`
               );
 
               setAdminVideoFile(
@@ -3189,7 +3189,7 @@ async function buyMovie(
       filmId <= 0
     ) {
       setUploadError(
-        "Ka zaÃ‰â€œi film da farko."
+        "Ka zaɓi film da farko."
       );
 
       return;
@@ -3197,7 +3197,7 @@ async function buyMovie(
 
     if (!adminVideoFile) {
       setUploadError(
-        "Ka zaÃ‰â€œi video/file da za a upload."
+        "Ka zaɓi video/file da za a upload."
       );
 
       return;
@@ -3348,7 +3348,7 @@ async function buyMovie(
               );
 
               setUploadSuccess(
-                `Ã¢Å“â€¦ "${data?.film?.title || adminVideoFile.name}" ya shiga Bunny Stream. Bunny zai fara transcoding.`
+                `✅ "${data?.film?.title || adminVideoFile.name}" ya shiga Bunny Stream. Bunny zai fara transcoding.`
               );
 
               setAdminVideoFile(
@@ -3438,7 +3438,7 @@ async function buyMovie(
 
   async function saveAdminFilmChanges() {
     if (!adminEditingFilm?.id) {
-      setAdminManageError("Ka zaÃ‰â€œi film da za ka gyara.");
+      setAdminManageError("Ka zaɓi film da za ka gyara.");
       return;
     }
 
@@ -3480,7 +3480,7 @@ if (
   !studioId
 ) {
   setAdminManageError(
-    "Ka zaÃ‰â€œi Studio / Company na wannan film."
+    "Ka zaɓi Studio / Company na wannan film."
   );
   return;
 }
@@ -3538,7 +3538,7 @@ if (
       }
 
       setAdminManageSuccess(
-        data?.message || "Ã¢Å“â€¦ An gyara film cikin nasara."
+        data?.message || "✅ An gyara film cikin nasara."
       );
     } catch (error) {
       console.error("ADMIN SAVE FILM ERROR:", error);
@@ -3612,14 +3612,14 @@ if (
 
     if (!Number.isInteger(filmId) || filmId <= 0) {
       setTrailerUploadError(
-        "Ka zaÃ‰â€œi film da farko."
+        "Ka zaɓi film da farko."
       );
       return;
     }
 
     if (!trailerVideoFile) {
       setTrailerUploadError(
-        "Ka zaÃ‰â€œi trailer video da za a upload."
+        "Ka zaɓi trailer video da za a upload."
       );
       return;
     }
@@ -3766,8 +3766,8 @@ if (
               setTrailerUploadProgress(100);
               setTrailerUploadSuccess(
                 replacing
-                  ? "Ã¢Å“â€¦ An maye gurbin trailer cikin nasara."
-                  : "Ã¢Å“â€¦ Trailer ya shiga Bunny Stream kuma an kunna shi."
+                  ? "✅ An maye gurbin trailer cikin nasara."
+                  : "✅ Trailer ya shiga Bunny Stream kuma an kunna shi."
               );
               setTrailerVideoFile(null);
 
@@ -3857,8 +3857,8 @@ if (
 
       setTrailerUploadSuccess(
         enabled
-          ? "Ã¢Å“â€¦ An kunna trailer."
-          : "Ã¢Å“â€¦ An kashe trailer."
+          ? "✅ An kunna trailer."
+          : "✅ An kashe trailer."
       );
 
       await loadFilms();
@@ -4049,7 +4049,7 @@ function requireAuth(mode = "login") {
               );
             }}
           >
-            Ã¢â€ Â Back to Movies
+            ← Back to Movies
           </button>
 
           <div className="auth-logo">
@@ -4100,7 +4100,7 @@ function requireAuth(mode = "login") {
               <h2>Create Account</h2>
 
               <p>
-                Ã†ËœirÃ†â„¢iri account domin kallon
+                Ƙirƙiri account domin kallon
                 fina-finai da samun cikakken damar
                 NIGFILM.
               </p>
@@ -4143,7 +4143,7 @@ function requireAuth(mode = "login") {
                 <input
                   type="password"
                   value={password}
-                  placeholder="AÃ†â„¢alla haruffa 6"
+                  placeholder="Aƙalla haruffa 6"
                   onChange={(event) =>
                     setPassword(
                       event.target.value
@@ -4166,7 +4166,7 @@ function requireAuth(mode = "login") {
                 disabled={authLoading}
               >
                 {authLoading
-                  ? "Ana Ã†â„¢irÃ†â„¢ira..."
+                  ? "Ana ƙirƙira..."
                   : "Create Account"}
               </button>
 
@@ -4191,7 +4191,7 @@ function requireAuth(mode = "login") {
               <h2>Welcome Back</h2>
 
               <p>
-                Shiga NIGFILM account Ã‰â€”inka.
+                Shiga NIGFILM account ɗinka.
               </p>
 
               <label>
@@ -4305,7 +4305,7 @@ function requireAuth(mode = "login") {
             )
           }
         >
-          {theme === "BLACK_GOLD" ? "Ã¢ËœÂ¾" : "Ã¢Ëœâ‚¬"}
+          {theme === "BLACK_GOLD" ? "☾" : "☀"}
         </button>
 
         <button
@@ -4317,7 +4317,7 @@ function requireAuth(mode = "login") {
   openProfile();
 }}
         >
-          Ã°Å¸â€˜Â¤
+          👤
         </button>
       </div>
     </header>
@@ -4457,7 +4457,7 @@ function requireAuth(mode = "login") {
                 backdropFilter: "blur(10px)",
               }}
             >
-              Ã¢â€ Â
+              ←
             </button>
 
             <div
@@ -4527,7 +4527,7 @@ function requireAuth(mode = "login") {
                     backdropFilter: "blur(8px)",
                   }}
                 >
-                  Ã°Å¸Å½Â¬ {movie.category || "Movie"}
+                  🎬 {movie.category || "Movie"}
                 </span>
 
                 {purchased && (
@@ -4541,7 +4541,7 @@ function requireAuth(mode = "login") {
                       fontWeight: 800,
                     }}
                   >
-                    Ã¢Å“â€œ Purchased
+                    ✓ Purchased
                   </span>
                 )}
               </div>
@@ -4614,13 +4614,13 @@ function requireAuth(mode = "login") {
                     cursor: "pointer",
                   }}
                 >
-                  Ã¢â€“Â¶{" "}
+                  ▶{" "}
                   {canWatchMovie
                     ? language === "HAUSA"
                       ? "Kalli Yanzu"
                       : "Watch Now"
                     : language === "HAUSA"
-                      ? "ZaÃ‰â€œin Kallo"
+                      ? "Zaɓin Kallo"
                       : "Watch Options"}
                 </button>
 
@@ -4640,7 +4640,7 @@ function requireAuth(mode = "login") {
                     backdropFilter: "blur(8px)",
                   }}
                 >
-                  Ã°Å¸Å½Â¬
+                  🎬
                 </button>
               </div>
             </div>
@@ -4663,7 +4663,7 @@ function requireAuth(mode = "login") {
                 }}
               >
                 <div className="trailer-panel-heading">
-                  <span>Ã°Å¸Å½Å¾Ã¯Â¸Â</span>
+                  <span>🎞️</span>
                   <strong>{t("trailer")}</strong>
                 </div>
 
@@ -4698,7 +4698,7 @@ function requireAuth(mode = "login") {
 
               {canWatchMovie && !playerUrl && (
                 <div className="movie-security-note">
-                  Ã¢ÂÂ³ Video Ã‰â€”in wannan film bai shirya a Bunny Stream ba tukuna.
+                  ⏳ Video ɗin wannan film bai shirya a Bunny Stream ba tukuna.
                 </div>
               )}
             </div>
@@ -4720,7 +4720,7 @@ function requireAuth(mode = "login") {
               !hasAdUnlock &&
               adUnlockStatus && (
                 <div className="movie-security-note">
-                  Ã°Å¸â€œÂº{" "}
+                  📺{" "}
                   {language === "HAUSA"
                     ? `Tallan da aka gama: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`
                     : `Ads completed: ${adUnlockStatus.watchedAds || 0}/${adUnlockStatus.requiredAds || 5}`}
@@ -4744,7 +4744,7 @@ function requireAuth(mode = "login") {
                   onClick={() => downloadMovie(movie)}
                   style={{ minHeight: "46px" }}
                 >
-                  Ã¢Â¬â€¡{" "}
+                  ⬇{" "}
                   {language === "HAUSA"
                     ? "Sauke Film"
                     : "Download"}
@@ -4757,7 +4757,7 @@ function requireAuth(mode = "login") {
                 onClick={goHome}
                 style={{ minHeight: "46px" }}
               >
-                Ã°Å¸Å½Å¾Ã¯Â¸Â{" "}
+                🎞️{" "}
                 {language === "HAUSA"
                   ? "Sauran Films"
                   : "More Movies"}
@@ -4779,18 +4779,18 @@ function requireAuth(mode = "login") {
             >
               {purchased
                 ? language === "HAUSA"
-                  ? "Ã¢Å“â€œ Wannan film yana cikin My Movies Ã‰â€”inka."
-                  : "Ã¢Å“â€œ This movie is in your library."
+                  ? "✓ Wannan film yana cikin My Movies ɗinka."
+                  : "✓ This movie is in your library."
                 : hasPremium
                   ? language === "HAUSA"
-                    ? "Ã°Å¸â€˜â€˜ Premium Ã‰â€”inka yana aiki."
-                    : "Ã°Å¸â€˜â€˜ Your Premium access is active."
+                    ? "👑 Premium ɗinka yana aiki."
+                    : "👑 Your Premium access is active."
                   : hasAdUnlock
                     ? language === "HAUSA"
-                      ? "Ã°Å¸â€œÂº An buÃ‰â€”e wannan film ta hanyar talla."
-                      : "Ã°Å¸â€œÂº This movie is unlocked through ads."
+                      ? "📺 An buɗe wannan film ta hanyar talla."
+                      : "📺 This movie is unlocked through ads."
                     : language === "HAUSA"
-                      ? "Za ka iya saya, amfani da Premium, ko kallon talla 5 domin buÃ‰â€”e film."
+                      ? "Za ka iya saya, amfani da Premium, ko kallon talla 5 domin buɗe film."
                       : "Buy the movie, use Premium, or watch 5 ads to unlock it."}
             </div>
           </section>
@@ -4848,14 +4848,14 @@ function requireAuth(mode = "login") {
 
               <div className="watch-options-header">
                 <div className="watch-options-brand-icon">
-                  Ã¢â€“Â¶
+                  ▶
                 </div>
 
                 <div>
                   <h3>NIGFILM</h3>
                   <p>
                     {language === "HAUSA"
-                      ? "ZaÃ‰â€œi yadda kake son kallon wannan film"
+                      ? "Zaɓi yadda kake son kallon wannan film"
                       : "Choose how you want to watch this movie"}
                   </p>
                 </div>
@@ -4868,7 +4868,7 @@ function requireAuth(mode = "login") {
                   }
                   aria-label="Close"
                 >
-                  Ãƒâ€”
+                  ×
                 </button>
               </div>
 
@@ -4893,16 +4893,16 @@ function requireAuth(mode = "login") {
                           }, 80);
                         }}
                       >
-                        <span className="watch-option-icon">Ã¢â€“Â¶</span>
+                        <span className="watch-option-icon">▶</span>
                         <span className="watch-option-copy">
                           <strong>Watch Movie</strong>
                           <small>
                             {language === "HAUSA"
                               ? purchased
-                                ? "Film Ã‰â€”in yana cikin My Movies Ã‰â€”inka."
+                                ? "Film ɗin yana cikin My Movies ɗinka."
                                 : hasPremium
-                                  ? "Premium Ã‰â€”inka yana ba ka damar kallon film."
-                                  : "Ka buÃ‰â€”e film Ã‰â€”in ta hanyar kallon talla 5."
+                                  ? "Premium ɗinka yana ba ka damar kallon film."
+                                  : "Ka buɗe film ɗin ta hanyar kallon talla 5."
                               : purchased
                                 ? "This movie is in your library."
                                 : hasPremium
@@ -4910,7 +4910,7 @@ function requireAuth(mode = "login") {
                                   : "You unlocked this movie by watching 5 ads."}
                           </small>
                         </span>
-                        <span className="watch-option-arrow">Ã¢â‚¬Âº</span>
+                        <span className="watch-option-arrow">›</span>
                       </button>
                     )}
 
@@ -4924,16 +4924,16 @@ function requireAuth(mode = "login") {
                           downloadMovie(movie);
                         }}
                       >
-                        <span className="watch-option-icon">Ã¢Â¬â€¡</span>
+                        <span className="watch-option-icon">⬇</span>
                         <span className="watch-option-copy">
                           <strong>Download Movie</strong>
                           <small>
                             {language === "HAUSA"
-                              ? "Sauke film Ã‰â€”in zuwa na'urarka."
+                              ? "Sauke film ɗin zuwa na'urarka."
                               : "Download the movie to your device."}
                           </small>
                         </span>
-                        <span className="watch-option-arrow">Ã¢â‚¬Âº</span>
+                        <span className="watch-option-arrow">›</span>
                       </button>
                     )}
                   </>
@@ -4947,7 +4947,7 @@ function requireAuth(mode = "login") {
                         openPremium();
                       }}
                     >
-                      <span className="watch-option-icon">Ã°Å¸â€˜â€˜</span>
+                      <span className="watch-option-icon">👑</span>
                       <span className="watch-option-copy">
                         <strong>
                           {hasPremium
@@ -4957,14 +4957,14 @@ function requireAuth(mode = "login") {
                         <small>
                           {hasPremium
                             ? language === "HAUSA"
-                              ? "Premium Ã‰â€”inka yana aiki. Za ka iya duba plans ko Ã†â„¢ara lokaci."
+                              ? "Premium ɗinka yana aiki. Za ka iya duba plans ko ƙara lokaci."
                               : "Your Premium is active. View plans or extend it."
                             : language === "HAUSA"
-                              ? "ZaÃ‰â€œi Weekly, Monthly ko Yearly Premium."
+                              ? "Zaɓi Weekly, Monthly ko Yearly Premium."
                               : "Choose Weekly, Monthly or Yearly Premium."}
                         </small>
                       </span>
-                      <span className="watch-option-arrow">Ã¢â‚¬Âº</span>
+                      <span className="watch-option-arrow">›</span>
                     </button>
 
                     <button
@@ -4976,22 +4976,22 @@ function requireAuth(mode = "login") {
                         buyMovie(movie);
                       }}
                     >
-                      <span className="watch-option-icon">Ã°Å¸â€™Â³</span>
+                      <span className="watch-option-icon">💳</span>
                       <span className="watch-option-copy">
                         <strong>
                           {paymentLoading
                             ? "Opening Paystack..."
-                            : `Buy This Movie Ã¢â‚¬â€ Ã¢â€šÂ¦${Number(
+                            : `Buy This Movie — ₦${Number(
                                 movie.price || 0
                               ).toLocaleString()}`}
                         </strong>
                         <small>
                           {language === "HAUSA"
-                            ? "Biya sau Ã‰â€”aya, film ya shiga My Movies."
+                            ? "Biya sau ɗaya, film ya shiga My Movies."
                             : "Pay once and keep the movie in My Movies."}
                         </small>
                       </span>
-                      <span className="watch-option-arrow">Ã¢â‚¬Âº</span>
+                      <span className="watch-option-arrow">›</span>
                     </button>
                     <button
                       type="button"
@@ -5007,7 +5007,7 @@ function requireAuth(mode = "login") {
                       }}
                     >
                       <span className="watch-option-icon">
-                        Ã°Å¸â€œÂº
+                        📺
                       </span>
 
                       <span className="watch-option-copy">
@@ -5021,13 +5021,13 @@ function requireAuth(mode = "login") {
 
                         <small>
                           {language === "HAUSA"
-                            ? `Kalli talla 5 ka buÃ‰â€”e wannan film na awa 24. ${adUnlockStatus?.watchedAds || 0}/${adUnlockStatus?.requiredAds || 5}`
+                            ? `Kalli talla 5 ka buɗe wannan film na awa 24. ${adUnlockStatus?.watchedAds || 0}/${adUnlockStatus?.requiredAds || 5}`
                             : `Watch 5 ads to unlock this movie for 24 hours. ${adUnlockStatus?.watchedAds || 0}/${adUnlockStatus?.requiredAds || 5}`}
                         </small>
                       </span>
 
                       <span className="watch-option-arrow">
-                        Ã¢â‚¬Âº
+                        ›
                       </span>
                     </button>
 
@@ -5042,7 +5042,7 @@ function requireAuth(mode = "login") {
                     setTutorialOpen(true);
                   }}
                 >
-                  <span className="watch-option-icon">Ã°Å¸Å½Â¥</span>
+                  <span className="watch-option-icon">🎥</span>
                   <span className="watch-option-copy">
                     <strong>How to Buy / Activate Premium</strong>
                     <small>
@@ -5051,7 +5051,7 @@ function requireAuth(mode = "login") {
                         : "Watch a guide on buying a movie or activating Premium."}
                     </small>
                   </span>
-                  <span className="watch-option-arrow">Ã¢â‚¬Âº</span>
+                  <span className="watch-option-arrow">›</span>
                 </button>
               </div>
             </section>
@@ -5079,7 +5079,7 @@ function requireAuth(mode = "login") {
 
               <div className="watch-options-header">
                 <div className="watch-options-brand-icon tutorial-brand-icon">
-                  Ã°Å¸Å½Â¥
+                  🎥
                 </div>
 
                 <div>
@@ -5099,7 +5099,7 @@ function requireAuth(mode = "login") {
                   }
                   aria-label="Close"
                 >
-                  Ãƒâ€”
+                  ×
                 </button>
               </div>
 
@@ -5119,7 +5119,7 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Buy This Movie</strong>
                       <p>
-                        Watch Options Ã¢â€ â€™ Buy This Movie Ã¢â€ â€™ Paystack Ã¢â€ â€™ My Movies.
+                        Watch Options → Buy This Movie → Paystack → My Movies.
                       </p>
                     </div>
                   </div>
@@ -5129,13 +5129,13 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Activate Premium</strong>
                       <p>
-                        Watch Options Ã¢â€ â€™ Activate Premium Ã¢â€ â€™ Choose Plan Ã¢â€ â€™ Paystack.
+                        Watch Options → Activate Premium → Choose Plan → Paystack.
                       </p>
                     </div>
                   </div>
 
                   <div className="movie-security-note">
-                    Ã°Å¸Å½Â¥ Idan ka saka VITE_TUTORIAL_VIDEO_URL a Vercel, video tutorial zai bayyana a nan kai tsaye.
+                    🎥 Idan ka saka VITE_TUTORIAL_VIDEO_URL a Vercel, video tutorial zai bayyana a nan kai tsaye.
                   </div>
                 </div>
               )}
@@ -5225,7 +5225,7 @@ function requireAuth(mode = "login") {
               0 && (
               <div className="status">
                 <p>
-                  Ã°Å¸Å½Â¬ Ba ka sayi
+                  🎬 Ba ka sayi
                   film ba tukuna.
                 </p>
 
@@ -5306,7 +5306,7 @@ if (
         {films.length === 0 ? (
           <div className="status">
             <p>
-              Ã°Å¸Å½Â¬ Babu fina-finai a yanzu.
+              🎬 Babu fina-finai a yanzu.
             </p>
           </div>
         ) : (
@@ -5356,7 +5356,7 @@ if (
               }}
             >
               <h2>
-                Ã¢â€ºâ€ Access Denied
+                ⛔ Access Denied
               </h2>
 
               <p className="details-description">
@@ -5371,7 +5371,7 @@ if (
                   goHome
                 }
               >
-                Ã¢â€ Â Home
+                ← Home
               </button>
             </div>
           </div>
@@ -5409,7 +5409,7 @@ if (
             className="back-button"
             onClick={openProfile}
           >
-            Ã¢â€ Â Back to Profile
+            ← Back to Profile
           </button>
 
           <div className="movie-details-card">
@@ -5437,7 +5437,7 @@ if (
       setAdminStudioSuccess("");
     }}
   >
-    Ã°Å¸ÂÂ¢ Add Studio / Company
+    🏢 Add Studio / Company
   </button>
 
   <button
@@ -5449,7 +5449,7 @@ if (
       );
     }}
   >
-    Ã¢Å¾â€¢ Add New Film
+    ➕ Add New Film
   </button>
 </div>
 
@@ -5468,7 +5468,7 @@ if (
     </p>
 
     <h3>
-      Ã°Å¸ÂÂ¢ Add Studio / Company
+      🏢 Add Studio / Company
     </h3>
 
     <div className="admin-upload-field">
@@ -5566,7 +5566,7 @@ if (
 
     {adminStudioError && (
       <div className="auth-error">
-        Ã¢ÂÅ’ {adminStudioError}
+        ❌ {adminStudioError}
       </div>
     )}
 
@@ -5589,7 +5589,7 @@ if (
       >
         {adminStudioLoading
           ? "Creating..."
-          : "Ã°Å¸ÂÂ¢ Create Studio"}
+          : "🏢 Create Studio"}
       </button>
 
       <button
@@ -5622,7 +5622,7 @@ if (
       NEW MOVIE
     </p>
 
-    <h3>Ã¢Å¾â€¢ Add New Film</h3>
+    <h3>➕ Add New Film</h3>
 
     <div className="admin-upload-field">
       <label>Movie Title</label>
@@ -5718,7 +5718,7 @@ if (
     )}
 
     <div className="admin-upload-field">
-      <label>Price (Ã¢â€šÂ¦)</label>
+      <label>Price (₦)</label>
 
       <input
         type="number"
@@ -5752,12 +5752,12 @@ if (
         }
       />
 
-      Ã¢Â­Â Featured Film
+      ⭐ Featured Film
     </label>
 
     {adminCreateError && (
       <div className="auth-error">
-        Ã¢ÂÅ’ {adminCreateError}
+        ❌ {adminCreateError}
       </div>
     )}
 
@@ -5776,7 +5776,7 @@ if (
       >
         {adminCreateLoading
           ? "Creating..."
-          : "Ã¢Å¾â€¢ Create Film"}
+          : "➕ Create Film"}
       </button>
 
       <button
@@ -5793,7 +5793,7 @@ if (
   </div>
 )}
               <p className="small-title">NIGFILM ADMIN</p>
-              <h2>Ã°Å¸Å½Â¬ Manage Films</h2>
+              <h2>🎬 Manage Films</h2>
 
               <p className="details-description">
                 Gyara title, description, category, price da Featured status na
@@ -5801,7 +5801,7 @@ if (
               </p>
 
               <div className="admin-upload-field">
-                <label htmlFor="admin-film-search">Ã°Å¸â€Å½ Search Movies</label>
+                <label htmlFor="admin-film-search">🔎 Search Movies</label>
                 <input
                   id="admin-film-search"
                   type="text"
@@ -5842,7 +5842,7 @@ if (
         <h3>{film.title}</h3>
 
         <p>
-          {film.category || "Movie"} Ã‚Â· Ã¢â€šÂ¦
+          {film.category || "Movie"} · ₦
           {Number(
             film.price || 0
           ).toLocaleString()}
@@ -5850,13 +5850,13 @@ if (
 
         <p>
           {film.featured
-            ? "Ã¢Â­Â Featured"
+            ? "⭐ Featured"
             : "Not Featured"}
         </p>
 
         {film.studio?.name && (
           <p>
-            Ã°Å¸ÂÂ¢ {film.studio.name}
+            🏢 {film.studio.name}
           </p>
         )}
       </div>
@@ -5881,8 +5881,8 @@ if (
         {Number(
           adminEditingFilm?.id
         ) === Number(film.id)
-          ? "Ã¢Å“â€“ Close"
-          : "Ã¢Å“ÂÃ¯Â¸Â Edit"}
+          ? "✖ Close"
+          : "✏️ Edit"}
       </button>
     </div>
 
@@ -5907,7 +5907,7 @@ if (
             fontSize: "24px",
           }}
         >
-          Ã¢Å“ÂÃ¯Â¸Â {film.title}
+          ✏️ {film.title}
         </h2>
 
         <div className="admin-upload-field">
@@ -5962,7 +5962,7 @@ if (
 
         <div className="admin-upload-field">
           <label>
-            Price (Ã¢â€šÂ¦)
+            Price (₦)
           </label>
 
           <input
@@ -5998,12 +5998,12 @@ if (
             }
           />
 
-          Ã¢Â­Â Show in Featured Movies
+          ⭐ Show in Featured Movies
         </label>
 
         {adminManageError && (
           <div className="auth-error">
-            Ã¢ÂÅ’ {adminManageError}
+            ❌ {adminManageError}
           </div>
         )}
 
@@ -6025,8 +6025,8 @@ if (
             }
           >
             {adminSavingFilm
-              ? "Ã°Å¸â€™Â¾ Saving..."
-              : "Ã°Å¸â€™Â¾ Save Changes"}
+              ? "💾 Saving..."
+              : "💾 Save Changes"}
           </button>
 
           <button
@@ -6089,7 +6089,7 @@ if (
               openProfile
             }
           >
-            Ã¢â€ Â Back to Profile
+            ← Back to Profile
           </button>
 
           <div className="movie-details-card">
@@ -6105,19 +6105,19 @@ if (
               </p>
 
               <h2>
-                Ã°Å¸ÂÂ° Bunny Video Upload
+                🐰 Bunny Video Upload
               </h2>
 
               <p className="details-description">
-                ZaÃ‰â€œi film daga database,
-                sannan ka zaÃ‰â€œi video daga
+                Zaɓi film daga database,
+                sannan ka zaɓi video daga
                 laptop domin upload kai
                 tsaye zuwa Bunny Stream.
               </p>
 
               <div className="admin-upload-field">
                 <label htmlFor="admin-film">
-                  Ã°Å¸Å½Â¬ Select Movie
+                  🎬 Select Movie
                 </label>
 
                 <select
@@ -6206,7 +6206,7 @@ if (
                         {
                           film.id
                         }{" "}
-                        Ã¢â‚¬â€{" "}
+                        —{" "}
                         {
                           film.title
                         }
@@ -6252,7 +6252,7 @@ if (
                     </p>
 
                     <p>
-                      Price: Ã¢â€šÂ¦
+                      Price: ₦
                       {Number(
                         selectedAdminFilm.price ||
                           0
@@ -6265,14 +6265,14 @@ if (
                           <p>
                             Bunny:{" "}
                             {selectedAdminFilm.bunnyVideoId
-                              ? "Ã¢Å“â€¦ Connected"
-                              : "Ã¢ÂÂ³ Not connected"}
+                              ? "✅ Connected"
+                              : "⏳ Not connected"}
                           </p>
                         )}
 
                       {bunnyStatusLoading && (
                         <p>
-                          Ã°Å¸â€â€ž Ana duba Bunny status...
+                          🔄 Ana duba Bunny status...
                         </p>
                       )}
 
@@ -6281,17 +6281,17 @@ if (
                           <p>
                             Bunny:{" "}
                             {bunnyStatus.connected
-                              ? "Ã¢Å“â€¦ Connected"
-                              : "Ã¢ÂÂ³ Not connected"}
+                              ? "✅ Connected"
+                              : "⏳ Not connected"}
                           </p>
 
                           <p>
                             Status:{" "}
                             <strong>
                               {bunnyStatus.ready
-                                ? "Ã¢Å“â€¦ Ready"
+                                ? "✅ Ready"
                                 : bunnyStatus.failed
-                                  ? "Ã¢ÂÅ’ Failed"
+                                  ? "❌ Failed"
                                   : bunnyStatus.label ||
                                     "Unknown"}
                             </strong>
@@ -6326,7 +6326,7 @@ if (
 
                       {bunnyStatusError && (
                         <p className="admin-status-error">
-                          Ã¢ÂÅ’{" "}
+                          ❌{" "}
                           {
                             bunnyStatusError
                           }
@@ -6353,15 +6353,15 @@ if (
                     }
                   >
                     {bunnyStatusLoading
-                      ? "Ã°Å¸â€â€ž Checking..."
-                      : "Ã°Å¸â€â€ž Refresh Status"}
+                      ? "🔄 Checking..."
+                      : "🔄 Refresh Status"}
                   </button>
                 </div>
               )}
 
               <div className="admin-upload-field">
                 <label htmlFor="admin-video">
-                  Ã°Å¸â€œÂ Select Video
+                  📁 Select Video
                 </label>
 
                 <input
@@ -6401,7 +6401,7 @@ if (
               {adminVideoFile && (
                 <div className="admin-file-info">
                   <strong>
-                    Ã°Å¸â€œâ€ž{" "}
+                    📄{" "}
                     {
                       adminVideoFile.name
                     }
@@ -6422,7 +6422,7 @@ if (
                   <div className="admin-progress-top">
                     <span>
                       {uploading
-                        ? "Ã¢Â¬â€ Ã¯Â¸Â Uploading to Bunny..."
+                        ? "⬆️ Uploading to Bunny..."
                         : "Upload"}
                     </span>
 
@@ -6458,7 +6458,7 @@ if (
 
               {uploadError && (
                 <div className="auth-error">
-                  Ã¢ÂÅ’{" "}
+                  ❌{" "}
                   {uploadError}
                 </div>
               )}
@@ -6485,10 +6485,10 @@ if (
                     }
                   >
                     {uploading
-                      ? `Ã¢Â¬â€ Ã¯Â¸Â Uploading ${uploadProgress.toFixed(
+                      ? `⬆️ Uploading ${uploadProgress.toFixed(
                           1
                         )}%`
-                      : "Ã¢Â¬â€ Ã¯Â¸Â Upload to Bunny"}
+                      : "⬆️ Upload to Bunny"}
                   </button>
                 ) : (
                   <button
@@ -6502,7 +6502,7 @@ if (
                     onClick={() => {
                       const confirmed =
                         window.confirm(
-                          `Kana tabbatar kana son maye gurbin video na "${selectedAdminFilm?.title}"?\n\nTsohon video zai maye gurbinsa da sabon file Ã‰â€”in da ka zaÃ‰â€œa.`
+                          `Kana tabbatar kana son maye gurbin video na "${selectedAdminFilm?.title}"?\n\nTsohon video zai maye gurbinsa da sabon file ɗin da ka zaɓa.`
                         );
 
                       if (
@@ -6513,10 +6513,10 @@ if (
                     }}
                   >
                     {uploading
-                      ? `Ã¢â„¢Â»Ã¯Â¸Â Replacing ${uploadProgress.toFixed(
+                      ? `♻️ Replacing ${uploadProgress.toFixed(
                           1
                         )}%`
-                      : "Ã¢â„¢Â»Ã¯Â¸Â Replace Video"}
+                      : "♻️ Replace Video"}
                   </button>
                 )}
 
@@ -6530,7 +6530,7 @@ if (
                     openProfile
                   }
                 >
-                  Ã¢â€ Â Back
+                  ← Back
                 </button>
               </div>
 
@@ -6552,11 +6552,11 @@ if (
                     marginBottom: "8px",
                   }}
                 >
-                  Ã°Å¸Å½Å¾Ã¯Â¸Â Trailer Manager
+                  🎞️ Trailer Manager
                 </h2>
 
                 <p className="details-description">
-                  Upload Ã‰â€”in trailer daban yake da full movie. Bayan ya gama,
+                  Upload ɗin trailer daban yake da full movie. Bayan ya gama,
                   trailer zai bayyana kai tsaye a sashen Tallan Fina-finai.
                 </p>
 
@@ -6567,7 +6567,7 @@ if (
 
                       {trailerStatusLoading && (
                         <p>
-                          Ã°Å¸â€â€ž Ana duba trailer status...
+                          🔄 Ana duba trailer status...
                         </p>
                       )}
 
@@ -6577,8 +6577,8 @@ if (
                             <p>
                               Trailer: {" "}
                               {trailerStatus.connected
-                                ? "Ã¢Å“â€¦ Connected"
-                                : "Ã¢ÂÂ³ No Trailer"}
+                                ? "✅ Connected"
+                                : "⏳ No Trailer"}
                             </p>
 
                             {trailerStatus.connected && (
@@ -6587,9 +6587,9 @@ if (
                                   Status: {" "}
                                   <strong>
                                     {trailerStatus.ready
-                                      ? "Ã¢Å“â€¦ Ready"
+                                      ? "✅ Ready"
                                       : trailerStatus.failed
-                                        ? "Ã¢ÂÅ’ Failed"
+                                        ? "❌ Failed"
                                         : trailerStatus.label ||
                                           "Unknown"}
                                   </strong>
@@ -6598,8 +6598,8 @@ if (
                                 <p>
                                   Visible on App: {" "}
                                   {trailerStatus.enabled
-                                    ? "Ã¢Å“â€¦ Enabled"
-                                    : "Ã°Å¸Å¡Â« Disabled"}
+                                    ? "✅ Enabled"
+                                    : "🚫 Disabled"}
                                 </p>
 
                                 <p>
@@ -6625,7 +6625,7 @@ if (
 
                       {trailerStatusError && (
                         <p className="admin-status-error">
-                          Ã¢ÂÅ’ {trailerStatusError}
+                          ❌ {trailerStatusError}
                         </p>
                       )}
                     </div>
@@ -6648,8 +6648,8 @@ if (
                       }
                     >
                       {trailerStatusLoading
-                        ? "Ã°Å¸â€â€ž Checking..."
-                        : "Ã°Å¸â€â€ž Refresh Trailer Status"}
+                        ? "🔄 Checking..."
+                        : "🔄 Refresh Trailer Status"}
                     </button>
 
                     {trailerStatus?.connected && (
@@ -6660,8 +6660,8 @@ if (
                         onClick={toggleTrailerEnabled}
                       >
                         {trailerStatus.enabled
-                          ? "Ã°Å¸Å¡Â« Disable Trailer"
-                          : "Ã¢Å“â€¦ Enable Trailer"}
+                          ? "🚫 Disable Trailer"
+                          : "✅ Enable Trailer"}
                       </button>
                     )}
                   </div>
@@ -6669,7 +6669,7 @@ if (
 
                 <div className="admin-upload-field">
                   <label htmlFor="admin-trailer-video">
-                    Ã°Å¸Å½Å¾Ã¯Â¸Â Select Trailer Video
+                    🎞️ Select Trailer Video
                   </label>
 
                   <input
@@ -6696,7 +6696,7 @@ if (
                 {trailerVideoFile && (
                   <div className="admin-file-info">
                     <strong>
-                      Ã°Å¸Å½Å¾Ã¯Â¸Â {trailerVideoFile.name}
+                      🎞️ {trailerVideoFile.name}
                     </strong>
 
                     <span>
@@ -6713,7 +6713,7 @@ if (
                     <div className="admin-progress-top">
                       <span>
                         {trailerUploading
-                          ? "Ã°Å¸Å½Å¾Ã¯Â¸Â Uploading Trailer..."
+                          ? "🎞️ Uploading Trailer..."
                           : "Trailer Upload"}
                       </span>
 
@@ -6746,7 +6746,7 @@ if (
 
                 {trailerUploadError && (
                   <div className="auth-error">
-                    Ã¢ÂÅ’ {trailerUploadError}
+                    ❌ {trailerUploadError}
                   </div>
                 )}
 
@@ -6785,19 +6785,19 @@ if (
                     }}
                   >
                     {trailerUploading
-                      ? `Ã°Å¸Å½Å¾Ã¯Â¸Â Uploading ${trailerUploadProgress.toFixed(
+                      ? `🎞️ Uploading ${trailerUploadProgress.toFixed(
                           1
                         )}%`
                       : selectedAdminFilm
                             ?.trailerBunnyVideoId
-                        ? "Ã¢â„¢Â»Ã¯Â¸Â Replace Trailer"
-                        : "Ã°Å¸Å½Å¾Ã¯Â¸Â Upload Trailer"}
+                        ? "♻️ Replace Trailer"
+                        : "🎞️ Upload Trailer"}
                   </button>
                 </div>
               </div>
 
               <div className="movie-security-note">
-                Ã°Å¸â€â€™ Full movie da trailer duka za su tafi kai tsaye daga browser
+                🔒 Full movie da trailer duka za su tafi kai tsaye daga browser
                 zuwa Bunny Stream. Bunny API Key ba zai shiga frontend ba.
               </div>
             </div>
@@ -6835,7 +6835,7 @@ if (
             className="back-button"
             onClick={goBack}
           >
-            Ã¢â€ Â Back
+            ← Back
           </button>
 
           <div className="movie-details-card">
@@ -6850,18 +6850,18 @@ if (
               </p>
 
               <h2>
-                Ã°Å¸â€˜â€˜ Premium Membership
+                👑 Premium Membership
               </h2>
 
               <p className="details-description">
                 {language === "HAUSA"
-                  ? "ZaÃ‰â€œi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account Ã‰â€”inka."
+                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account ɗinka."
                   : "Choose the Premium plan that works for you. Your membership activates after Paystack confirms payment."}
               </p>
 
               {hasPremium && (
                 <div className="movie-security-note">
-                  Ã°Å¸â€˜â€˜ Premium Ã‰â€”inka yana aiki yanzu.
+                  👑 Premium ɗinka yana aiki yanzu.
                   {premiumStatus?.subscription?.plan
                     ? ` Plan: ${premiumStatus.subscription.plan}.`
                     : ""}
@@ -6882,7 +6882,7 @@ if (
               {premiumPlansLoading ? (
                 <div className="status">
                   <div className="loader" />
-                  <p>Loading Premium plansÃ¢â‚¬Â¦</p>
+                  <p>Loading Premium plans…</p>
                 </div>
               ) : (
                 <div
@@ -6912,7 +6912,7 @@ if (
                             fontSize: "28px",
                           }}
                         >
-                          Ã°Å¸â€˜â€˜
+                          👑
                         </span>
 
                         <h3
@@ -6928,7 +6928,7 @@ if (
                             fontSize: "28px",
                           }}
                         >
-                          Ã¢â€šÂ¦
+                          ₦
                           {Number(
                             plan.amount || 0
                           ).toLocaleString()}
@@ -6962,8 +6962,8 @@ if (
                           plan.id
                             ? "Opening Paystack..."
                             : hasPremium
-                              ? "Ã°Å¸â€˜â€˜ Extend Premium"
-                              : "Ã°Å¸â€˜â€˜ Go Premium"}
+                              ? "👑 Extend Premium"
+                              : "👑 Go Premium"}
                         </button>
                       </article>
                     )
@@ -7021,38 +7021,38 @@ if (
               </p>
 
               <h2>
-                Ã°Å¸â€˜Â¤ Profile
+                👤 Profile
               </h2>
 
               <div className="details-meta">
                 <span>
-                  Ã°Å¸â€˜Â¤{" "}
+                  👤{" "}
                   {user.fullName}
                 </span>
 
                 <span>
-                  Ã°Å¸â€œÂ±{" "}
+                  📱{" "}
                   {user.phone}
                 </span>
 
                 {user?.role ===
                   "ADMIN" && (
                   <span>
-                    Ã°Å¸â€ºÂ¡Ã¯Â¸Â Admin
+                    🛡️ Admin
                   </span>
                 )}
 
                 {premiumLoading ? (
                   <span>
-                    Ã°Å¸â€˜â€˜ Checking Premium...
+                    👑 Checking Premium...
                   </span>
                 ) : hasPremium ? (
                   <span>
-                    Ã°Å¸â€˜â€˜ Premium Active
+                    👑 Premium Active
                   </span>
                 ) : (
                   <span>
-                    Ã°Å¸Å½Â¬ Standard Account
+                    🎬 Standard Account
                   </span>
                 )}
               </div>
@@ -7060,7 +7060,7 @@ if (
               <p className="details-description">
                 Duk fina-finan da
                 ka saya suna cikin
-                My Movies Ã‰â€”inka.
+                My Movies ɗinka.
               </p>
 
               {premiumError && (
@@ -7072,7 +7072,7 @@ if (
               {hasPremium &&
                 premiumStatus?.subscription && (
                   <div className="movie-security-note">
-                    Ã°Å¸â€˜â€˜ Premium Ã‰â€”inka yana aiki.
+                    👑 Premium ɗinka yana aiki.
                     {premiumStatus.subscription.plan
                       ? ` Plan: ${premiumStatus.subscription.plan}.`
                       : ""}
@@ -7085,7 +7085,7 @@ if (
                 )}
 
               <div className="preference-panel">
-                <h3>Ã¢Å¡â„¢Ã¯Â¸Â {t("accountSettings")}</h3>
+                <h3>⚙️ {t("accountSettings")}</h3>
 
                 <div className="preference-grid">
                   <div className="preference-card">
@@ -7137,8 +7137,8 @@ if (
                   onClick={openPremium}
                 >
                   {hasPremium
-                    ? "Ã°Å¸â€˜â€˜ Premium Plans"
-                    : "Ã°Å¸â€˜â€˜ Go Premium"}
+                    ? "👑 Premium Plans"
+                    : "👑 Go Premium"}
                 </button>
 
                 <button
@@ -7148,7 +7148,7 @@ if (
                     openMyMovies
                   }
                 >
-                  Ã°Å¸Å½Â¬ My Movies
+                  🎬 My Movies
                 </button>
 
                 <button
@@ -7158,7 +7158,7 @@ if (
                     goHome
                   }
                 >
-                  Ã°Å¸ÂÂ  Home
+                  🏠 Home
                 </button>
 
                 {user?.role ===
@@ -7170,7 +7170,7 @@ if (
                       openAdminUpload
                     }
                   >
-                    Ã¢Å¡â„¢Ã¯Â¸Â Admin Upload
+                    ⚙️ Admin Upload
                   </button>
                 )}
 
@@ -7183,7 +7183,7 @@ if (
                       openAdminManageFilms
                     }
                   >
-                    Ã°Å¸Å½Â¬ Manage Films
+                    🎬 Manage Films
                   </button>
                 )}
 
@@ -7194,7 +7194,7 @@ if (
                     logout
                   }
                 >
-                  Ã°Å¸Å¡Âª Logout
+                  🚪 Logout
                 </button>
               </div>
             </div>
@@ -7228,7 +7228,7 @@ if (
       <section className="search-section">
         <div className="search-box">
           <span>
-            Ã°Å¸â€Â
+            🔍
           </span>
 
           <input
@@ -7280,7 +7280,7 @@ if (
                 );
             }}
           >
-            Ã°Å¸Å½Â¬ {t("browseMovies")}
+            🎬 {t("browseMovies")}
           </button>
         </div>
       </section>
@@ -7296,27 +7296,27 @@ if (
           {[
             [
               "All",
-              "Ã°Å¸â€Â¥ All",
+              "🔥 All",
             ],
 
             [
               "Hausa",
-              "Ã°Å¸Å½Â¬ Hausa",
+              "🎬 Hausa",
             ],
 
             [
               "India Fassara",
-              "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³ India Fassara",
+              "🇮🇳 India Fassara",
             ],
 
             [
               "American",
-              "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸ American",
+              "🇺🇸 American",
             ],
 
             [
               "Series",
-              "Ã°Å¸â€œÂº Series",
+              "📺 Series",
             ],
           ].map(
             ([
@@ -7413,7 +7413,7 @@ if (
         </p>
 
         <strong>
-          Ã°Å¸ÂÂ¢ {activeStudio.name}
+          🏢 {activeStudio.name}
         </strong>
 
         {activeStudio.description && (
@@ -7442,7 +7442,7 @@ if (
         );
       }}
     >
-      Ã¢â€ Â{" "}
+      ←{" "}
       {language === "HAUSA"
         ? "Duk Studios"
         : "All Studios"}
@@ -7454,7 +7454,7 @@ if (
             <div className="loader" />
 
             <p>
-              Loading moviesÃ¢â‚¬Â¦
+              Loading movies…
         
             </p>
           </div>
@@ -7484,7 +7484,7 @@ if (
             0 && (
             <div className="status">
               <p>
-                Ã°Å¸Å½Â¬ Babu film a
+                🎬 Babu film a
                 wannan category.
               </p>
             </div>
@@ -7697,7 +7697,7 @@ if (
               marginBottom: "6px",
             }}
           >
-            Ã°Å¸ÂÂ¢ {studio.name}
+            🏢 {studio.name}
           </strong>
 
           <small>
@@ -7826,7 +7826,7 @@ function DashboardMovieGrid({
                 className="dashboard-see-all"
                 onClick={onSeeAll}
               >
-                {seeAllLabel} Ã¢â€ â€™
+                {seeAllLabel} →
               </button>
             )}
         </div>
@@ -7857,11 +7857,11 @@ function DashboardMovieGrid({
                 />
 
                 <span className="row-price">
-                  Ã°Å¸â€â€™ ACCESS
+                  🔒 ACCESS
                 </span>
 
                 <span className="row-play">
-                  Ã¢â€“Â¶
+                  ▶
                 </span>
               </button>
 
@@ -8018,7 +8018,7 @@ function MovieRow({
                   whiteSpace: "nowrap",
                 }}
               >
-                {seeAllLabel} Ã¢â€ â€™
+                {seeAllLabel} →
               </button>
             )}
           </div>
@@ -8081,11 +8081,11 @@ function MovieRow({
               />
 
               <span className="row-price">
-                Ã°Å¸â€â€™ ACCESS
+                🔒 ACCESS
               </span>
 
               <span className="row-play">
-                Ã¢â€“Â¶
+                ▶
               </span>
             </button>
 
@@ -8167,7 +8167,7 @@ function VerticalMovieList({
                   whiteSpace: "nowrap",
                 }}
               >
-                {seeAllLabel} Ã¢â€ â€™
+                {seeAllLabel} →
               </button>
             )}
         </div>
@@ -8256,7 +8256,7 @@ function VerticalMovieList({
                 </span>
 
                 <strong>
-                  Ã°Å¸â€â€™ ACCESS
+                  🔒 ACCESS
                 </strong>
 
                 <div
@@ -8266,7 +8266,7 @@ function VerticalMovieList({
                     opacity: 0.8,
                   }}
                 >
-                  Ã¢â€“Â¶ Duba Film
+                  ▶ Duba Film
                 </div>
               </div>
             </article>
@@ -8531,7 +8531,7 @@ function startPreview(film) {
     >
       <div className="row-heading">
         <h3>
-          Ã°Å¸Å½Å¾Ã¯Â¸Â {title}
+          🎞️ {title}
         </h3>
 
         <span>
@@ -8642,7 +8642,7 @@ function startPreview(film) {
 
                     <div className="trailer-preview-overlay">
                       <span className="trailer-preview-play">
-                        Ã¢â€“Â¶
+                        ▶
                       </span>
 
                       <span className="trailer-preview-text">
@@ -8691,7 +8691,7 @@ function startPreview(film) {
                     openFilm(film);
                   }}
                 >
-                  Duba Film Ã¢â€ â€™
+                  Duba Film →
                 </button>
               </div>
             </article>
@@ -8763,12 +8763,12 @@ function MovieGrid({
 
                 {!purchased && (
                   <span className="price">
-                    Ã°Å¸â€â€™ ACCESS
+                    🔒 ACCESS
                   </span>
                 )}
 
                 <div className="play-button">
-                  Ã¢â€“Â¶
+                  ▶
                 </div>
               </div>
 
@@ -8793,7 +8793,7 @@ function MovieGrid({
                   }
                 >
                   {purchased
-                    ? "Ã¢â€“Â¶ Watch Movie"
+                    ? "▶ Watch Movie"
                     : "View Movie"}
                 </button>
               </div>
@@ -9357,7 +9357,7 @@ function BunnyMoviePlayer({
       {!apiReady &&
         !playerError && (
           <div className="movie-security-note">
-            Ã¢ÂÂ³{" "}
+            ⏳{" "}
             {language === "HAUSA"
               ? "Ana shirya video player..."
               : "Preparing video player..."}
@@ -9438,7 +9438,7 @@ function BunnyMoviePlayer({
                   lineHeight: 1,
                 }}
               >
-                Ã¢â€ Â¶
+                ↶
               </span>
               <small
                 style={{
@@ -9511,7 +9511,7 @@ function BunnyMoviePlayer({
                   lineHeight: 1,
                 }}
               >
-                Ã¢â€ Â·
+                ↷
               </span>
               <small
                 style={{
@@ -9590,7 +9590,7 @@ function ContinueWatchingRow({
     <section className="movie-row-section">
       <div className="row-heading">
         <h3>
-          Ã¢â€“Â¶ {title}
+          ▶ {title}
         </h3>
 
         <div
@@ -9717,7 +9717,7 @@ function ContinueWatchingRow({
                     "0 4px 12px rgba(0,0,0,.28)",
                 }}
               >
-                Ãƒâ€”
+                ×
               </button>
 
               <button
@@ -9746,7 +9746,7 @@ function ContinueWatchingRow({
                 />
 
                 <span className="row-play">
-                  Ã¢â€“Â¶
+                  ▶
                 </span>
 
                 <div
@@ -9822,7 +9822,7 @@ function BottomNav({
             goHome
           }
         >
-          <span>Ã°Å¸ÂÂ </span>
+          <span>🏠</span>
           Home
         </button>
 
@@ -9832,7 +9832,7 @@ function BottomNav({
             goSearch
           }
         >
-          <span>Ã°Å¸â€Â</span>
+          <span>🔍</span>
           Search
         </button>
 <button
@@ -9846,7 +9846,7 @@ function BottomNav({
     goAllMovies
   }
 >
-  <span>Ã°Å¸ÂÂ¿</span>
+  <span>🍿</span>
   All Movies
 </button>
         <button
@@ -9861,7 +9861,7 @@ function BottomNav({
             loadMyMovies()
           }
         >
-          <span>Ã°Å¸Å½Â¬</span>
+          <span>🎬</span>
           My Movies
         </button>
 
@@ -9877,7 +9877,7 @@ function BottomNav({
             openProfile
           }
         >
-          <span>Ã°Å¸â€˜Â¤</span>
+          <span>👤</span>
           Profile
         </button>
       </nav>

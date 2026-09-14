@@ -1,1 +1,1 @@
-﻿{"headers":[{"source":"/runtime-config.js","headers":[{"key":"Cache-Control","value":"no-store, no-cache, must-revalidate, max-age=0"}]},{"source":"/runtime-config.json","headers":[{"key":"Access-Control-Allow-Origin","value":"*"},{"key":"Cache-Control","value":"no-store, no-cache, must-revalidate, max-age=0"}]}]}
+{"headers":[{"source":"/runtime-config.js","headers":[{"key":"Cache-Control","value":"no-store, no-cache, must-revalidate, max-age=0"}]}]}

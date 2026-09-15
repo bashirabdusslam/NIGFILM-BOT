@@ -31,3 +31,4 @@ android/key.properties
 .idea/
 android/.idea/
 android/.idea-backup/
+android/app/google-services.json

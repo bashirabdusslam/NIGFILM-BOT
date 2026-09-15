@@ -870,12 +870,14 @@ app.post(
         message:
           "Login ya yi nasara.",
 
-        user: {
-          id: user.id,
-          fullName: user.fullName,
-          phone: user.phone,
-          role: user.role,
-        },
+          user: {
+  id: user.id,
+  fullName: user.fullName,
+  phone: user.phone,
+  role: user.role,
+  mustChangePassword:
+    user.mustChangePassword,
+},
 
         session: {
           token:
@@ -895,6 +897,695 @@ app.post(
         success: false,
         message:
           "An samu matsala wajen login.",
+      });
+    }
+  }
+);
+// ======================================================
+// FORGOT PASSWORD - REQUEST RESET
+// ======================================================
+
+app.post(
+  "/api/auth/forgot-password/request",
+  async (req, res) => {
+    try {
+      const phone = normalizePhone(
+        req.body?.phone
+      );
+
+      if (!phone) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka saka phone number.",
+        });
+      }
+
+      const genericResponse = {
+        success: true,
+        message:
+          "An karɓi request ɗinka. Idan wannan phone number yana da account, admin zai duba request ɗin.",
+      };
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            phone,
+          },
+        });
+
+      // Kar mu bayyana ko account yana nan ko babu
+      if (!user) {
+        return res.status(200).json(
+          genericResponse
+        );
+      }
+
+      // Rufe tsoffin requests da ba a yi amfani da su ba
+      await prisma.passwordReset.updateMany({
+        where: {
+          webUserId: user.id,
+          usedAt: null,
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
+
+      const requestToken =
+        crypto.randomBytes(32).toString("hex");
+
+      const requestTokenHash =
+        crypto
+          .createHash("sha256")
+          .update(requestToken)
+          .digest("hex");
+
+      const expiresAt =
+        new Date(
+          Date.now() +
+            24 * 60 * 60 * 1000
+        );
+
+      await prisma.passwordReset.create({
+        data: {
+          webUserId: user.id,
+          requestTokenHash,
+          expiresAt,
+        },
+      });
+
+      console.log(
+        "PASSWORD RESET REQUEST:",
+        user.id
+      );
+
+      return res.status(200).json(
+        genericResponse
+      );
+    } catch (error) {
+      console.error(
+        "PASSWORD RESET REQUEST ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen aika reset request.",
+      });
+    }
+  }
+);
+// ======================================================
+// ADMIN - LIST PASSWORD RESET REQUESTS
+// ======================================================
+
+app.get(
+  "/api/admin/password-reset-requests",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const requests =
+        await prisma.passwordReset.findMany({
+          where: {
+            usedAt: null,
+            codeHash: null,
+            expiresAt: {
+              gt: new Date(),
+            },
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                createdAt: true,
+              },
+            },
+          },
+        });
+
+      return res.status(200).json({
+        success: true,
+        count: requests.length,
+        requests: requests.map(
+          (request) => ({
+            id: request.id,
+            createdAt: request.createdAt,
+            expiresAt: request.expiresAt,
+            user: request.user,
+          })
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN PASSWORD RESET LIST ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen dauko password reset requests.",
+      });
+    }
+  }
+);
+// ======================================================
+// ADMIN - APPROVE PASSWORD RESET + GENERATE CODE
+// ======================================================
+
+app.post(
+  "/api/admin/password-reset-requests/:requestId/approve",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const requestId =
+        Number(req.params.requestId);
+
+      if (
+        !Number.isInteger(requestId) ||
+        requestId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset request ID bai dace ba.",
+        });
+      }
+
+      const resetRequest =
+        await prisma.passwordReset.findUnique({
+          where: {
+            id: requestId,
+          },
+
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+        });
+
+      if (!resetRequest) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu reset request din ba.",
+        });
+      }
+
+      if (resetRequest.usedAt) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "An riga an gama amfani da wannan request.",
+        });
+      }
+
+      if (
+        resetRequest.expiresAt <
+        new Date()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Wannan reset request ya kare.",
+        });
+      }
+
+      const code =
+        String(
+          crypto.randomInt(
+            100000,
+            1000000
+          )
+        );
+
+      const codeHash =
+        crypto
+          .createHash("sha256")
+          .update(code)
+          .digest("hex");
+
+      // Bayan admin approval,
+      // code zai yi aiki na minti 30 kacal.
+      const expiresAt =
+        new Date(
+          Date.now() +
+            30 * 60 * 1000
+        );
+
+      await prisma.passwordReset.update({
+        where: {
+          id: requestId,
+        },
+
+        data: {
+          codeHash,
+          expiresAt,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Reset code ya samu nasara.",
+
+        resetCode: code,
+
+        expiresAt,
+
+        user: resetRequest.user,
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN APPROVE PASSWORD RESET ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen samar da reset code.",
+      });
+    }
+  }
+);
+// ======================================================
+// USER - COMPLETE PASSWORD RESET
+// ======================================================
+
+app.post(
+  "/api/auth/forgot-password/reset",
+  async (req, res) => {
+    try {
+      const phone =
+        normalizePhone(req.body?.phone);
+
+      const code =
+        String(req.body?.code || "").trim();
+
+      const newPassword =
+        String(
+          req.body?.newPassword || ""
+        );
+
+      const confirmPassword =
+        String(
+          req.body?.confirmPassword || ""
+        );
+
+      if (
+        !phone ||
+        !code ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka cika dukkan bayanan da ake bukata.",
+        });
+      }
+
+      if (!/^\d{6}$/.test(code)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset code ya zama lambobi 6.",
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Sabon password ya zama akalla haruffa 6.",
+        });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Passwords din ba su yi daidai ba.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            phone,
+          },
+        });
+
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset code ko phone number bai dace ba.",
+        });
+      }
+
+      const codeHash =
+        crypto
+          .createHash("sha256")
+          .update(code)
+          .digest("hex");
+
+      const resetRequest =
+        await prisma.passwordReset.findFirst({
+          where: {
+            webUserId: user.id,
+            codeHash,
+            usedAt: null,
+            expiresAt: {
+              gt: new Date(),
+            },
+          },
+
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+
+      if (!resetRequest) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset code bai dace ba ko ya kare.",
+        });
+      }
+
+      const passwordHash =
+        hashPassword(newPassword);
+
+      await prisma.$transaction([
+        prisma.webUser.update({
+          where: {
+            id: user.id,
+          },
+
+          data: {
+            passwordHash,
+            mustChangePassword: false,
+          },
+        }),
+
+        prisma.passwordReset.update({
+          where: {
+            id: resetRequest.id,
+          },
+
+          data: {
+            usedAt: new Date(),
+          },
+        }),
+
+        // Fitar da account daga duk tsoffin sessions
+        prisma.webSession.deleteMany({
+          where: {
+            webUserId: user.id,
+          },
+        }),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password ya canza cikin nasara. Ka shiga da sabon password.",
+      });
+    } catch (error) {
+      console.error(
+        "COMPLETE PASSWORD RESET ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen canza password.",
+      });
+    }
+  }
+);
+// ======================================================
+// ADMIN - DIRECT RESET USER PASSWORD
+// ======================================================
+
+app.post(
+  "/api/admin/users/:userId/reset-password",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const userId =
+        Number(req.params.userId);
+
+      const temporaryPassword =
+        String(
+          req.body?.temporaryPassword || ""
+        );
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "User ID bai dace ba.",
+        });
+      }
+
+      if (temporaryPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Temporary password ya zama akalla haruffa 6.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            id: userId,
+          },
+
+          select: {
+            id: true,
+            fullName: true,
+            phone: true,
+          },
+        });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu user din ba.",
+        });
+      }
+
+      const passwordHash =
+        hashPassword(
+          temporaryPassword
+        );
+
+      await prisma.$transaction([
+        prisma.webUser.update({
+          where: {
+            id: user.id,
+          },
+
+          data: {
+            passwordHash,
+            mustChangePassword: true,
+          },
+        }),
+
+        // Kashe duk tsoffin login sessions
+        prisma.webSession.deleteMany({
+          where: {
+            webUserId: user.id,
+          },
+        }),
+
+        // Rufe duk pending reset requests
+        prisma.passwordReset.updateMany({
+          where: {
+            webUserId: user.id,
+            usedAt: null,
+          },
+
+          data: {
+            usedAt: new Date(),
+          },
+        }),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Password din user ya samu reset. Dole user ya canza temporary password bayan login.",
+
+        user,
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN DIRECT PASSWORD RESET ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen reset password.",
+      });
+    }
+  }
+);
+// ======================================================
+// USER - CHANGE PASSWORD
+// ======================================================
+
+app.post(
+  "/api/auth/change-password",
+  requireWebUser,
+  async (req, res) => {
+    try {
+      const userId = req.webUser.id;
+
+      const currentPassword =
+        String(
+          req.body?.currentPassword || ""
+        );
+
+      const newPassword =
+        String(
+          req.body?.newPassword || ""
+        );
+
+      const confirmPassword =
+        String(
+          req.body?.confirmPassword || ""
+        );
+
+      if (
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Ka cika dukkan bayanan password.",
+        });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Sabon password ya zama akalla haruffa 6.",
+        });
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Sabbin passwords ba su yi daidai ba.",
+        });
+      }
+
+      const user =
+        await prisma.webUser.findUnique({
+          where: {
+            id: userId,
+          },
+        });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Ba a samu account din ba.",
+        });
+      }
+
+      const currentPasswordCorrect =
+        verifyPassword(
+          currentPassword,
+          user.passwordHash
+        );
+
+      if (!currentPasswordCorrect) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password bai dace ba.",
+        });
+      }
+
+      const passwordHash =
+        hashPassword(newPassword);
+
+      await prisma.$transaction([
+        prisma.webUser.update({
+          where: {
+            id: userId,
+          },
+
+          data: {
+            passwordHash,
+            mustChangePassword: false,
+          },
+        }),
+
+        // Bayan canza password,
+        // fitar da account daga duk devices.
+        prisma.webSession.deleteMany({
+          where: {
+            webUserId: userId,
+          },
+        }),
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password ya canza cikin nasara. Ka sake login da sabon password.",
+      });
+    } catch (error) {
+      console.error(
+        "CHANGE PASSWORD ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen canza password.",
       });
     }
   }

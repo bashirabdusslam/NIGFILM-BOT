@@ -229,6 +229,33 @@ function App() {
   const [authError, setAuthError] =
     useState("");
 
+  const [forgotStep, setForgotStep] =
+    useState("request");
+
+  const [forgotPhone, setForgotPhone] =
+    useState("");
+
+  const [resetCode, setResetCode] =
+    useState("");
+
+  const [newPassword, setNewPassword] =
+    useState("");
+
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+
+  const [forgotLoading, setForgotLoading] =
+    useState(false);
+
+  const [forgotError, setForgotError] =
+    useState("");
+
+  const [forgotSuccess, setForgotSuccess] =
+    useState("");
+
+  const [showResetPassword, setShowResetPassword] =
+    useState(false);
+
 // ===================================================
 // ADMIN FILM + STUDIO
 // ===================================================
@@ -1733,6 +1760,151 @@ function openPremium() {
       setFilmsLoading(false);
     }
   }
+
+  async function handleForgotRequest(event) {
+    event.preventDefault();
+
+    const phoneValue = forgotPhone.trim();
+
+    if (!phoneValue) {
+      setForgotError("Ka saka phone number.");
+      return;
+    }
+
+    try {
+      setForgotLoading(true);
+      setForgotError("");
+      setForgotSuccess("");
+
+      const response = await fetch(
+        `${API_URL}/api/auth/forgot-password/request`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: phoneValue,
+          }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa aika password reset request."
+        );
+      }
+
+      setForgotSuccess(
+        data?.message ||
+          "An karbi request. Ka jira reset code daga admin."
+      );
+
+      setForgotStep("reset");
+    } catch (error) {
+      console.error(
+        "FORGOT PASSWORD REQUEST ERROR:",
+        error
+      );
+
+      setForgotError(
+        error?.message ||
+          "An samu matsala wajen aika request."
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
+  async function handleForgotReset(event) {
+    event.preventDefault();
+
+    const phoneValue = forgotPhone.trim();
+    const codeValue = resetCode.trim();
+
+    if (!phoneValue) {
+      setForgotError("Ka saka phone number.");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(codeValue)) {
+      setForgotError(
+        "Reset code ya zama lambobi 6."
+      );
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setForgotError(
+        "Sabon password ya zama akalla haruffa 6."
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setForgotError(
+        "Passwords din ba su yi daidai ba."
+      );
+      return;
+    }
+
+    try {
+      setForgotLoading(true);
+      setForgotError("");
+      setForgotSuccess("");
+
+      const response = await fetch(
+        `${API_URL}/api/auth/forgot-password/reset`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: phoneValue,
+            code: codeValue,
+            newPassword,
+            confirmPassword,
+          }),
+        }
+      );
+
+      const data = await readJson(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            "An kasa canza password."
+        );
+      }
+
+      setForgotSuccess(
+        data?.message ||
+          "Password ya canza cikin nasara."
+      );
+
+      setResetCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setForgotStep("done");
+    } catch (error) {
+      console.error(
+        "FORGOT PASSWORD RESET ERROR:",
+        error
+      );
+
+      setForgotError(
+        error?.message ||
+          "An samu matsala wajen canza password."
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
 
   // ===================================================
   // REGISTER
@@ -4095,7 +4267,194 @@ function requireAuth(mode = "login") {
             </button>
           </div>
 
-          {authMode === "register" ? (
+          {authMode === "forgot" ? (
+  <form
+    className="auth-form"
+    onSubmit={
+      forgotStep === "request"
+        ? handleForgotRequest
+        : forgotStep === "reset"
+          ? handleForgotReset
+          : (event) => event.preventDefault()
+    }
+  >
+    <h2>
+      {forgotStep === "done"
+        ? "Password Changed"
+        : "Forgot Password"}
+    </h2>
+
+    <p>
+      {forgotStep === "request"
+        ? "Saka phone number ɗinka domin aika reset request."
+        : forgotStep === "reset"
+          ? "Saka reset code mai lambobi 6 da sabon password."
+          : "Password ɗinka ya canza cikin nasara."}
+    </p>
+
+    {forgotStep !== "done" && (
+      <label>
+        Phone Number
+
+        <input
+          type="tel"
+          value={forgotPhone}
+          placeholder="08012345678"
+          onChange={(event) =>
+            setForgotPhone(event.target.value)
+          }
+          required
+        />
+      </label>
+    )}
+
+    {forgotStep === "reset" && (
+      <>
+        <label>
+          Reset Code
+
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            value={resetCode}
+            placeholder="123456"
+            onChange={(event) =>
+              setResetCode(
+                event.target.value
+                  .replace(/\D/g, "")
+                  .slice(0, 6)
+              )
+            }
+            required
+          />
+        </label>
+
+        <label>
+          New Password
+
+          <input
+            type={
+              showResetPassword
+                ? "text"
+                : "password"
+            }
+            value={newPassword}
+            placeholder="Aƙalla haruffa 6"
+            minLength={6}
+            onChange={(event) =>
+              setNewPassword(
+                event.target.value
+              )
+            }
+            required
+          />
+
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() =>
+              setShowResetPassword(
+                (current) => !current
+              )
+            }
+          >
+            {showResetPassword
+              ? "🙈"
+              : "👁"}
+          </button>
+        </label>
+
+        <label>
+          Confirm Password
+
+          <input
+            type={
+              showResetPassword
+                ? "text"
+                : "password"
+            }
+            value={confirmPassword}
+            placeholder="Sake saka sabon password"
+            minLength={6}
+            onChange={(event) =>
+              setConfirmPassword(
+                event.target.value
+              )
+            }
+            required
+          />
+        </label>
+      </>
+    )}
+
+    {forgotError && (
+      <div className="auth-error">
+        {forgotError}
+      </div>
+    )}
+
+    {forgotSuccess && (
+      <div className="auth-success">
+        {forgotSuccess}
+      </div>
+    )}
+
+    {forgotStep === "request" && (
+      <button
+        type="submit"
+        className="auth-submit"
+        disabled={forgotLoading}
+      >
+        {forgotLoading
+          ? "Ana aikawa..."
+          : "Request Reset Code"}
+      </button>
+    )}
+
+    {forgotStep === "reset" && (
+      <button
+        type="submit"
+        className="auth-submit"
+        disabled={forgotLoading}
+      >
+        {forgotLoading
+          ? "Ana canzawa..."
+          : "Reset Password"}
+      </button>
+    )}
+
+    {forgotStep === "done" && (
+      <button
+        type="button"
+        className="auth-submit"
+        onClick={() => {
+          setAuthMode("login");
+          setForgotStep("request");
+          setForgotError("");
+          setForgotSuccess("");
+          setForgotPhone("");
+        }}
+      >
+        Back to Login
+      </button>
+    )}
+
+    <p className="auth-bottom-text">
+      <button
+        type="button"
+        onClick={() => {
+          setAuthMode("login");
+          setForgotStep("request");
+          setForgotError("");
+          setForgotSuccess("");
+        }}
+      >
+        ← Back to Login
+      </button>
+    </p>
+  </form>
+) : authMode === "register" ? (
             <form
               className="auth-form"
               onSubmit={handleRegister}
@@ -4275,7 +4634,8 @@ function requireAuth(mode = "login") {
                   : "Login"}
               </button>
 
-              <p className="auth-bottom-text">
+              <p className="auth-bottom-text"><button type="button" className="forgot-password-link" onClick={() => { setForgotPhone(phone); setForgotStep("request"); setForgotError(""); setForgotSuccess(""); setAuthMode("forgot"); }}>Forgot Password?</button></p>
+<p className="auth-bottom-text">
                 Ba ka da account?{" "}
                 <button
                   type="button"

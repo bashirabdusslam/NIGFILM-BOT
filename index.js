@@ -8234,7 +8234,46 @@ app.post(
         "âœ… Paystack payment received:",
         reference
       );
+// ==================================================
+// PREMIUM SUBSCRIPTION PAYMENT
+// ==================================================
 
+const premiumOrder =
+  await prisma.premiumOrder.findUnique({
+    where: {
+      paymentReference: reference,
+    },
+  });
+
+if (
+  premiumOrder ||
+  metadata.type ===
+    "web_premium_subscription"
+) {
+  const result =
+    await processPremiumPayment({
+      reference,
+      paidAmount: Number(
+        event?.data?.amount
+      ),
+    });
+
+  if (!result.success) {
+    console.error(
+      "❌ PREMIUM PAYMENT PROCESS FAILED:",
+      result.message
+    );
+
+    return res.sendStatus(400);
+  }
+
+  console.log(
+    "✅ PREMIUM PAYMENT PROCESSED:",
+    reference
+  );
+
+  return res.sendStatus(200);
+}
       // ==================================================
       // WEB APP PAYMENT
       // ==================================================

@@ -925,6 +925,34 @@ const [adUnlockError, setAdUnlockError] =
 const [adUnlockSuccess, setAdUnlockSuccess] =
   useState("");
   // ===================================================
+// ADMIN - PASSWORD RESET REQUESTS
+// ===================================================
+
+const [
+  adminResetRequests,
+  setAdminResetRequests,
+] = useState([]);
+
+const [
+  adminResetLoading,
+  setAdminResetLoading,
+] = useState(false);
+
+const [
+  adminResetError,
+  setAdminResetError,
+] = useState("");
+
+const [
+  adminResetApprovingId,
+  setAdminResetApprovingId,
+] = useState(null);
+
+const [
+  adminResetCodes,
+  setAdminResetCodes,
+] = useState({});
+  // ===================================================
   // ADMIN - MANAGE FILMS
   // ===================================================
 
@@ -1700,7 +1728,18 @@ function openPremium() {
 
     navigateTo("adminUpload");
   }
+function openAdminPasswordResets() {
+  if (user?.role !== "ADMIN") {
+    return;
+  }
 
+  setAdminResetError("");
+  
+
+  navigateTo("adminPasswordResets");
+
+  loadAdminPasswordResetRequests();
+}
   function openAdminManageFilms() {
     if (user?.role !== "ADMIN") {
       return;
@@ -1714,6 +1753,154 @@ function openPremium() {
     navigateTo("adminManageFilms");
   }
 
+  // ===================================================
+// ADMIN - LOAD PASSWORD RESET REQUESTS
+// ===================================================
+
+async function loadAdminPasswordResetRequests() {
+  if (user?.role !== "ADMIN") {
+    return;
+  }
+
+  const token = getSessionToken();
+
+  if (!token) {
+    setAdminResetError(
+      "Admin session token bai samu ba."
+    );
+    return;
+  }
+
+  try {
+    setAdminResetLoading(true);
+    setAdminResetError("");
+
+    const response = await fetch(
+      `${API_URL}/api/admin/password-reset-requests`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa dauko password reset requests."
+      );
+    }
+
+    setAdminResetRequests(
+      Array.isArray(data?.requests)
+        ? data.requests
+        : []
+    );
+  } catch (error) {
+    console.error(
+      "LOAD ADMIN PASSWORD RESET REQUESTS ERROR:",
+      error
+    );
+
+    setAdminResetError(
+      error?.message ||
+        "An samu matsala wajen dauko reset requests."
+    );
+  } finally {
+    setAdminResetLoading(false);
+  }
+}
+
+
+// ===================================================
+// ADMIN - APPROVE PASSWORD RESET
+// ===================================================
+
+async function approveAdminPasswordReset(
+  requestId
+) {
+  const id = Number(requestId);
+
+  if (
+    user?.role !== "ADMIN" ||
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    return;
+  }
+
+  const token = getSessionToken();
+
+  if (!token) {
+    setAdminResetError(
+      "Admin session token bai samu ba."
+    );
+    return;
+  }
+
+  try {
+    setAdminResetApprovingId(id);
+    setAdminResetError("");
+
+    const response = await fetch(
+      `${API_URL}/api/admin/password-reset-requests/${id}/approve`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+          "An kasa approve reset request."
+      );
+    }
+
+    if (!data?.resetCode) {
+      throw new Error(
+        "Backend bai dawo da reset code ba."
+      );
+    }
+
+    setAdminResetCodes((current) => ({
+      ...current,
+
+      [id]: {
+        code: String(data.resetCode),
+        expiresAt:
+          data?.expiresAt || null,
+        user:
+          data?.user || null,
+      },
+    }));
+
+    setAdminResetRequests((current) =>
+      current.filter(
+        (request) =>
+          Number(request.id) !== id
+      )
+    );
+  } catch (error) {
+    console.error(
+      "APPROVE PASSWORD RESET ERROR:",
+      error
+    );
+
+    setAdminResetError(
+      error?.message ||
+        "An samu matsala wajen approve reset."
+    );
+  } finally {
+    setAdminResetApprovingId(null);
+  }
+}
   // ===================================================
   // LOAD FILMS
   // ===================================================
@@ -5772,7 +5959,251 @@ if (
       </div>
     );
   }
+// ===================================================
+// ADMIN PASSWORD RESET PAGE
+// ===================================================
 
+if (page === "adminPasswordResets") {
+  const generatedResetCodes =
+    Object.entries(adminResetCodes);
+
+  return (
+    <div className="app">
+      {header}
+
+      <main className="movie-details">
+        <button
+          type="button"
+          className="back-button"
+          onClick={openProfile}
+        >
+          ← Back to Profile
+        </button>
+
+        <div className="movie-details-card">
+          <div
+            className="details-content"
+            style={{ gridColumn: "1 / -1" }}
+          >
+            <p className="small-title">
+              NIGFILM ADMIN
+            </p>
+
+            <h2>
+              🔐 Password Reset Requests
+            </h2>
+
+            <p className="details-description">
+              Anan zaka ga users da suka nemi
+              reset password. Ka approve request
+              domin samar da 6-digit reset code.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+                marginBottom: "20px",
+              }}
+            >
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={
+                  loadAdminPasswordResetRequests
+                }
+                disabled={adminResetLoading}
+              >
+                {adminResetLoading
+                  ? "Ana loading..."
+                  : "🔄 Refresh Requests"}
+              </button>
+            </div>
+
+            {adminResetError && (
+              <div className="auth-error">
+                {adminResetError}
+              </div>
+            )}
+
+            {generatedResetCodes.length > 0 && (
+              <div
+                style={{
+                  marginBottom: "25px",
+                }}
+              >
+                <h3>
+                  ✅ Generated Reset Codes
+                </h3>
+
+                {generatedResetCodes.map(
+                  ([requestId, info]) => (
+                    <div
+                      key={requestId}
+                      style={{
+                        padding: "18px",
+                        border:
+                          "1px solid var(--border)",
+                        borderRadius: "16px",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <p>
+                        <strong>User:</strong>{" "}
+                        {info?.user?.fullName ||
+                          info?.user?.phone ||
+                          "User"}
+                      </p>
+
+                      {info?.user?.phone && (
+                        <p>
+                          <strong>
+                            Phone:
+                          </strong>{" "}
+                          {info.user.phone}
+                        </p>
+                      )}
+
+                      <p>
+                        <strong>
+                          Reset Code:
+                        </strong>
+                      </p>
+
+                      <div
+                        style={{
+                          fontSize: "30px",
+                          fontWeight: "800",
+                          letterSpacing: "8px",
+                          margin:
+                            "8px 0 14px",
+                        }}
+                      >
+                        {info.code}
+                      </div>
+
+                      {info?.expiresAt && (
+                        <p>
+                          Expires:{" "}
+                          {new Date(
+                            info.expiresAt
+                          ).toLocaleString()}
+                        </p>
+                      )}
+
+                      <button
+                        type="button"
+                        className="buy-now-button"
+                        onClick={() => {
+                          navigator.clipboard
+                            ?.writeText(
+                              String(
+                                info.code
+                              )
+                            );
+                        }}
+                      >
+                        📋 Copy Code
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            <h3>
+              ⏳ Pending Requests
+            </h3>
+
+            {adminResetLoading ? (
+              <p>
+                Ana dauko requests...
+              </p>
+            ) : adminResetRequests.length ===
+              0 ? (
+              <div
+                style={{
+                  padding: "20px",
+                  border:
+                    "1px solid var(--border)",
+                  borderRadius: "16px",
+                  marginTop: "12px",
+                }}
+              >
+                Babu pending password reset
+                request a yanzu.
+              </div>
+            ) : (
+              adminResetRequests.map(
+                (request) => (
+                  <div
+                    key={request.id}
+                    style={{
+                      padding: "18px",
+                      border:
+                        "1px solid var(--border)",
+                      borderRadius: "16px",
+                      marginTop: "12px",
+                    }}
+                  >
+                    <h3>
+                      {request?.user
+                        ?.fullName ||
+                        `User #${
+                          request.webUserId ||
+                          ""
+                        }`}
+                    </h3>
+
+                    <p>
+                      📱{" "}
+                      {request?.user
+                        ?.phone ||
+                        "Phone unavailable"}
+                    </p>
+
+                    {request?.createdAt && (
+                      <p>
+                        Requested:{" "}
+                        {new Date(
+                          request.createdAt
+                        ).toLocaleString()}
+                      </p>
+                    )}
+
+                    <button
+                      type="button"
+                      className="buy-now-button"
+                      disabled={
+                        Number(
+                          adminResetApprovingId
+                        ) ===
+                        Number(request.id)
+                      }
+                      onClick={() =>
+                        approveAdminPasswordReset(
+                          request.id
+                        )
+                      }
+                    >
+                      {Number(
+                        adminResetApprovingId
+                      ) ===
+                      Number(request.id)
+                        ? "Ana approve..."
+                        : "✅ Approve & Generate Code"}
+                    </button>
+                  </div>
+                )
+              )
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
   // ===================================================
   // ADMIN MANAGE FILMS PAGE
   // ===================================================
@@ -7567,28 +7998,33 @@ if (
                   </button>
                 )}
 
-                {user?.role ===
-                  "ADMIN" && (
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={
-                      openAdminManageFilms
-                    }
-                  >
-                    🎬 Manage Films
-                  </button>
-                )}
+             {user?.role === "ADMIN" && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={openAdminManageFilms}
+  >
+    🎬 Manage Films
+  </button>
+)}
 
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={
-                    logout
-                  }
-                >
-                  🚪 Logout
-                </button>
+{user?.role === "ADMIN" && (
+  <button
+    type="button"
+    className="secondary-button"
+    onClick={openAdminPasswordResets}
+  >
+    🔐 Password Resets
+  </button>
+)}
+
+<button
+  type="button"
+  className="secondary-button"
+  onClick={logout}
+>
+  🚪 Logout
+</button>
               </div>
             </div>
           </div>

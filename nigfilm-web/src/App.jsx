@@ -3,7 +3,8 @@ import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
 import "./App.css";
 import PublicPages from "./PublicPages";
-
+import { Capacitor } from "@capacitor/core";
+import { PushNotifications } from "@capacitor/push-notifications";
 // =====================================================
 // CONFIG
 // =====================================================
@@ -338,6 +339,133 @@ const [adminStudioSuccess, setAdminStudioSuccess] =
     UI_TEXT[language]?.[key] ||
     UI_TEXT.ENGLISH[key] ||
     key;
+
+    useEffect(() => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  let registrationListener;
+  let registrationErrorListener;
+  let receivedListener;
+  let actionListener;
+
+  async function setupPushNotifications() {
+    let permission =
+      await PushNotifications.checkPermissions();
+
+    if (permission.receive === "prompt") {
+      permission =
+        await PushNotifications.requestPermissions();
+    }
+
+    if (permission.receive !== "granted") {
+      console.log("Push notification permission not granted");
+      return;
+    }
+
+   registrationListener =
+  await PushNotifications.addListener(
+    "registration",
+    async (token) => {
+      try {
+        const sessionToken =
+          getSessionToken();
+
+        if (!sessionToken) {
+          console.log(
+            "Push token received, amma user bai login ba."
+          );
+          return;
+        }
+
+        const response = await fetch(
+          `${API_URL}/api/web/push/register`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization:
+                `Bearer ${sessionToken}`,
+            },
+            body: JSON.stringify({
+              token: token.value,
+              platform: "android",
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+              "An kasa register push device."
+          );
+        }
+
+        console.log(
+          "✅ PUSH DEVICE REGISTERED:",
+          data.device
+        );
+      } catch (error) {
+        console.error(
+          "❌ PUSH DEVICE REGISTER ERROR:",
+          error
+        );
+      }
+    }
+  );
+
+    registrationErrorListener =
+      await PushNotifications.addListener(
+        "registrationError",
+        (error) => {
+          console.error(
+            "FCM REGISTRATION ERROR:",
+            error
+          );
+        }
+      );
+
+    receivedListener =
+      await PushNotifications.addListener(
+        "pushNotificationReceived",
+        (notification) => {
+          console.log(
+            "PUSH RECEIVED:",
+            notification
+          );
+        }
+      );
+
+    actionListener =
+      await PushNotifications.addListener(
+        "pushNotificationActionPerformed",
+        (action) => {
+          console.log(
+            "PUSH OPENED:",
+            action
+          );
+        }
+      );
+
+    await PushNotifications.register();
+  }
+
+  setupPushNotifications().catch((error) => {
+    console.error(
+      "PUSH SETUP ERROR:",
+      error
+    );
+  });
+
+  return () => {
+    registrationListener?.remove();
+    registrationErrorListener?.remove();
+    receivedListener?.remove();
+    actionListener?.remove();
+  };
+}, []);
 
   useEffect(() => {
     localStorage.setItem("nigfilm_language", language);

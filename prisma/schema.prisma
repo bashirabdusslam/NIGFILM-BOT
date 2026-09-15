@@ -79,6 +79,7 @@ model WebUser {
   webSessions          WebSession[]
   premiumSubscriptions PremiumSubscription[]
   premiumOrders        PremiumOrder[]
+  pushDevices          PushDevice[]
 
   adMovieUnlocks   AdMovieUnlock[]
   adRewardAttempts AdRewardAttempt[]
@@ -364,4 +365,19 @@ model PasswordReset {
   @@index([webUserId])
   @@index([expiresAt])
   @@index([usedAt])
+}
+
+model PushDevice {
+  id        Int      @id @default(autoincrement())
+  webUserId Int
+  token     String   @unique
+  platform  String   @default("android")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  webUser WebUser @relation(fields: [webUserId], references: [id], onDelete: Cascade)
+
+  @@index([webUserId])
+  @@index([enabled])
 }

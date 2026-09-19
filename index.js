@@ -5830,6 +5830,7 @@ app.get(
       const video =
         await bunnyResponse.json();
 
+        console.log("BUNNY VIDEO KEYS:", Object.keys(video));
       // =================================
       // STATUS MAP
       // =================================

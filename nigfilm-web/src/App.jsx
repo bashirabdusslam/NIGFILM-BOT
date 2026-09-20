@@ -3360,27 +3360,17 @@ async function buyMovie(
       `${film.id}/download` +
       `?webUserId=${user.id}`;
 
-    const anchor =
-      document.createElement(
-        "a"
-      );
+   const iframe =
+  document.createElement("iframe");
 
-    anchor.href =
-      downloadUrl;
+iframe.style.display = "none";
+iframe.src = downloadUrl;
 
-    anchor.download =
-      `${film.title || "NIGFILM"}.mp4`;
+document.body.appendChild(iframe);
 
-    anchor.style.display =
-      "none";
-
-    document.body.appendChild(
-      anchor
-    );
-
-    anchor.click();
-
-    anchor.remove();
+setTimeout(() => {
+  iframe.remove();
+}, 60 * 60 * 1000);
   }
 
   // ===================================================

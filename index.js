@@ -3203,67 +3203,11 @@ console.log(
     resolution: preferred,
   }
 );
-const bunnyResponse = await fetch(bunnyDownloadUrl, {
-  headers: req.headers.range
-    ? { Range: req.headers.range }
-    : {},
-});
 
-if (!bunnyResponse.ok && bunnyResponse.status !== 206) {
-  console.error(
-    "BUNNY DOWNLOAD FETCH ERROR:",
-    bunnyResponse.status
-  );
-
-  return res
-    .status(bunnyResponse.status)
-    .send("An kasa dauko film daga Bunny.");
-}
-
-const safeTitle =
-  String(film.title || `NIGFILM-${film.id}`)
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
-    .trim() || `NIGFILM-${film.id}`;
-
-res.status(bunnyResponse.status);
-
-res.setHeader(
-  "Content-Type",
-  bunnyResponse.headers.get("content-type") ||
-    "video/mp4"
+return res.redirect(
+  302,
+  bunnyDownloadUrl
 );
-
-res.setHeader(
-  "Content-Disposition",
-  `attachment; filename="${safeTitle}.mp4"`
-);
-
-const contentLength =
-  bunnyResponse.headers.get("content-length");
-
-if (contentLength) {
-  res.setHeader(
-    "Content-Length",
-    contentLength
-  );
-}
-
-const contentRange =
-  bunnyResponse.headers.get("content-range");
-
-if (contentRange) {
-  res.setHeader(
-    "Content-Range",
-    contentRange
-  );
-}
-
-res.setHeader("Accept-Ranges", "bytes");
-
-const arrayBuffer =
-  await bunnyResponse.arrayBuffer();
-
-return res.send(Buffer.from(arrayBuffer));
      
     } catch (error) {
       console.error(

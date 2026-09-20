@@ -3203,11 +3203,72 @@ console.log(
     resolution: preferred,
   }
 );
+const bunnyResponse = await fetch(bunnyDownloadUrl, {
+  headers: req.headers.range
+    ? { Range: req.headers.range }
+    : {},
+});
 
-return res.redirect(
-  302,
-  bunnyDownloadUrl
+if (!bunnyResponse.ok || !bunnyResponse.body) {
+  console.error(
+    "BUNNY DOWNLOAD STREAM ERROR:",
+    bunnyResponse.status
+  );
+
+  return res
+    .status(bunnyResponse.status || 502)
+    .send("An kasa dauko film daga Bunny.");
+}
+
+const safeTitle =
+  String(film.title || `NIGFILM-${film.id}`)
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .trim() || `NIGFILM-${film.id}`;
+
+res.status(bunnyResponse.status);
+
+res.setHeader(
+  "Content-Type",
+  bunnyResponse.headers.get("content-type") ||
+    "video/mp4"
 );
+
+res.setHeader(
+  "Content-Disposition",
+  `attachment; filename="${safeTitle}.mp4"`
+);
+
+const contentLength =
+  bunnyResponse.headers.get("content-length");
+
+if (contentLength) {
+  res.setHeader("Content-Length", contentLength);
+}
+
+const contentRange =
+  bunnyResponse.headers.get("content-range");
+
+if (contentRange) {
+  res.setHeader("Content-Range", contentRange);
+}
+
+res.setHeader("Accept-Ranges", "bytes");
+
+const downloadStream =
+  Readable.fromWeb(bunnyResponse.body);
+
+downloadStream.on("error", (error) => {
+  console.error(
+    "BUNNY DOWNLOAD PIPE ERROR:",
+    error
+  );
+
+  if (!res.destroyed) {
+    res.destroy(error);
+  }
+});
+
+return downloadStream.pipe(res);
      
     } catch (error) {
       console.error(

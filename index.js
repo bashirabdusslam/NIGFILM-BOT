@@ -5733,7 +5733,7 @@ if (!newBunnyVideoId) {
 
         bunny: {
          currentStatus: 0,
-currentProgress: 0,,
+currentProgress: 0,
 
 
     

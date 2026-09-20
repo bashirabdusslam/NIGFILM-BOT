@@ -5630,39 +5630,49 @@ app.post(
       // 5. TABBATAR VIDEO YANA BUNNY
       // =================================
 
-      const bunnyResponse =
-        await fetch(
-          `https://video.bunnycdn.com/library/${libraryId}/videos/${film.bunnyVideoId}`,
-          {
-            method: "GET",
+      // CREATE NEW VIDEO IN CURRENT BUNNY LIBRARY
+const createResponse = await fetch(
+  `https://video.bunnycdn.com/library/${libraryId}/videos`,
+  {
+    method: "POST",
+    headers: {
+      AccessKey: apiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      title: film.title || `NIGFILM-${film.id}`,
+    }),
+  }
+);
 
-            headers: {
-              AccessKey: apiKey,
-              Accept:
-                "application/json",
-            },
-          }
-        );
+if (!createResponse.ok) {
+  const errorText = await createResponse.text();
 
-      if (!bunnyResponse.ok) {
-        const errorText =
-          await bunnyResponse.text();
+  console.error(
+    "BUNNY REPLACE CREATE ERROR:",
+    createResponse.status,
+    errorText
+  );
 
-        console.error(
-          "âŒ BUNNY REPLACE CHECK ERROR:",
-          bunnyResponse.status,
-          errorText
-        );
+  return res.status(502).json({
+    success: false,
+    message: "An kasa kirkirar sabon video a Bunny.",
+  });
+}
 
-        return res.status(502).json({
-          success: false,
-          message:
-            "An kasa tabbatar da existing Bunny video.",
-        });
-      }
+const newBunnyVideo =
+  await createResponse.json();
 
-      const bunnyVideo =
-        await bunnyResponse.json();
+const newBunnyVideoId =
+  newBunnyVideo.guid;
+
+if (!newBunnyVideoId) {
+  return res.status(502).json({
+    success: false,
+    message: "Bunny bai dawo da sabon Video ID ba.",
+  });
+}
 
       // =================================
       // 6. Æ˜IRÆ˜IRI TUS AUTH EXPIRY
@@ -5680,7 +5690,7 @@ app.post(
         `${libraryId}` +
         `${apiKey}` +
         `${expirationTime}` +
-        `${film.bunnyVideoId}`;
+        ``${newBunnyVideoId}`;
 
       const signature =
         crypto
@@ -5698,7 +5708,8 @@ app.post(
           filmId: film.id,
           title: film.title,
           bunnyVideoId:
-            film.bunnyVideoId,
+          newBunnyVideoId,
+          
         }
       );
 
@@ -5717,15 +5728,15 @@ app.post(
           title: film.title,
 
           bunnyVideoId:
-            film.bunnyVideoId,
+  newBunnyVideoId,
         },
 
         bunny: {
-          currentStatus:
-            bunnyVideo.status,
+         currentStatus: 0,
+currentProgress: 0,,
 
-          currentProgress:
-            bunnyVideo.encodeProgress,
+
+    
         },
 
         upload: {
@@ -5736,8 +5747,7 @@ app.post(
             String(libraryId),
 
           videoId:
-            film.bunnyVideoId,
-
+  newBunnyVideoId,
           authorizationSignature:
             signature,
 

@@ -7263,92 +7263,133 @@ button.addEventListener(
 // ======================================================
 // BUNNY TUS UPLOAD CREDENTIALS
 // ======================================================
-
 app.post(
   "/api/admin/bunny/upload-credentials",
   async (req, res) => {
     try {
-      const filmId =
-        Number(req.body?.filmId);
+      const filmId = Number(req.body?.filmId);
+      const token = String(req.body?.token || "");
 
-      const token =
-        String(
-          req.body?.token || ""
-        );
-
-      if (
-        token !==
-        process.env.ADMIN_UPLOAD_SECRET
-      ) {
+      // 1. Admin security
+      if (token !== process.env.ADMIN_UPLOAD_SECRET) {
         return res.status(403).json({
           success: false,
-          message:
-            "Ba ka da izinin upload.",
+          message: "Ba ka da izinin upload.",
         });
       }
 
-      const film =
-        await prisma.film.findUnique({
-          where: {
-            id: filmId,
-          },
+      if (!Number.isInteger(filmId) || filmId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID bai dace ba.",
         });
+      }
 
-      if (
-        !film ||
-        !film.bunnyVideoId
-      ) {
+      // 2. Nemo film
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+        select: {
+          id: true,
+          title: true,
+          bunnyVideoId: true,
+        },
+      });
+
+      if (!film) {
         return res.status(404).json({
           success: false,
-          message:
-            "Film ko Bunny Video ID bai samu ba.",
+          message: "Ba a samu film din ba.",
         });
       }
 
+      // 3. Sabon Bunny config
       const libraryId =
-        process.env
-          .BUNNY_STREAM_LIBRARY_ID;
+        process.env.BUNNY_STREAM_LIBRARY_ID;
 
       const apiKey =
-        process.env
-          .BUNNY_STREAM_API_KEY;
+        process.env.BUNNY_STREAM_API_KEY;
 
-      if (
-        !libraryId ||
-        !apiKey
-      ) {
+      if (!libraryId || !apiKey) {
         return res.status(500).json({
           success: false,
-          message:
-            "Bunny config bai cika ba.",
+          message: "Bunny config bai cika ba.",
         });
       }
 
-      // 24 hours domin manyan films
+      // 4. Kirkiri SABON video a current Bunny library
+      const createResponse = await fetch(
+        `https://video.bunnycdn.com/library/${libraryId}/videos`,
+        {
+          method: "POST",
+          headers: {
+            AccessKey: apiKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            title: film.title || `NIGFILM-${film.id}`,
+          }),
+        }
+      );
+
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+
+        console.error(
+          "BUNNY CREATE VIDEO ERROR:",
+          createResponse.status,
+          errorText
+        );
+
+        return res.status(502).json({
+          success: false,
+          message: "An kasa kirkirar sabon video a Bunny.",
+        });
+      }
+
+      const newBunnyVideo =
+        await createResponse.json();
+
+      const newBunnyVideoId =
+        newBunnyVideo.guid;
+
+      if (!newBunnyVideoId) {
+        return res.status(502).json({
+          success: false,
+          message: "Bunny bai dawo da sabon Video ID ba.",
+        });
+      }
+
+      // 5. TUS authorization - 24 hours
       const expirationTime =
-        Math.floor(
-          Date.now() / 1000
-        ) +
+        Math.floor(Date.now() / 1000) +
         24 * 60 * 60;
 
       const signature =
         crypto
           .createHash("sha256")
           .update(
-            `${libraryId}${apiKey}${expirationTime}${film.bunnyVideoId}`
+            `${libraryId}${apiKey}${expirationTime}${newBunnyVideoId}`
           )
           .digest("hex");
 
+      console.log(
+        "BUNNY MIGRATION UPLOAD PREPARED:",
+        {
+          filmId: film.id,
+          oldBunnyVideoId: film.bunnyVideoId,
+          newBunnyVideoId,
+        }
+      );
+
+      // 6. Tura credentials zuwa frontend
       return res.status(200).json({
         success: true,
-
-        videoId:
-          film.bunnyVideoId,
-
-        libraryId,
-
+        videoId: newBunnyVideoId,
+        libraryId: String(libraryId),
         expirationTime,
-
         signature,
       });
     } catch (error) {
@@ -7365,6 +7406,7 @@ app.post(
     }
   }
 );
+
 // ======================================================
 // TELEGRAM PURCHASE DOWNLOAD
 // ======================================================

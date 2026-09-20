@@ -5687,10 +5687,10 @@ if (!newBunnyVideoId) {
       // =================================
 
       const signatureString =
-        `${libraryId}` +
-        `${apiKey}` +
-        `${expirationTime}` +
-        ``${newBunnyVideoId}`;
+  `${libraryId}` +
+  `${apiKey}` +
+  `${expirationTime}` +
+  `${newBunnyVideoId}`;
 
       const signature =
         crypto

@@ -5410,9 +5410,7 @@ app.post(
             "Ba a samu wannan film ba.",
         });
       }
-
-      let bunnyVideoId =
-        film.bunnyVideoId;
+let bunnyVideoId = null;
 
       // =================================
       // CREATE VIDEO IF NEEDED
@@ -5464,16 +5462,6 @@ app.post(
           `${libraryId}/` +
           `${bunnyVideoId}`;
 
-        await prisma.film.update({
-          where: {
-            id: filmId,
-          },
-
-          data: {
-            bunnyVideoId,
-            webVideoUrl,
-          },
-        });
       }
 
       // =================================
@@ -7265,24 +7253,18 @@ button.addEventListener(
 // ======================================================
 // ADMIN - BUNNY MOVIE UPLOAD COMPLETE
 // ======================================================
-
 app.post(
   "/api/admin/bunny/upload-complete",
+  requireAdmin,
   async (req, res) => {
     try {
       const filmId = Number(req.body?.filmId);
-      const token = String(req.body?.token || "");
+
       const bunnyVideoId = String(
         req.body?.bunnyVideoId || ""
       ).trim();
 
-      // Admin security
-      if (token !== process.env.ADMIN_UPLOAD_SECRET) {
-        return res.status(403).json({
-          success: false,
-          message: "Ba ka da izinin wannan aikin.",
-        });
-      }
+     
 
       if (
         !Number.isInteger(filmId) ||
@@ -7415,47 +7397,48 @@ app.post(
 // ======================================================
 // BUNNY TUS UPLOAD CREDENTIALS
 // ======================================================
+
 app.post(
   "/api/admin/bunny/upload-credentials",
+  requireAdmin,
   async (req, res) => {
     try {
-      const filmId = Number(req.body?.filmId);
-      const token = String(req.body?.token || "");
+      const filmId = Number(
+        req.body?.filmId
+      );
 
-      // 1. Admin security
-      if (token !== process.env.ADMIN_UPLOAD_SECRET) {
-        return res.status(403).json({
-          success: false,
-          message: "Ba ka da izinin upload.",
-        });
-      }
-
-      if (!Number.isInteger(filmId) || filmId <= 0) {
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Film ID bai dace ba.",
+          message:
+            "Film ID bai dace ba.",
         });
       }
 
-      // 2. Nemo film
-      const film = await prisma.film.findUnique({
-        where: {
-          id: filmId,
-        },
-        select: {
-          id: true,
-          title: true,
-          bunnyVideoId: true,
-        },
-      });
+      // 1. Nemo film
+      const film =
+        await prisma.film.findUnique({
+          where: {
+            id: filmId,
+          },
+
+          select: {
+            id: true,
+            title: true,
+            bunnyVideoId: true,
+          },
+        });
 
       if (!film) {
         return res.status(404).json({
           success: false,
-          message: "Ba a samu film din ba.",
+          message:
+            "Ba a samu film din ba.",
         });
       }
-
       // 3. Sabon Bunny config
       const libraryId =
         process.env.BUNNY_STREAM_LIBRARY_ID;

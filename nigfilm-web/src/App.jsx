@@ -3,8 +3,7 @@ import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
 import "./App.css";
 import PublicPages from "./PublicPages";
-import { Capacitor } from "@capacitor/core";
-import { PushNotifications } from "@capacitor/push-notifications";
+
 // =====================================================
 // CONFIG
 // =====================================================
@@ -339,133 +338,6 @@ const [adminStudioSuccess, setAdminStudioSuccess] =
     UI_TEXT[language]?.[key] ||
     UI_TEXT.ENGLISH[key] ||
     key;
-
-    useEffect(() => {
-  if (!Capacitor.isNativePlatform()) return;
-
-  let registrationListener;
-  let registrationErrorListener;
-  let receivedListener;
-  let actionListener;
-
-  async function setupPushNotifications() {
-    let permission =
-      await PushNotifications.checkPermissions();
-
-    if (permission.receive === "prompt") {
-      permission =
-        await PushNotifications.requestPermissions();
-    }
-
-    if (permission.receive !== "granted") {
-      console.log("Push notification permission not granted");
-      return;
-    }
-
-   registrationListener =
-  await PushNotifications.addListener(
-    "registration",
-    async (token) => {
-      try {
-        const sessionToken =
-          getSessionToken();
-
-        if (!sessionToken) {
-          console.log(
-            "Push token received, amma user bai login ba."
-          );
-          return;
-        }
-
-        const response = await fetch(
-          `${API_URL}/api/web/push/register`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization:
-                `Bearer ${sessionToken}`,
-            },
-            body: JSON.stringify({
-              token: token.value,
-              platform: "android",
-            }),
-          }
-        );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.message ||
-              "An kasa register push device."
-          );
-        }
-
-        console.log(
-          "✅ PUSH DEVICE REGISTERED:",
-          data.device
-        );
-      } catch (error) {
-        console.error(
-          "❌ PUSH DEVICE REGISTER ERROR:",
-          error
-        );
-      }
-    }
-  );
-
-    registrationErrorListener =
-      await PushNotifications.addListener(
-        "registrationError",
-        (error) => {
-          console.error(
-            "FCM REGISTRATION ERROR:",
-            error
-          );
-        }
-      );
-
-    receivedListener =
-      await PushNotifications.addListener(
-        "pushNotificationReceived",
-        (notification) => {
-          console.log(
-            "PUSH RECEIVED:",
-            notification
-          );
-        }
-      );
-
-    actionListener =
-      await PushNotifications.addListener(
-        "pushNotificationActionPerformed",
-        (action) => {
-          console.log(
-            "PUSH OPENED:",
-            action
-          );
-        }
-      );
-
-    await PushNotifications.register();
-  }
-
-  setupPushNotifications().catch((error) => {
-    console.error(
-      "PUSH SETUP ERROR:",
-      error
-    );
-  });
-
-  return () => {
-    registrationListener?.remove();
-    registrationErrorListener?.remove();
-    receivedListener?.remove();
-    actionListener?.remove();
-  };
-}, []);
 
   useEffect(() => {
     localStorage.setItem("nigfilm_language", language);
@@ -3531,131 +3403,176 @@ setTimeout(() => {
       // ===============================================
       // TUS REPLACE
       // ===============================================
+const upload =
+  new tus.Upload(
+    adminVideoFile,
+    {
+      endpoint:
+        uploadInfo.endpoint,
 
-      const upload =
-        new tus.Upload(
-          adminVideoFile,
-          {
-            endpoint:
-              uploadInfo.endpoint,
+      retryDelays: [
+        0,
+        3000,
+        5000,
+        10000,
+        20000,
+      ],
 
-            retryDelays: [
-              0,
-              3000,
-              5000,
-              10000,
-              20000,
-            ],
+      headers: {
+        AuthorizationSignature:
+          uploadInfo.authorizationSignature,
 
-            headers: {
-              AuthorizationSignature:
-                uploadInfo
-                  .authorizationSignature,
+        AuthorizationExpire:
+          uploadInfo.authorizationExpire,
 
-              AuthorizationExpire:
-                uploadInfo
-                  .authorizationExpire,
+        VideoId:
+          uploadInfo.videoId,
 
-              VideoId:
-                uploadInfo.videoId,
+        LibraryId:
+          uploadInfo.libraryId,
+      },
 
-              LibraryId:
-                uploadInfo.libraryId,
-            },
+      metadata: {
+        filetype:
+          adminVideoFile.type ||
+          "video/mp4",
 
-            metadata: {
-              filetype:
-                adminVideoFile.type ||
-                "video/mp4",
+        title:
+          adminVideoFile.name,
+      },
 
-              title:
-                adminVideoFile.name,
-            },
-
-            onError(error) {
-              console.error(
-                "BUNNY REPLACE ERROR:",
-                error
-              );
-
-              setUploading(false);
-
-              setUploadError(
-                error?.message ||
-                  "Replace Video bai yi nasara ba."
-              );
-            },
-
-            onProgress(
-              bytesUploaded,
-              bytesTotal
-            ) {
-              const percentage =
-                bytesTotal > 0
-                  ? (
-                      (bytesUploaded /
-                        bytesTotal) *
-                      100
-                    ).toFixed(1)
-                  : 0;
-
-              setUploadProgress(
-                Number(
-                  percentage
-                )
-              );
-            },
-
-            onSuccess() {
-              setUploading(false);
-
-              setUploadProgress(
-                100
-              );
-
-              setUploadSuccess(
-                `✅ "${data?.film?.title || adminVideoFile.name}" an maye gurbin video ɗinsa cikin nasara. Bunny zai sake transcoding.`
-              );
-
-              setAdminVideoFile(
-                null
-              );
-
-              loadBunnyStatus(
-                filmId
-              );
-            },
-          }
+      onError(error) {
+        console.error(
+          "BUNNY TUS UPLOAD ERROR:",
+          error
         );
 
-      const previousUploads =
-        await upload.findPreviousUploads();
+        setUploading(false);
 
-      if (
-        previousUploads.length >
-        0
+        setUploadError(
+          error?.message ||
+            "Upload bai yi nasara ba."
+        );
+      },
+
+      onProgress(
+        bytesUploaded,
+        bytesTotal
       ) {
-        upload.resumeFromPreviousUpload(
-          previousUploads[0]
+        const percentage =
+          bytesTotal > 0
+            ? (
+                (bytesUploaded /
+                  bytesTotal) *
+                100
+              ).toFixed(1)
+            : 0;
+
+        setUploadProgress(
+          Number(percentage)
         );
-      }
+      },
 
-      upload.start();
-    } catch (error) {
-      console.error(
-        "REPLACE VIDEO ERROR:",
-        error
-      );
+      async onSuccess() {
+        try {
+          setUploadProgress(100);
 
-      setUploading(false);
+          // ===========================================
+          // FINALIZE BUNNY MIGRATION IN DATABASE
+          // ===========================================
 
-      setUploadError(
-        error?.message ||
-          "An samu matsala wajen Replace Video."
-      );
+          const completeResponse =
+            await fetch(
+              `${API_URL}/api/admin/bunny/upload-complete`,
+              {
+                method: "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+
+                  Authorization:
+                    `Bearer ${getSessionToken()}`,
+                },
+
+                body: JSON.stringify({
+                  filmId,
+
+                  bunnyVideoId:
+                    uploadInfo.videoId,
+                }),
+              }
+            );
+
+          const completeData =
+            await readJson(
+              completeResponse
+            );
+
+          if (!completeResponse.ok) {
+            throw new Error(
+              completeData?.message ||
+                "Upload ya gama amma an kasa sabunta film a database."
+            );
+          }
+
+          setUploading(false);
+
+          setUploadSuccess(
+            `✅ "${data?.film?.title || adminVideoFile.name}" ya shiga sabon Bunny Stream. Ana processing dinsa.`
+          );
+
+          setAdminVideoFile(
+            null
+          );
+
+          await loadBunnyStatus(
+            filmId
+          );
+        } catch (error) {
+          console.error(
+            "BUNNY UPLOAD COMPLETE ERROR:",
+            error
+          );
+
+          setUploading(false);
+
+          setUploadError(
+            error?.message ||
+              "Upload ya gama amma an kasa kammala migration."
+          );
+        }
+      },
     }
-  }
+  );
 
+const previousUploads =
+  await upload.findPreviousUploads();
+
+if (
+  previousUploads.length > 0
+) {
+  upload.resumeFromPreviousUpload(
+    previousUploads[0]
+  );
+}
+
+upload.start();
+
+} catch (error) {
+  console.error(
+    "ADMIN UPLOAD ERROR:",
+    error
+  );
+
+  setUploading(false);
+
+  setUploadError(
+    error?.message ||
+      "An samu matsala wajen upload."
+  );
+}
+}
   // ===================================================
   // ADMIN - UPLOAD VIDEO TO BUNNY
   // ===================================================

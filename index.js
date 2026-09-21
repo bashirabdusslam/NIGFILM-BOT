@@ -7260,6 +7260,11 @@ app.post(
   requireAdmin,
   async (req, res) => {
     try {
+      console.log("BUNNY UPLOAD COMPLETE REQUEST RECEIVED:", {
+  filmId: req.body?.filmId,
+  bunnyVideoId: req.body?.bunnyVideoId,
+  hasAuthorization: Boolean(req.headers.authorization),
+});
       const filmId = Number(req.body?.filmId);
 
       const bunnyVideoId = String(

@@ -3101,11 +3101,13 @@ if (!purchase && !activePremium) {
         const text =
           await infoResponse.text();
 
-        console.error(
-          "âŒ BUNNY VIDEO INFO ERROR:",
-          infoResponse.status,
-          text
-        );
+          console.error("BUNNY VIDEO INFO ERROR:", {
+  status: infoResponse.status,
+  filmId: film.id,
+  bunnyVideoId: film.bunnyVideoId,
+  libraryId,
+  response: text,
+});
 
         return res.status(502).json({
           success: false,

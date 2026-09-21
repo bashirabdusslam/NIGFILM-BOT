@@ -7206,6 +7206,7 @@ button.addEventListener(
                   body: JSON.stringify({
                     filmId,
                     token,
+                    bunnyVideoId: credentials.videoId,
                   }),
                 }
               );
@@ -7260,6 +7261,157 @@ button.addEventListener(
     }
   }
 );
+
+// ======================================================
+// ADMIN - BUNNY MOVIE UPLOAD COMPLETE
+// ======================================================
+
+app.post(
+  "/api/admin/bunny/upload-complete",
+  async (req, res) => {
+    try {
+      const filmId = Number(req.body?.filmId);
+      const token = String(req.body?.token || "");
+      const bunnyVideoId = String(
+        req.body?.bunnyVideoId || ""
+      ).trim();
+
+      // Admin security
+      if (token !== process.env.ADMIN_UPLOAD_SECRET) {
+        return res.status(403).json({
+          success: false,
+          message: "Ba ka da izinin wannan aikin.",
+        });
+      }
+
+      if (
+        !Number.isInteger(filmId) ||
+        filmId <= 0 ||
+        !bunnyVideoId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Film ID ko Bunny Video ID bai dace ba.",
+        });
+      }
+
+      const libraryId =
+        process.env.BUNNY_STREAM_LIBRARY_ID;
+
+      const apiKey =
+        process.env.BUNNY_STREAM_API_KEY;
+
+      const cdnHostname =
+        process.env.BUNNY_STREAM_CDN_HOSTNAME;
+
+      if (!libraryId || !apiKey || !cdnHostname) {
+        return res.status(500).json({
+          success: false,
+          message: "Bunny config bai cika ba.",
+        });
+      }
+
+      // Tabbatar sabon video yana current Bunny library
+      const bunnyResponse = await fetch(
+        `https://video.bunnycdn.com/library/${libraryId}/videos/${bunnyVideoId}`,
+        {
+          headers: {
+            AccessKey: apiKey,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!bunnyResponse.ok) {
+        const errorText = await bunnyResponse.text();
+
+        console.error(
+          "BUNNY UPLOAD COMPLETE VERIFY ERROR:",
+          bunnyResponse.status,
+          errorText
+        );
+
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa tabbatar da sabon video a Bunny.",
+        });
+      }
+
+      const film = await prisma.film.findUnique({
+        where: {
+          id: filmId,
+        },
+        select: {
+          id: true,
+          title: true,
+          bunnyVideoId: true,
+        },
+      });
+
+      if (!film) {
+        return res.status(404).json({
+          success: false,
+          message: "Ba a samu film din ba.",
+        });
+      }
+
+      const oldBunnyVideoId = film.bunnyVideoId;
+
+      const hostname = String(cdnHostname)
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "");
+
+      const webVideoUrl =
+        `https://${hostname}/${bunnyVideoId}/playlist.m3u8`;
+
+      // Canza DB bayan upload ya gama kawai
+      const updatedFilm = await prisma.film.update({
+        where: {
+          id: filmId,
+        },
+        data: {
+          bunnyVideoId,
+          webVideoUrl,
+        },
+        select: {
+          id: true,
+          title: true,
+          bunnyVideoId: true,
+          webVideoUrl: true,
+        },
+      });
+
+      console.log(
+        "BUNNY MIGRATION UPLOAD COMPLETE:",
+        {
+          filmId,
+          oldBunnyVideoId,
+          newBunnyVideoId: bunnyVideoId,
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Upload ya gama kuma an sabunta film zuwa sabon Bunny.",
+        film: updatedFilm,
+      });
+    } catch (error) {
+      console.error(
+        "BUNNY UPLOAD COMPLETE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "An samu matsala wajen kammala Bunny upload.",
+      });
+    }
+  }
+);
+
 // ======================================================
 // BUNNY TUS UPLOAD CREDENTIALS
 // ======================================================

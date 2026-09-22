@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import crypto from "crypto";
 import { Markup } from "telegraf";
 import { Readable } from "node:stream";
@@ -17,7 +17,7 @@ import registerPhotoHandlers from "./handlers/photoHandler.js";
 import registerVideoHandlers from "./handlers/videoHandler.js";
 import registerPaymentsHandlers from "./handlers/payments.js";
 import registerBunnyFilmHandler from "./handlers/bunnyFilmHandler.js";
-
+import registerWebFilmHandlers from "./handlers/webFilms.js";
 // ======================================================
 // EXPRESS APP
 // ======================================================
@@ -126,388 +126,8 @@ registerPhotoHandlers();
 registerVideoHandlers();
 registerPaymentsHandlers();
 registerBunnyFilmHandler();
-// ======================================================
-// NIGFILM WEB API
-// ======================================================
-// ======================================================
-// GET ALL FILMS
-// ======================================================
+registerWebFilmHandlers(app);
 
-app.get("/api/films", async (req, res) => {
-  try {
-    const films = await prisma.film.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-
-      select: {
-        id: true,
-        title: true,
-        description: true,
-       category: true,
-price: true,
-studioId: true,
-
-studio: {
-  select: {
-    id: true,
-    name: true,
-    slug: true,
-    logoUrl: true,
-  },
-},
-
-posterFileId: true,
-        posterUrl: true,
-
-        bunnyVideoId: true,
-        webVideoUrl: true,
-
-        featured: true,
-
-        trailerEnabled: true,
-        trailerUrl: true,
-        trailerBunnyVideoId: true,
-
-        createdAt: true,
-      },
-    });
-
-    const result = films.map((film) => ({
-      ...film,
-
-      posterUrl:
-        film.posterUrl ||
-        `/api/films/${film.id}/poster`,
-    }));
-
-    return res.status(200).json({
-      success: true,
-      count: result.length,
-      films: result,
-    });
-  } catch (error) {
-    console.error(
-      "❌ GET FILMS API ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen ɗauko fina-finai.",
-    });
-  }
-});
-
-// ======================================================
-// GET SINGLE FILM
-// ======================================================
-
-app.get(
-  "/api/films/:id",
-  async (req, res) => {
-    try {
-      const filmId =
-        Number(req.params.id);
-
-      if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Film ID bai dace ba.",
-        });
-      }
-
-      const film =
-        await prisma.film.findUnique({
-          where: {
-            id: filmId,
-          },
-
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            category: true,
-            price: true,
-
-            posterFileId: true,
-            posterUrl: true,
-
-            bunnyVideoId: true,
-            webVideoUrl: true,
-
-            featured: true,
-
-            trailerEnabled: true,
-            trailerUrl: true,
-            trailerBunnyVideoId: true,
-
-            createdAt: true,
-          },
-        });
-
-      if (!film) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Ba a samu wannan film ba.",
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-
-        film: {
-          ...film,
-
-          posterUrl:
-            film.posterUrl ||
-            `/api/films/${film.id}/poster`,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "❌ GET SINGLE FILM API ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "An samu matsala wajen ɗauko film.",
-      });
-    }
-  }
-);
-// ======================================================
-// GET CATEGORIES
-// ======================================================
-
-app.get(
-  "/api/categories",
-  async (req, res) => {
-    try {
-      const films =
-        await prisma.film.findMany({
-          select: {
-            category: true,
-          },
-        });
-
-      const categories = [
-        ...new Set(
-          films
-            .map(
-              (film) =>
-                film.category
-            )
-            .filter(Boolean)
-        ),
-      ].sort();
-
-      return res.status(200).json({
-        success: true,
-        count: categories.length,
-        categories,
-      });
-    } catch (error) {
-      console.error(
-        "âŒ GET CATEGORIES API ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "An samu matsala wajen É—auko categories.",
-      });
-    }
-  }
-);
-
-// ======================================================
-// SEARCH FILMS
-// ======================================================
-
-app.get(
-  "/api/search",
-  async (req, res) => {
-    try {
-      const query = String(
-        req.query.q || ""
-      ).trim();
-
-      if (!query) {
-        return res.status(200).json({
-          success: true,
-          count: 0,
-          films: [],
-        });
-      }
-
-      const films =
-        await prisma.film.findMany({
-          where: {
-            OR: [
-              {
-                title: {
-                  contains: query,
-                  mode: "insensitive",
-                },
-              },
-
-              {
-                description: {
-                  contains: query,
-                  mode: "insensitive",
-                },
-              },
-
-              {
-                category: {
-                  contains: query,
-                  mode: "insensitive",
-                },
-              },
-            ],
-          },
-
-          orderBy: {
-            createdAt: "desc",
-          },
-
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            category: true,
-            price: true,
-            posterFileId: true,
-
-bunnyVideoId: true,
-webVideoUrl: true,
-
-            createdAt: true,
-          },
-        });
-
-      const result =
-        films.map((film) => ({
-          ...film,
-
-          posterUrl:
-            `/api/films/${film.id}/poster`,
-        }));
-
-      return res.status(200).json({
-        success: true,
-        count: result.length,
-        films: result,
-      });
-    } catch (error) {
-      console.error(
-        "âŒ SEARCH FILMS API ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "An samu matsala wajen neman film.",
-      });
-    }
-  }
-);
-
-// ======================================================
-// FILM POSTER PROXY
-// ======================================================
-
-app.get(
-  "/api/films/:id/poster",
-  async (req, res) => {
-    try {
-      const filmId =
-        Number(req.params.id);
-
-      if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0
-      ) {
-        return res.sendStatus(400);
-      }
-
-      const film =
-        await prisma.film.findUnique({
-          where: {
-            id: filmId,
-          },
-
-          select: {
-            posterFileId: true,
-          },
-        });
-
-      if (
-        !film ||
-        !film.posterFileId
-      ) {
-        return res.sendStatus(404);
-      }
-
-      const fileLink =
-        await bot.telegram.getFileLink(
-          film.posterFileId
-        );
-
-      const response =
-        await fetch(fileLink.href);
-
-      if (!response.ok) {
-        console.error(
-          "âŒ TELEGRAM POSTER FETCH FAILED:",
-          response.status
-        );
-
-        return res.sendStatus(502);
-      }
-
-      const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "image/jpeg";
-
-      res.setHeader(
-        "Content-Type",
-        contentType
-      );
-
-      res.setHeader(
-        "Cache-Control",
-        "public, max-age=3600"
-      );
-
-      const imageBuffer =
-        Buffer.from(
-          await response.arrayBuffer()
-        );
-
-      return res.send(imageBuffer);
-    } catch (error) {
-      console.error(
-        "âŒ POSTER API ERROR:",
-        error
-      );
-
-      return res.sendStatus(500);
-    }
-  }
-);
 // ======================================================
 // WEB AUTH HELPERS
 // ======================================================
@@ -3101,13 +2721,11 @@ if (!purchase && !activePremium) {
         const text =
           await infoResponse.text();
 
-          console.error("BUNNY VIDEO INFO ERROR:", {
-  status: infoResponse.status,
-  filmId: film.id,
-  bunnyVideoId: film.bunnyVideoId,
-  libraryId,
-  response: text,
-});
+        console.error(
+          "âŒ BUNNY VIDEO INFO ERROR:",
+          infoResponse.status,
+          text
+        );
 
         return res.status(502).json({
           success: false,
@@ -3189,10 +2807,12 @@ if (!purchase && !activePremium) {
       const token =
         `HS256-${signature}`;
 
-      const bunnyDownloadUrl =
-        `https://${hostname}${bunnyPath}` +
-        `?token=${encodeURIComponent(token)}` +
-        `&expires=${expires}`;
+const bunnyDownloadUrl =
+  `https://${hostname}${bunnyPath}` +
+  `?token=${encodeURIComponent(token)}` +
+  `&expires=${expires}`;
+  
+
 // =================================
 // REDIRECT USER DIRECTLY TO BUNNY
 // =================================
@@ -3205,72 +2825,11 @@ console.log(
     resolution: preferred,
   }
 );
-const bunnyResponse = await fetch(bunnyDownloadUrl, {
-  headers: req.headers.range
-    ? { Range: req.headers.range }
-    : {},
-});
 
-if (!bunnyResponse.ok || !bunnyResponse.body) {
-  console.error(
-    "BUNNY DOWNLOAD STREAM ERROR:",
-    bunnyResponse.status
-  );
-
-  return res
-    .status(bunnyResponse.status || 502)
-    .send("An kasa dauko film daga Bunny.");
-}
-
-const safeTitle =
-  String(film.title || `NIGFILM-${film.id}`)
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
-    .trim() || `NIGFILM-${film.id}`;
-
-res.status(bunnyResponse.status);
-
-res.setHeader(
-  "Content-Type",
-  bunnyResponse.headers.get("content-type") ||
-    "video/mp4"
+return res.redirect(
+  302,
+  bunnyDownloadUrl
 );
-
-res.setHeader(
-  "Content-Disposition",
-  `attachment; filename="${safeTitle}.mp4"`
-);
-
-const contentLength =
-  bunnyResponse.headers.get("content-length");
-
-if (contentLength) {
-  res.setHeader("Content-Length", contentLength);
-}
-
-const contentRange =
-  bunnyResponse.headers.get("content-range");
-
-if (contentRange) {
-  res.setHeader("Content-Range", contentRange);
-}
-
-res.setHeader("Accept-Ranges", "bytes");
-
-const downloadStream =
-  Readable.fromWeb(bunnyResponse.body);
-
-downloadStream.on("error", (error) => {
-  console.error(
-    "BUNNY DOWNLOAD PIPE ERROR:",
-    error
-  );
-
-  if (!res.destroyed) {
-    res.destroy(error);
-  }
-});
-
-return downloadStream.pipe(res);
      
     } catch (error) {
       console.error(
@@ -5412,7 +4971,9 @@ app.post(
             "Ba a samu wannan film ba.",
         });
       }
-let bunnyVideoId = null;
+
+      let bunnyVideoId =
+        film.bunnyVideoId;
 
       // =================================
       // CREATE VIDEO IF NEEDED
@@ -5464,6 +5025,16 @@ let bunnyVideoId = null;
           `${libraryId}/` +
           `${bunnyVideoId}`;
 
+        await prisma.film.update({
+          where: {
+            id: filmId,
+          },
+
+          data: {
+            bunnyVideoId,
+            webVideoUrl,
+          },
+        });
       }
 
       // =================================
@@ -5620,49 +5191,39 @@ app.post(
       // 5. TABBATAR VIDEO YANA BUNNY
       // =================================
 
-      // CREATE NEW VIDEO IN CURRENT BUNNY LIBRARY
-const createResponse = await fetch(
-  `https://video.bunnycdn.com/library/${libraryId}/videos`,
-  {
-    method: "POST",
-    headers: {
-      AccessKey: apiKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      title: film.title || `NIGFILM-${film.id}`,
-    }),
-  }
-);
+      const bunnyResponse =
+        await fetch(
+          `https://video.bunnycdn.com/library/${libraryId}/videos/${film.bunnyVideoId}`,
+          {
+            method: "GET",
 
-if (!createResponse.ok) {
-  const errorText = await createResponse.text();
+            headers: {
+              AccessKey: apiKey,
+              Accept:
+                "application/json",
+            },
+          }
+        );
 
-  console.error(
-    "BUNNY REPLACE CREATE ERROR:",
-    createResponse.status,
-    errorText
-  );
+      if (!bunnyResponse.ok) {
+        const errorText =
+          await bunnyResponse.text();
 
-  return res.status(502).json({
-    success: false,
-    message: "An kasa kirkirar sabon video a Bunny.",
-  });
-}
+        console.error(
+          "âŒ BUNNY REPLACE CHECK ERROR:",
+          bunnyResponse.status,
+          errorText
+        );
 
-const newBunnyVideo =
-  await createResponse.json();
+        return res.status(502).json({
+          success: false,
+          message:
+            "An kasa tabbatar da existing Bunny video.",
+        });
+      }
 
-const newBunnyVideoId =
-  newBunnyVideo.guid;
-
-if (!newBunnyVideoId) {
-  return res.status(502).json({
-    success: false,
-    message: "Bunny bai dawo da sabon Video ID ba.",
-  });
-}
+      const bunnyVideo =
+        await bunnyResponse.json();
 
       // =================================
       // 6. Æ˜IRÆ˜IRI TUS AUTH EXPIRY
@@ -5677,10 +5238,10 @@ if (!newBunnyVideoId) {
       // =================================
 
       const signatureString =
-  `${libraryId}` +
-  `${apiKey}` +
-  `${expirationTime}` +
-  `${newBunnyVideoId}`;
+        `${libraryId}` +
+        `${apiKey}` +
+        `${expirationTime}` +
+        `${film.bunnyVideoId}`;
 
       const signature =
         crypto
@@ -5698,8 +5259,7 @@ if (!newBunnyVideoId) {
           filmId: film.id,
           title: film.title,
           bunnyVideoId:
-          newBunnyVideoId,
-          
+            film.bunnyVideoId,
         }
       );
 
@@ -5718,15 +5278,15 @@ if (!newBunnyVideoId) {
           title: film.title,
 
           bunnyVideoId:
-  newBunnyVideoId,
+            film.bunnyVideoId,
         },
 
         bunny: {
-         currentStatus: 0,
-currentProgress: 0,
+          currentStatus:
+            bunnyVideo.status,
 
-
-    
+          currentProgress:
+            bunnyVideo.encodeProgress,
         },
 
         upload: {
@@ -5737,7 +5297,8 @@ currentProgress: 0,
             String(libraryId),
 
           videoId:
-  newBunnyVideoId,
+            film.bunnyVideoId,
+
           authorizationSignature:
             signature,
 
@@ -5891,7 +5452,6 @@ app.get(
       const video =
         await bunnyResponse.json();
 
-        console.log("BUNNY VIDEO KEYS:", Object.keys(video));
       // =================================
       // STATUS MAP
       // =================================
@@ -7196,7 +6756,6 @@ button.addEventListener(
                   body: JSON.stringify({
                     filmId,
                     token,
-                    bunnyVideoId: credentials.videoId,
                   }),
                 }
               );
@@ -7251,287 +6810,95 @@ button.addEventListener(
     }
   }
 );
-
-// ======================================================
-// ADMIN - BUNNY MOVIE UPLOAD COMPLETE
-// ======================================================
-app.post(
-  "/api/admin/bunny/upload-complete",
-  requireAdmin,
-  async (req, res) => {
-    try {
-      console.log("BUNNY UPLOAD COMPLETE REQUEST RECEIVED:", {
-  filmId: req.body?.filmId,
-  bunnyVideoId: req.body?.bunnyVideoId,
-  hasAuthorization: Boolean(req.headers.authorization),
-});
-      const filmId = Number(req.body?.filmId);
-
-      const bunnyVideoId = String(
-        req.body?.bunnyVideoId || ""
-      ).trim();
-
-     
-
-      if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0 ||
-        !bunnyVideoId
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Film ID ko Bunny Video ID bai dace ba.",
-        });
-      }
-
-      const libraryId =
-        process.env.BUNNY_STREAM_LIBRARY_ID;
-
-      const apiKey =
-        process.env.BUNNY_STREAM_API_KEY;
-
-      const cdnHostname =
-        process.env.BUNNY_STREAM_CDN_HOSTNAME;
-
-      if (!libraryId || !apiKey || !cdnHostname) {
-        return res.status(500).json({
-          success: false,
-          message: "Bunny config bai cika ba.",
-        });
-      }
-
-      // Tabbatar sabon video yana current Bunny library
-      const bunnyResponse = await fetch(
-        `https://video.bunnycdn.com/library/${libraryId}/videos/${bunnyVideoId}`,
-        {
-          headers: {
-            AccessKey: apiKey,
-            Accept: "application/json",
-          },
-        }
-      );
-
-      if (!bunnyResponse.ok) {
-        const errorText = await bunnyResponse.text();
-
-        console.error(
-          "BUNNY UPLOAD COMPLETE VERIFY ERROR:",
-          bunnyResponse.status,
-          errorText
-        );
-
-        return res.status(502).json({
-          success: false,
-          message:
-            "An kasa tabbatar da sabon video a Bunny.",
-        });
-      }
-
-      const film = await prisma.film.findUnique({
-        where: {
-          id: filmId,
-        },
-        select: {
-          id: true,
-          title: true,
-          bunnyVideoId: true,
-        },
-      });
-
-      if (!film) {
-        return res.status(404).json({
-          success: false,
-          message: "Ba a samu film din ba.",
-        });
-      }
-
-      const oldBunnyVideoId = film.bunnyVideoId;
-
-      const hostname = String(cdnHostname)
-        .replace(/^https?:\/\//, "")
-        .replace(/\/+$/, "");
-
-      const webVideoUrl =
-        `https://${hostname}/${bunnyVideoId}/playlist.m3u8`;
-
-      // Canza DB bayan upload ya gama kawai
-      const updatedFilm = await prisma.film.update({
-        where: {
-          id: filmId,
-        },
-        data: {
-          bunnyVideoId,
-          webVideoUrl,
-        },
-        select: {
-          id: true,
-          title: true,
-          bunnyVideoId: true,
-          webVideoUrl: true,
-        },
-      });
-
-      console.log(
-        "BUNNY MIGRATION UPLOAD COMPLETE:",
-        {
-          filmId,
-          oldBunnyVideoId,
-          newBunnyVideoId: bunnyVideoId,
-        }
-      );
-
-      return res.status(200).json({
-        success: true,
-        message:
-          "Upload ya gama kuma an sabunta film zuwa sabon Bunny.",
-        film: updatedFilm,
-      });
-    } catch (error) {
-      console.error(
-        "BUNNY UPLOAD COMPLETE ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "An samu matsala wajen kammala Bunny upload.",
-      });
-    }
-  }
-);
-
 // ======================================================
 // BUNNY TUS UPLOAD CREDENTIALS
 // ======================================================
 
 app.post(
   "/api/admin/bunny/upload-credentials",
-  requireAdmin,
   async (req, res) => {
     try {
-      const filmId = Number(
-        req.body?.filmId
-      );
+      const filmId =
+        Number(req.body?.filmId);
+
+      const token =
+        String(
+          req.body?.token || ""
+        );
 
       if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0
+        token !==
+        process.env.ADMIN_UPLOAD_SECRET
       ) {
-        return res.status(400).json({
+        return res.status(403).json({
           success: false,
           message:
-            "Film ID bai dace ba.",
+            "Ba ka da izinin upload.",
         });
       }
 
-      // 1. Nemo film
       const film =
         await prisma.film.findUnique({
           where: {
             id: filmId,
           },
-
-          select: {
-            id: true,
-            title: true,
-            bunnyVideoId: true,
-          },
         });
 
-      if (!film) {
+      if (
+        !film ||
+        !film.bunnyVideoId
+      ) {
         return res.status(404).json({
           success: false,
           message:
-            "Ba a samu film din ba.",
+            "Film ko Bunny Video ID bai samu ba.",
         });
       }
-      // 3. Sabon Bunny config
+
       const libraryId =
-        process.env.BUNNY_STREAM_LIBRARY_ID;
+        process.env
+          .BUNNY_STREAM_LIBRARY_ID;
 
       const apiKey =
-        process.env.BUNNY_STREAM_API_KEY;
+        process.env
+          .BUNNY_STREAM_API_KEY;
 
-      if (!libraryId || !apiKey) {
+      if (
+        !libraryId ||
+        !apiKey
+      ) {
         return res.status(500).json({
           success: false,
-          message: "Bunny config bai cika ba.",
+          message:
+            "Bunny config bai cika ba.",
         });
       }
 
-      // 4. Kirkiri SABON video a current Bunny library
-      const createResponse = await fetch(
-        `https://video.bunnycdn.com/library/${libraryId}/videos`,
-        {
-          method: "POST",
-          headers: {
-            AccessKey: apiKey,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            title: film.title || `NIGFILM-${film.id}`,
-          }),
-        }
-      );
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-
-        console.error(
-          "BUNNY CREATE VIDEO ERROR:",
-          createResponse.status,
-          errorText
-        );
-
-        return res.status(502).json({
-          success: false,
-          message: "An kasa kirkirar sabon video a Bunny.",
-        });
-      }
-
-      const newBunnyVideo =
-        await createResponse.json();
-
-      const newBunnyVideoId =
-        newBunnyVideo.guid;
-
-      if (!newBunnyVideoId) {
-        return res.status(502).json({
-          success: false,
-          message: "Bunny bai dawo da sabon Video ID ba.",
-        });
-      }
-
-      // 5. TUS authorization - 24 hours
+      // 24 hours domin manyan films
       const expirationTime =
-        Math.floor(Date.now() / 1000) +
+        Math.floor(
+          Date.now() / 1000
+        ) +
         24 * 60 * 60;
 
       const signature =
         crypto
           .createHash("sha256")
           .update(
-            `${libraryId}${apiKey}${expirationTime}${newBunnyVideoId}`
+            `${libraryId}${apiKey}${expirationTime}${film.bunnyVideoId}`
           )
           .digest("hex");
 
-      console.log(
-        "BUNNY MIGRATION UPLOAD PREPARED:",
-        {
-          filmId: film.id,
-          oldBunnyVideoId: film.bunnyVideoId,
-          newBunnyVideoId,
-        }
-      );
-
-      // 6. Tura credentials zuwa frontend
       return res.status(200).json({
         success: true,
-        videoId: newBunnyVideoId,
-        libraryId: String(libraryId),
+
+        videoId:
+          film.bunnyVideoId,
+
+        libraryId,
+
         expirationTime,
+
         signature,
       });
     } catch (error) {
@@ -7548,7 +6915,6 @@ app.post(
     }
   }
 );
-
 // ======================================================
 // TELEGRAM PURCHASE DOWNLOAD
 // ======================================================

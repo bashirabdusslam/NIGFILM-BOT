@@ -5533,232 +5533,11 @@ let bunnyVideoId = null;
     }
   }
 );
+
 // ======================================================
 // ADMIN - PREPARE BUNNY VIDEO REPLACE
 // ======================================================
 
-app.post(
-  "/api/admin/bunny/prepare-replace",
-  async (req, res) => {
-    try {
-      // =================================
-      // 1. KARÆI FILM ID
-      // =================================
-
-      const filmId = Number(
-        req.body?.filmId
-      );
-
-      if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Film ID bai dace ba.",
-        });
-      }
-
-      // =================================
-      // 2. BUNNY CONFIG
-      // =================================
-
-      const libraryId =
-        process.env.BUNNY_STREAM_LIBRARY_ID;
-
-      const apiKey =
-        process.env.BUNNY_STREAM_API_KEY;
-
-      if (!libraryId || !apiKey) {
-        return res.status(500).json({
-          success: false,
-          message:
-            "Bunny Stream config bai cika ba.",
-        });
-      }
-
-      // =================================
-      // 3. NEMO FILM A POSTGRESQL
-      // =================================
-
-      const film =
-        await prisma.film.findUnique({
-          where: {
-            id: filmId,
-          },
-
-          select: {
-            id: true,
-            title: true,
-            bunnyVideoId: true,
-            webVideoUrl: true,
-          },
-        });
-
-      if (!film) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Ba a samu wannan film ba.",
-        });
-      }
-
-      // =================================
-      // 4. DOLE FILM YA RIGA YA HAÆŠU DA BUNNY
-      // =================================
-
-      if (!film.bunnyVideoId) {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Wannan film bai da Bunny Video ID. Ka fara Upload to Bunny kafin Replace.",
-        });
-      }
-
-      // =================================
-      // 5. TABBATAR VIDEO YANA BUNNY
-      // =================================
-
-      // CREATE NEW VIDEO IN CURRENT BUNNY LIBRARY
-const createResponse = await fetch(
-  `https://video.bunnycdn.com/library/${libraryId}/videos`,
-  {
-    method: "POST",
-    headers: {
-      AccessKey: apiKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      title: film.title || `NIGFILM-${film.id}`,
-    }),
-  }
-);
-
-if (!createResponse.ok) {
-  const errorText = await createResponse.text();
-
-  console.error(
-    "BUNNY REPLACE CREATE ERROR:",
-    createResponse.status,
-    errorText
-  );
-
-  return res.status(502).json({
-    success: false,
-    message: "An kasa kirkirar sabon video a Bunny.",
-  });
-}
-
-const newBunnyVideo =
-  await createResponse.json();
-
-const newBunnyVideoId =
-  newBunnyVideo.guid;
-
-if (!newBunnyVideoId) {
-  return res.status(502).json({
-    success: false,
-    message: "Bunny bai dawo da sabon Video ID ba.",
-  });
-}
-
-      // =================================
-      // 6. Æ˜IRÆ˜IRI TUS AUTH EXPIRY
-      // =================================
-
-      const expirationTime =
-        Math.floor(Date.now() / 1000) +
-        6 * 60 * 60;
-
-      // =================================
-      // 7. Æ˜IRÆ˜IRI BUNNY TUS SIGNATURE
-      // =================================
-
-      const signatureString =
-  `${libraryId}` +
-  `${apiKey}` +
-  `${expirationTime}` +
-  `${newBunnyVideoId}`;
-
-      const signature =
-        crypto
-          .createHash("sha256")
-          .update(signatureString)
-          .digest("hex");
-
-      // =================================
-      // 8. LOG
-      // =================================
-
-      console.log(
-        "â™»ï¸ BUNNY REPLACE PREPARED:",
-        {
-          filmId: film.id,
-          title: film.title,
-          bunnyVideoId:
-          newBunnyVideoId,
-          
-        }
-      );
-
-      // =================================
-      // 9. TURA TEMP UPLOAD INFO ZUWA FRONTEND
-      // =================================
-
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Replace upload an shirya.",
-
-        film: {
-          id: film.id,
-          title: film.title,
-
-          bunnyVideoId:
-  newBunnyVideoId,
-        },
-
-        bunny: {
-         currentStatus: 0,
-currentProgress: 0,
-
-
-    
-        },
-
-        upload: {
-          endpoint:
-            "https://video.bunnycdn.com/tusupload",
-
-          libraryId:
-            String(libraryId),
-
-          videoId:
-  newBunnyVideoId,
-          authorizationSignature:
-            signature,
-
-          authorizationExpire:
-            String(expirationTime),
-        },
-      });
-    } catch (error) {
-      console.error(
-        "âŒ PREPARE BUNNY REPLACE ERROR:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "An samu matsala wajen shirya Replace Video.",
-      });
-    }
-  }
-);
 // ======================================================
 // ADMIN - GET BUNNY VIDEO STATUS
 // ======================================================
@@ -7183,23 +6962,41 @@ button.addEventListener(
               status.textContent =
                 "✅ Upload ya gama. Bunny yana encoding film ɗin.";
 
-              await fetch(
-                "/api/admin/bunny/upload-complete",
-                {
-                  method: "POST",
+              const completeResponse =
+  await fetch(
+    "/api/admin/bunny/upload-complete",
+    {
+      method: "POST",
 
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
-                  body: JSON.stringify({
-                    filmId,
-                    token,
-                    bunnyVideoId: credentials.videoId,
-                  }),
-                }
-              );
+      body: JSON.stringify({
+        filmId,
+        token,
+        bunnyVideoId:
+          credentials.videoId,
+      }),
+    }
+  );
+
+const completeResult =
+  await completeResponse.json();
+
+if (!completeResponse.ok) {
+  throw new Error(
+    completeResult.message ||
+      "Upload ya gama amma an kasa sabunta film a NIGFILM."
+  );
+}
+
+status.className =
+  "status success";
+
+status.textContent =
+  "✅ Upload ya gama kuma an sabunta film a NIGFILM.";
             },
           }
         );

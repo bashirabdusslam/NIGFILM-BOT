@@ -708,34 +708,23 @@ export default function registerBunnyUploadHandlers(
           });
         }
 
-        // ================================================
-        // CONFIRM OLD VIDEO STILL EXISTS
-        // ================================================
+      // ================================================
+// OLD VIDEO MAY BELONG TO PREVIOUS BUNNY LIBRARY
+// ================================================
+//
+// Do not block replacement if the old Bunny ID
+// is no longer available in the current library.
+// The database will remain unchanged until the
+// new replacement video is fully ready.
+//
 
-        const oldVideoCheck =
-          await getBunnyVideo(
-            libraryId,
-            apiKey,
-            film.bunnyVideoId
-          );
-
-        if (
-          !oldVideoCheck
-            .response.ok
-        ) {
-          console.error(
-            "❌ OLD BUNNY VIDEO CHECK FAILED:",
-            oldVideoCheck
-              .response.status
-          );
-
-          return res.status(502).json({
-            success: false,
-            message:
-              "An kasa tabbatar da existing Bunny video.",
-          });
-        }
-
+console.log(
+  "♻️ BUNNY MIGRATION REPLACE:",
+  {
+    filmId: film.id,
+    oldVideoId: film.bunnyVideoId,
+  }
+);
         // ================================================
         // CREATE FRESH REPLACEMENT VIDEO
         // ================================================
@@ -1146,60 +1135,14 @@ export default function registerBunnyUploadHandlers(
               "Database switch verification ya kasa. Ba a goge tsohon Bunny video ba.",
           });
         }
+// ================================================
+// OLD VIDEO BELONGS TO PREVIOUS BUNNY LIBRARY
+// DO NOT DELETE IT USING CURRENT BUNNY CREDENTIALS
+// ================================================
 
-        // ================================================
-        // DELETE OLD VIDEO ONLY AFTER SUCCESSFUL SWITCH
-        // ================================================
-
-        let oldVideoDeleted =
-          false;
-
-        let oldVideoDeleteStatus =
-          null;
-
-        try {
-          const deleteResponse =
-            await deleteBunnyVideo(
-              libraryId,
-              apiKey,
-              oldVideoId
-            );
-
-          oldVideoDeleteStatus =
-            deleteResponse.status;
-
-          oldVideoDeleted =
-            deleteResponse.ok;
-
-          if (
-            !deleteResponse.ok
-          ) {
-            const deleteErrorText =
-              await deleteResponse
-                .text()
-                .catch(() => "");
-
-            console.error(
-              "⚠️ OLD BUNNY VIDEO DELETE FAILED:",
-              {
-                oldVideoId,
-                status:
-                  deleteResponse.status,
-
-                response:
-                  deleteErrorText,
-              }
-            );
-          }
-        } catch (
-          deleteError
-        ) {
-          console.error(
-            "⚠️ OLD BUNNY VIDEO DELETE ERROR:",
-            deleteError
-          );
-        }
-
+const oldVideoDeleted = false;
+const oldVideoDeleteStatus = null;
+       
         console.log(
           "✅ SAFE BUNNY REPLACEMENT COMPLETE:",
           {
@@ -1216,11 +1159,8 @@ export default function registerBunnyUploadHandlers(
         return res.status(200).json({
           success: true,
 
-          message:
-            oldVideoDeleted
-              ? "Replacement ya gama. An sabunta film kuma an goge tsohon Bunny video."
-              : "Replacement ya gama kuma film yana amfani da sabon video. Amma goge tsohon Bunny video bai yi nasara ba.",
-
+         message:
+  "Replacement ya gama. An sabunta film zuwa sabon Bunny video.",
           film:
             updatedFilm,
 

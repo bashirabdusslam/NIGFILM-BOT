@@ -41,6 +41,11 @@ import {
   processSingleFilmPayment,
   processCartPayment,
 } from "./handlers/paymentProcessors.js";
+
+import {
+  requireWebUser,
+  requireAdmin,
+} from "./handlers/webSessions.js";
 // ======================================================
 // EXPRESS APP
 // ======================================================
@@ -842,108 +847,6 @@ app.post(
 );
 
 // ======================================================
-// REQUIRE WEB USER
-// ======================================================
-
-async function requireWebUser(
-  req,
-  res,
-  next
-) {
-  try {
-    const authorization =
-      String(
-        req.headers.authorization ||
-          ""
-      );
-
-    if (
-      !authorization.startsWith(
-        "Bearer "
-      )
-    ) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authentication required.",
-      });
-    }
-
-    const token =
-      authorization
-        .slice(7)
-        .trim();
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session token bai samu ba.",
-      });
-    }
-
-    const tokenHash =
-      hashSessionToken(token);
-
-    const session =
-      await prisma.webSession.findUnique({
-        where: {
-          tokenHash,
-        },
-
-        include: {
-          user: true,
-        },
-      });
-
-    if (!session) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session bai dace ba.",
-      });
-    }
-
-    if (
-      session.expiresAt <
-      new Date()
-    ) {
-      await prisma.webSession
-        .delete({
-          where: {
-            id: session.id,
-          },
-        })
-        .catch(() => {});
-
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session ya kare.",
-      });
-    }
-
-    req.webUser =
-      session.user;
-
-    req.webSession =
-      session;
-
-    return next();
-  } catch (error) {
-    console.error(
-      "❌ REQUIRE WEB USER ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen tabbatar da account.",
-    });
-  }
-}
-// ======================================================
 // REGISTER WEB AUTH HANDLERS
 // ======================================================
 
@@ -1150,119 +1053,7 @@ async function hasActiveAdMovieUnlock(
 
   return Boolean(unlock);
 }
-// =================================
-// REQUIRE ADMIN
-// =================================
 
-async function requireAdmin(
-  req,
-  res,
-  next
-) {
-  try {
-    const authorization =
-      String(
-        req.headers.authorization ||
-          ""
-      );
-
-    if (
-      !authorization.startsWith(
-        "Bearer "
-      )
-    ) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Authentication required.",
-      });
-    }
-
-    const token =
-      authorization
-        .slice(7)
-        .trim();
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session token bai samu ba.",
-      });
-    }
-
-    const tokenHash =
-      hashSessionToken(token);
-
-    const session =
-      await prisma.webSession.findUnique({
-        where: {
-          tokenHash,
-        },
-
-        include: {
-          user: true,
-        },
-      });
-
-    if (!session) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session bai dace ba.",
-      });
-    }
-
-    if (
-      session.expiresAt <
-      new Date()
-    ) {
-      await prisma.webSession
-        .delete({
-          where: {
-            id: session.id,
-          },
-        })
-        .catch(() => {});
-
-      return res.status(401).json({
-        success: false,
-        message:
-          "Session ya Æ™are.",
-      });
-    }
-
-    if (
-      session.user.role !==
-      "ADMIN"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Admin access required.",
-      });
-    }
-
-    req.webUser =
-      session.user;
-
-    req.webSession =
-      session;
-
-    return next();
-  } catch (error) {
-    console.error(
-      "âŒ REQUIRE ADMIN ERROR:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "An samu matsala wajen tabbatar da Admin.",
-    });
-  }
-}
 // ======================================================
 // REGISTER ADMIN PASSWORD RESET HANDLERS
 // ======================================================

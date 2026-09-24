@@ -3190,7 +3190,7 @@ if (!purchase && !activePremium) {
 const bunnyDownloadUrl =
   `https://${hostname}${bunnyPath}` +
   `?token=${encodeURIComponent(token)}` +
-  `&expires=${expires}` +
+  `&expires=${expires}`;
   
 
 // =================================

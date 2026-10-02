@@ -3473,175 +3473,76 @@ const upload =
         );
       },
 
-async onSuccess() {
-  try {
-    setUploadProgress(100);
+      async onSuccess() {
+        try {
+          setUploadProgress(100);
 
-    const oldVideoId =
-      String(
-        data?.film?.currentBunnyVideoId ||
-          ""
-      ).trim();
+          // ===========================================
+          // FINALIZE BUNNY MIGRATION IN DATABASE
+          // ===========================================
 
-    const replacementVideoId =
-      String(
-        data?.replacement?.videoId ||
-          uploadInfo?.videoId ||
-          ""
-      ).trim();
+          const completeResponse =
+            await fetch(
+              `${API_URL}/api/admin/bunny/upload-complete`,
+              {
+                method: "POST",
 
-    if (
-      !oldVideoId ||
-      !replacementVideoId
-    ) {
-      throw new Error(
-        "Backend bai dawo da oldVideoId ko replacementVideoId ba."
-      );
-    }
+                headers: {
+                  "Content-Type":
+                    "application/json",
 
-    // ===========================================
-    // WAIT FOR NEW BUNNY VIDEO TO BECOME READY
-    // ===========================================
+                  Authorization:
+                    `Bearer ${getSessionToken()}`,
+                },
 
-    setUploadSuccess(
-      "✅ Upload ya gama. Bunny yana processing sabon video..."
-    );
+                body: JSON.stringify({
+                  filmId,
 
-    let replacementReady = false;
-    let lastStatus = null;
+                  bunnyVideoId:
+                    uploadInfo.videoId,
+                }),
+              }
+            );
 
-    // Wait up to about 30 minutes.
-    for (
-      let attempt = 0;
-      attempt < 120;
-      attempt += 1
-    ) {
-      const statusResponse =
-        await fetch(
-          `${API_URL}/api/admin/bunny/replacement-status/${encodeURIComponent(
-            replacementVideoId
-          )}`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${getSessionToken()}`,
-            },
+          const completeData =
+            await readJson(
+              completeResponse
+            );
+
+          if (!completeResponse.ok) {
+            throw new Error(
+              completeData?.message ||
+                "Upload ya gama amma an kasa sabunta film a database."
+            );
           }
-        );
 
-      const statusData =
-        await readJson(
-          statusResponse
-        );
+          setUploading(false);
 
-      if (!statusResponse.ok) {
-        throw new Error(
-          statusData?.message ||
-            "An kasa duba processing status na sabon video."
-        );
-      }
+          setUploadSuccess(
+            `✅ "${data?.film?.title || adminVideoFile.name}" ya shiga sabon Bunny Stream. Ana processing dinsa.`
+          );
 
-      lastStatus =
-        statusData?.bunny || null;
+          setAdminVideoFile(
+            null
+          );
 
-      if (lastStatus?.failed) {
-        throw new Error(
-          "Bunny processing na sabon video ya gaza."
-        );
-      }
+          await loadBunnyStatus(
+            filmId
+          );
+        } catch (error) {
+          console.error(
+            "BUNNY UPLOAD COMPLETE ERROR:",
+            error
+          );
 
-      if (lastStatus?.ready) {
-        replacementReady = true;
-        break;
-      }
+          setUploading(false);
 
-      setUploadSuccess(
-        `⏳ Bunny yana processing sabon video: ${
-          lastStatus?.label ||
-          lastStatus?.status ||
-          "Processing"
-        }`
-      );
-
-      await new Promise(
-        (resolve) =>
-          setTimeout(resolve, 15000)
-      );
-    }
-
-    if (!replacementReady) {
-      throw new Error(
-        "Bunny processing bai gama cikin lokacin jira ba. Tsohon video bai canza ba."
-      );
-    }
-
-    // ===========================================
-    // SWITCH DATABASE TO NEW BUNNY VIDEO
-    // ===========================================
-
-    const completeResponse =
-      await fetch(
-        `${API_URL}/api/admin/bunny/complete-replace`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization:
-              `Bearer ${getSessionToken()}`,
-          },
-
-          body: JSON.stringify({
-            filmId,
-            oldVideoId,
-            replacementVideoId,
-          }),
+          setUploadError(
+            error?.message ||
+              "Upload ya gama amma an kasa kammala migration."
+          );
         }
-      );
-
-    const completeData =
-      await readJson(
-        completeResponse
-      );
-
-    if (!completeResponse.ok) {
-      throw new Error(
-        completeData?.message ||
-          "Sabon video ya shirya amma an kasa sauya film a database."
-      );
-    }
-
-    setUploading(false);
-
-    setUploadSuccess(
-      `✅ "${
-        data?.film?.title ||
-        adminVideoFile.name
-      }" an mayar da shi zuwa sabon Bunny Stream cikin nasara.`
-    );
-
-    setAdminVideoFile(null);
-
-    await loadBunnyStatus(
-      filmId
-    );
-  } catch (error) {
-    console.error(
-      "BUNNY REPLACE COMPLETE ERROR:",
-      error
-    );
-
-    setUploading(false);
-
-    setUploadError(
-      error?.message ||
-        "Upload ya gama amma an kasa kammala Bunny migration."
-    );
-  }
-},
-
+      },
     }
   );
 

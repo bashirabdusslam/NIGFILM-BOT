@@ -121,10 +121,10 @@ export default function registerMyMoviesHandlers() {
                 ),
               ],
               [
-                Markup.button.callback(
-                  "⬇️ Download Movie",
-                  `download_${film.id}`
-                ),
+             Markup.button.url(
+  "⬇️ Download Movie",
+  `${PUBLIC_BASE_URL}/api/telegram/movies/${film.id}/download?telegramId=${encodeURIComponent(telegramId)}`
+)
               ],
               [
                 Markup.button.callback(

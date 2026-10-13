@@ -11,8 +11,7 @@ import PublicPages from "./PublicPages";
 const API_URL =
   globalThis.__NIGFILM_CONFIG__?.API_URL ||
   import.meta.env.VITE_API_URL ||
-   "https://nigfilm-bot-production.up.railway.app";
-
+   "https://nigfilm-bot.onrender.com";
 const BUNNY_LIBRARY_ID =
   import.meta.env.VITE_BUNNY_LIBRARY_ID ||
   "726332";

@@ -9726,40 +9726,31 @@ function escapeHtml(
       "&#039;"
     );
 }
-
 // ======================================================
 // START SERVER
 // ======================================================
 
-const server =
-  app.listen(
-    PORT,
-    async () => {
-      console.log(
-        `ðŸŒ NIGFILM server yana aiki a port ${PORT}`
-      );
+const server = app.listen(
+  PORT,
+  "0.0.0.0",
+  async () => {
+    console.log(`NIGFILM API listening on port ${PORT}`);
 
-      try {
-        await bot.telegram.deleteWebhook({
-          drop_pending_updates: false
-        });
-
-        await bot.launch();
-
-        console.log(
-          "Telegram polling started successfully."
-        );
-      } catch (error) {
-        console.error(
-          "START TELEGRAM POLLING ERROR:",
-          error
-        );
-      }
+    if (process.env.ENABLE_TELEGRAM_BOT === "false") {
+      console.log("Telegram polling disabled.");
+      return;
     }
-  );
 
-console.log(
-  "ðŸ¤– NIGFILM BOT & WEB API started successfully."
+    try {
+      await bot.telegram.deleteWebhook({
+        drop_pending_updates: false,
+      });
+
+      await bot.launch();
+    } catch (error) {
+      console.error("START TELEGRAM POLLING ERROR:", error);
+    }
+  }
 );
 
 // ======================================================

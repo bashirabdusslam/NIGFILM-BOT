@@ -7295,331 +7295,271 @@ app.post(
     }
   }
 );
+
 // ======================================================
 // TELEGRAM PURCHASE DOWNLOAD
 // ======================================================
 
-app.get(
-  "/api/telegram/movies/:filmId/download",
-  async (req, res) => {
-    try {
-      const filmId = Number(
-        req.params.filmId
-      );
+app.get("/api/telegram/movies/:filmId/download", async (req, res) => {
+  const controller = new AbortController();
 
-      const telegramId = String(
-        req.query.telegramId || ""
-      ).trim();
+  const stopDownload = () => {
+    if (!res.writableFinished) controller.abort();
+  };
 
-      if (
-        !Number.isInteger(filmId) ||
-        filmId <= 0 ||
-        !telegramId
-      ) {
-        return res
-          .status(400)
-          .send("Invalid request.");
-      }
+  res.once("close", stopDownload);
 
-      // =================================
-      // VERIFY PURCHASE
-      // =================================
+  try {
+    const { Readable } = await import("node:stream");
+    const { pipeline } = await import("node:stream/promises");
 
-      const purchase =
-        await prisma.purchase.findFirst({
-          where: {
-            telegramId,
-            filmId,
-          },
+    const filmId = Number(req.params.filmId);
+    const telegramId = String(req.query.telegramId || "").trim();
 
-          include: {
-            film: true,
-          },
+    if (!Number.isSafeInteger(filmId) || filmId <= 0 || !telegramId) {
+      return res.status(400).send("Invalid request.");
+    }
+
+    const purchase = await prisma.purchase.findFirst({
+      where: { telegramId, filmId },
+      include: { film: true },
+    });
+
+    if (!purchase?.film) {
+      return res.status(403).send("Ba ka mallaki wannan film ba.");
+    }
+
+    const film = purchase.film;
+
+    if (!film.bunnyVideoId) {
+      return res.status(404).send("Wannan film bai samu Bunny video ba.");
+    }
+
+    const hostname = String(
+      process.env.BUNNY_STREAM_CDN_HOSTNAME || ""
+    )
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/+$/, "");
+
+    const tokenKey = process.env.BUNNY_STREAM_TOKEN_KEY;
+
+    if (!hostname || !tokenKey) {
+      return res.status(500).send("Download config bai cika ba.");
+    }
+
+    const range = req.headers.range;
+
+    if (range && !/^bytes=\d*-\d*$/.test(range)) {
+      return res.status(416).send("Invalid range.");
+    }
+
+    let upstream = null;
+    let selectedQuality = null;
+
+    // Try available MP4 versions, preferring 720p.
+    for (const quality of ["720p", "480p", "360p", "240p"]) {
+      const filePath = `/${film.bunnyVideoId}/play_${quality}.mp4`;
+      const expires = Math.floor(Date.now() / 1000) + 3600;
+
+      const token = crypto
+        .createHash("sha256")
+        .update(tokenKey + filePath + expires)
+        .digest("base64url");
+
+      const url = new URL(`https://${hostname}${filePath}`);
+      url.searchParams.set("token", token);
+      url.searchParams.set("expires", String(expires));
+
+      const headers = {
+        "Accept-Encoding": "identity",
+      };
+
+      if (range) headers.Range = range;
+
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
+      let response;
+
+      try {
+        // Use Node's native fetch: its body is a Web ReadableStream.
+        response = await globalThis.fetch(url, {
+          headers,
+          signal: controller.signal,
         });
-
-      if (!purchase) {
-        return res
-          .status(403)
-          .send(
-            "Ba ka sayi wannan film ba."
-          );
+      } finally {
+        clearTimeout(timeout);
       }
 
-      const film =
-        purchase.film;
-
-      if (!film?.bunnyVideoId) {
-        return res
-          .status(404)
-          .send(
-            "Ba a samu video ɗin wannan film ba."
-          );
+      if (response.status === 404) {
+        await response.body?.cancel();
+        continue;
       }
 
-      // =================================
-      // BUNNY CONFIG
-      // =================================
+      if (![200, 206].includes(response.status)) {
+        const status = response.status;
+        const contentRange = response.headers.get("content-range");
 
-      const hostname =
-        process.env
-          .BUNNY_STREAM_CDN_HOSTNAME;
+        await response.body?.cancel();
 
-      const tokenKey =
-        process.env
-          .BUNNY_STREAM_TOKEN_KEY;
+        console.error("BUNNY DOWNLOAD HTTP ERROR:", status);
 
-      if (
-        !hostname ||
-        !tokenKey
-      ) {
-        console.error(
-          "BUNNY DOWNLOAD CONFIG MISSING"
-        );
-
-        return res
-          .status(500)
-          .send(
-            "Download config bai cika ba."
-          );
-      }
-
-      const cleanHostname =
-        hostname
-          .replace(
-            /^https?:\/\//,
-            ""
-          )
-          .replace(
-            /\/+$/,
-            ""
-          );
-
-      // =================================
-      // MP4 FILE
-      // =================================
-      //
-      // Idan video ɗin ba shi da 720p,
-      // daga baya za mu sa automatic
-      // resolution detection.
-      //
-
-      const filePath =
-        `/${film.bunnyVideoId}/play_720p.mp4`;
-
-      // Signed URL expires in 1 hour
-      const expires =
-        Math.floor(
-          Date.now() / 1000
-        ) +
-        60 * 60;
-
-      const tokenBase =
-        tokenKey +
-        filePath +
-        expires;
-
-      const token =
-        crypto
-          .createHash("sha256")
-          .update(tokenBase)
-          .digest("base64")
-          .replace(/\+/g, "-")
-          .replace(/\//g, "_")
-          .replace(/=/g, "");
-
-      const bunnyUrl =
-        `https://${cleanHostname}${filePath}` +
-        `?token=${token}` +
-        `&expires=${expires}`;
-
-      // =================================
-      // SUPPORT RESUME / RANGE
-      // =================================
-
-      const requestHeaders = {};
-
-      const range =
-        req.headers.range;
-
-      if (range) {
-        requestHeaders.Range =
-          range;
-      }
-
-      // =================================
-      // FETCH FROM BUNNY
-      // =================================
-
-      const bunnyResponse =
-        await fetch(
-          bunnyUrl,
-          {
-            headers:
-              requestHeaders,
+        if (status === 416) {
+          if (contentRange) {
+            res.setHeader("Content-Range", contentRange);
           }
-        );
-
-      if (
-        !bunnyResponse.ok &&
-        bunnyResponse.status !==
-          206
-      ) {
-        console.error(
-          "BUNNY DOWNLOAD FETCH ERROR:",
-          bunnyResponse.status
-        );
-
-        return res
-          .status(
-            bunnyResponse.status
-          )
-          .send(
-            "An kasa ɗauko film daga server."
-          );
-      }
-
-      // =================================
-      // DOWNLOAD FILE NAME
-      // =================================
-
-      const safeTitle =
-        String(
-          film.title ||
-          `NIGFILM-${film.id}`
-        )
-          .replace(
-            /[<>:"/\\|?*\x00-\x1F]/g,
-            ""
-          )
-          .trim() ||
-        `NIGFILM-${film.id}`;
-
-      // =================================
-      // FORCE DOWNLOAD
-      // =================================
-
-      res.status(
-        bunnyResponse.status
-      );
-
-      res.setHeader(
-        "Content-Type",
-        bunnyResponse.headers.get(
-          "content-type"
-        ) ||
-          "video/mp4"
-      );
-     res.setHeader(
-  "Access-Control-Allow-Origin",
-  "https://web.telegram.org"
-);
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${safeTitle}.mp4"`
-      );
-
-      const contentLength =
-        bunnyResponse.headers.get(
-          "content-length"
-        );
-
-      if (contentLength) {
-        res.setHeader(
-          "Content-Length",
-          contentLength
-        );
-      }
-
-      const contentRange =
-        bunnyResponse.headers.get(
-          "content-range"
-        );
-
-      if (contentRange) {
-        res.setHeader(
-          "Content-Range",
-          contentRange
-        );
-      }
-
-      const acceptRanges =
-        bunnyResponse.headers.get(
-          "accept-ranges"
-        );
-
-      if (acceptRanges) {
-        res.setHeader(
-          "Accept-Ranges",
-          acceptRanges
-        );
-      } else {
-        res.setHeader(
-          "Accept-Ranges",
-          "bytes"
-        );
-      }
-
-      res.setHeader(
-        "Cache-Control",
-        "private, no-store"
-      );
-
-      if (
-        !bunnyResponse.body
-      ) {
-        return res
-          .status(502)
-          .end();
-      }
-
-      // =================================
-      // STREAM — BA BUFFER BA
-      // =================================
-
-      const stream =
-        Readable.fromWeb(
-          bunnyResponse.body
-        );
-
-      stream.on(
-        "error",
-        (error) => {
-          console.error(
-            "DOWNLOAD STREAM ERROR:",
-            error
-          );
-
-          if (!res.headersSent) {
-            res.sendStatus(500);
-          } else {
-            res.destroy(
-              error
-            );
-          }
+          return res.status(416).end();
         }
-      );
 
-      stream.pipe(res);
-    } catch (error) {
-      console.error(
-        "TELEGRAM DOWNLOAD ERROR:",
-        error
-      );
-
-      if (
-        !res.headersSent
-      ) {
-        return res
-          .status(500)
-          .send(
-            "An samu matsala wajen sauke film."
-          );
+        return res.status(502).send(
+          "Bunny bai amince da download ba. A duba MP4 da CDN token."
+        );
       }
 
+      upstream = response;
+      selectedQuality = quality;
+      break;
+    }
+
+    if (!upstream?.body) {
+      return res.status(404).send(
+        "Ba a samu MP4 ba. A kunna MP4 Fallback a Bunny sannan a tabbatar an samar da shi ga wannan film."
+      );
+    }
+
+    const contentType = (
+      upstream.headers.get("content-type") || ""
+    ).split(";")[0].trim().toLowerCase();
+
+    if (!["video/mp4", "application/octet-stream"].includes(contentType)) {
+      await upstream.body.cancel();
+
+      return res.status(502).send(
+        "Bunny bai dawo da MP4 ba. An hana sauke response marar bidiyo."
+      );
+    }
+
+    const source = Readable.fromWeb(upstream.body);
+    const iterator = source[Symbol.asyncIterator]();
+    const prefixChunks = [];
+    let prefixLength = 0;
+
+    // Validate the MP4 header for a full response.
+    if (upstream.status === 200) {
+      while (prefixLength < 12) {
+        const next = await iterator.next();
+        if (next.done) break;
+
+        const chunk = Buffer.from(next.value);
+        prefixChunks.push(chunk);
+        prefixLength += chunk.length;
+      }
+
+      const prefix = Buffer.concat(prefixChunks);
+
+      if (
+        prefix.length < 12 ||
+        prefix.toString("ascii", 4, 8) !== "ftyp"
+      ) {
+        source.destroy();
+
+        return res.status(502).send(
+          "File ɗin da Bunny ya dawo da shi ba MP4 mai inganci ba ne."
+        );
+      }
+    }
+
+    const title = String(film.title || `NIGFILM-${film.id}`)
+      .replace(/[<>:"/\\|?*\x00-\x1F\x7F]/g, "")
+      .trim()
+      .slice(0, 100) || `NIGFILM-${film.id}`;
+
+    const filename = `${title}.mp4`;
+    const encodedFilename = encodeURIComponent(filename).replace(
+      /['()*]/g,
+      (character) =>
+        `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+    );
+
+    res.status(upstream.status);
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="NIGFILM-${film.id}.mp4"; filename*=UTF-8''${encodedFilename}`
+    );
+    res.setHeader(
+      "Access-Control-Allow-Origin",
+      "https://web.telegram.org"
+    );
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "Content-Disposition, Content-Length, Content-Range"
+    );
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    for (const header of [
+      "content-length",
+      "content-range",
+      "accept-ranges",
+    ]) {
+      const value = upstream.headers.get(header);
+      if (value) res.setHeader(header, value);
+    }
+
+    console.log("BUNNY DOWNLOAD START:", {
+      filmId,
+      quality: selectedQuality,
+      status: upstream.status,
+      bytes: upstream.headers.get("content-length"),
+    });
+
+    if (req.method === "HEAD") {
+      source.destroy();
       return res.end();
     }
+
+    async function* movieChunks() {
+      try {
+        for (const chunk of prefixChunks) yield chunk;
+
+        while (true) {
+          const next = await iterator.next();
+          if (next.done) break;
+          yield next.value;
+        }
+      } finally {
+        await iterator.return?.();
+      }
+    }
+
+    await pipeline(Readable.from(movieChunks()), res);
+  } catch (error) {
+    controller.abort();
+
+    console.error(
+      "TELEGRAM DOWNLOAD ERROR:",
+      error?.code || error?.name || "UNKNOWN"
+    );
+
+    if (res.destroyed) return;
+
+    if (res.headersSent) {
+      return res.destroy();
+    }
+
+    // Clear file headers before returning an error.
+    res.removeHeader("Content-Disposition");
+    res.removeHeader("Content-Length");
+    res.removeHeader("Content-Range");
+
+    return res.status(502).type("text/plain").send(
+      "Download ya samu matsala. Sake gwadawa."
+    );
+  } finally {
+    res.off("close", stopDownload);
   }
-);
+});
 // ======================================================
 // TELEGRAM WATCH PAGE
 // ======================================================

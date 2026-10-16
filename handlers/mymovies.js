@@ -3,60 +3,58 @@ import { Markup } from "telegraf";
 
 const MOVIES_PER_PAGE = 10;
 
-const PUBLIC_BASE_URL =
+const PUBLIC_BASE_URL = (
   process.env.PUBLIC_BASE_URL ||
-  "https://nigfilm-bot.onrender.com";
+  "https://nigfilm-bot.onrender.com"
+)
+  .trim()
+  .replace(/\/+$/, "");
 
 export default function registerMyMoviesHandlers() {
   // =================================
   // MY MOVIES CALLBACKS
   // =================================
 
-  bot.action(["my_purchases", "my_movies"], async (ctx) => {
-    try {
+  bot.action(
+    ["my_purchases", "my_movies"],
+    async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
+
       return showMyMovies(ctx, 1);
-    } catch (error) {
-      console.error("MY PURCHASES ERROR:", error);
-      return ctx.reply("❌ An samu kuskure wajen buɗe My Movies.");
     }
-  });
+  );
 
   // =================================
   // MY MOVIES COMMAND
   // =================================
 
-  bot.command("mymovies", async (ctx) => {
+  bot.command("mymovies", (ctx) => {
     return showMyMovies(ctx, 1);
   });
 
   // =================================
-  // OLD REPLY KEYBOARD SUPPORT
+  // REPLY KEYBOARD SUPPORT
   // =================================
 
-  bot.hears("🎬 My Movies", async (ctx) => {
+  bot.hears("🎬 My Movies", (ctx) => {
     return showMyMovies(ctx, 1);
   });
 
   // =================================
-  // MY MOVIES PAGINATION
+  // PAGINATION
   // =================================
 
-  bot.action(/^my_movies_page_(\d+)$/, async (ctx) => {
-    try {
+  bot.action(
+    /^my_movies_page_(\d+)$/,
+    async (ctx) => {
       await ctx.answerCbQuery().catch(() => {});
 
-      const page = Number(ctx.match[1]);
-
-      return showMyMovies(ctx, page);
-    } catch (error) {
-      console.error("MY MOVIES PAGE ERROR:", error);
-
-      return ctx.reply(
-        "❌ An samu kuskure wajen buɗe shafin."
+      return showMyMovies(
+        ctx,
+        Number(ctx.match[1])
       );
     }
-  });
+  );
 
   // =================================
   // OPEN PURCHASED FILM
@@ -66,74 +64,60 @@ export default function registerMyMoviesHandlers() {
     try {
       await ctx.answerCbQuery().catch(() => {});
 
-      const telegramId = String(ctx.from.id);
-      const filmId = Number(ctx.match[1]);
+      const film = await getPurchasedFilm(
+        ctx,
+        Number(ctx.match[1])
+      );
 
-      if (!Number.isInteger(filmId) || filmId <= 0) {
-        return ctx.reply("❌ Film ID bai dace ba.");
-      }
-
-      const purchase = await prisma.purchase.findFirst({
-        where: {
-          telegramId,
-          filmId,
-        },
-        include: {
-          film: true,
-        },
-      });
-
-      if (!purchase) {
-        return ctx.reply(
-          "❌ Ba ka mallaki wannan film ba."
-        );
-      }
-
-      const film = purchase.film;
-
-      if (!film) {
-        return ctx.reply(
-          "❌ Ba a samu bayanan wannan film ba."
-        );
-      }
+      if (!film) return;
 
       // =================================
       // BUNNY STREAM FILM
       // =================================
 
-      if (film.bunnyVideoId && film.webVideoUrl) {
-        const watchUrl =
-          `${PUBLIC_BASE_URL}/telegram/watch/${film.id}` +
-          `?telegramId=${encodeURIComponent(telegramId)}`;
+      if (film.bunnyVideoId) {
+        const telegramId = String(ctx.from.id);
 
-        return ctx.reply(
+        const buttons = [];
+
+        if (film.webVideoUrl) {
+          buttons.push([
+            Markup.button.webApp(
+              "▶️ Watch Movie",
+              moviePageUrl(
+                "watch",
+                film.id,
+                telegramId
+              )
+            ),
+          ]);
+        }
+
+        buttons.push([
+          Markup.button.webApp(
+            "⬇️ Download Movie",
+            moviePageUrl(
+              "download",
+              film.id,
+              telegramId
+            )
+          ),
+        ]);
+
+        buttons.push([
+          Markup.button.callback(
+            "⬅️ My Movies",
+            "my_movies"
+          ),
+        ]);
+
+        return await ctx.reply(
           `🎬 ${film.title}\n\n` +
-            `✅ Wannan film yana cikin library ɗinka.\n\n` +
-            `▶️ Za ka iya kallonsa a Web App.\n` +
-            `⬇️ Ko ka sauke shi kai tsaye daga Telegram.`,
-
-          {
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.webApp(
-                  "▶️ Watch Movie",
-                  watchUrl
-                ),
-              ],
-              [
-            Markup.button.callback(
-  "⬇️ Download Movie",
-  `download_${film.id}`
-)
-              ],
-              [
-                Markup.button.callback(
-                  "⬅️ My Movies",
-                  "my_movies"
-                ),
-              ],
-            ]),
-          }
+            "✅ Wannan film yana cikin library ɗinka.\n\n" +
+            "Zaɓi kallo ko download.\n\n" +
+            "A shafin download, danna Download Movie " +
+            "domin sauke fim zuwa na’urarka.",
+          Markup.inlineKeyboard(buttons)
         );
       }
 
@@ -142,22 +126,14 @@ export default function registerMyMoviesHandlers() {
       // =================================
 
       if (film.videoFileId) {
-        return bot.telegram.sendVideo(
-          ctx.chat.id,
-          film.videoFileId,
-          {
-            caption:
-              `🎬 ${film.title}\n\n` +
-              `✅ Ga film ɗinka. Ka ji daɗin kallo.`,
-          }
-        );
+        return await sendTelegramMovie(ctx, film);
       }
 
-      return ctx.reply(
+      return await ctx.reply(
         "❌ Wannan film bai samu video source ba tukuna."
       );
     } catch (error) {
-      console.error("WATCH MOVIE ERROR:", error);
+      logError("WATCH MOVIE ERROR", error);
 
       return ctx.reply(
         "❌ An samu kuskure wajen buɗe film."
@@ -167,180 +143,167 @@ export default function registerMyMoviesHandlers() {
 
   // =================================
   // DOWNLOAD PURCHASED FILM
+  // Supports older download buttons.
   // =================================
 
   bot.action(/^download_(\d+)$/, async (ctx) => {
     try {
-      await ctx.answerCbQuery(
-        "⏳ Ana shirya film ɗinka..."
-      ).catch(() => {});
+      await ctx
+        .answerCbQuery(
+          "⏳ Ana shirya film ɗinka..."
+        )
+        .catch(() => {});
 
-      const telegramId = String(ctx.from.id);
-      const filmId = Number(ctx.match[1]);
+      const film = await getPurchasedFilm(
+        ctx,
+        Number(ctx.match[1])
+      );
 
-      if (!Number.isInteger(filmId) || filmId <= 0) {
-        return ctx.reply("❌ Film ID bai dace ba.");
-      }
+      if (!film) return;
 
       // =================================
-      // VERIFY PURCHASE
+      // BUNNY: NATIVE DOWNLOAD MINI APP
       // =================================
 
-      const purchase = await prisma.purchase.findFirst({
-        where: {
-          telegramId,
-          filmId,
-        },
-        include: {
-          film: true,
-        },
-      });
+      if (film.bunnyVideoId) {
+        const downloadPageUrl = moviePageUrl(
+          "download",
+          film.id,
+          String(ctx.from.id)
+        );
 
-      if (!purchase) {
-        return ctx.reply(
-          "❌ Ba ka mallaki wannan film ba."
+        return await ctx.reply(
+          `🎬 ${film.title}\n\n` +
+            "Danna maɓallin da ke ƙasa, sannan " +
+            "Download Movie domin sauke fim " +
+            "zuwa na’urarka.",
+          Markup.inlineKeyboard([
+            [
+              Markup.button.webApp(
+                "⬇️ Download Movie",
+                downloadPageUrl
+              ),
+            ],
+            [
+              Markup.button.callback(
+                "⬅️ My Movies",
+                "my_movies"
+              ),
+            ],
+          ])
         );
       }
 
-      const film = purchase.film;
-
-      if (!film) {
-        return ctx.reply(
-          "❌ Ba a samu bayanan wannan film ba."
-        );
-      }
-
       // =================================
-      // BEST OPTION:
-      // TELEGRAM FILE ID
+      // OLD TELEGRAM FILE
       // =================================
 
       if (film.videoFileId) {
-        await ctx.reply(
-          `⬇️ Ana turo "${film.title}"...\n\n` +
-            `⏳ Jira kaɗan.`
-        );
-
-        try {
-          return await bot.telegram.sendVideo(
-            ctx.chat.id,
-            film.videoFileId,
-            {
-              caption:
-                `🎬 ${film.title}\n\n` +
-                `✅ Ga film ɗinka.\n` +
-                `⬇️ Za ka iya sauke shi kai tsaye a Telegram.`,
-              supports_streaming: true,
-            }
-          );
-        } catch (videoError) {
-          console.error(
-            "SEND TELEGRAM VIDEO ERROR:",
-            videoError
-          );
-
-          // Try as document
-          return bot.telegram.sendDocument(
-            ctx.chat.id,
-            film.videoFileId,
-            {
-              caption:
-                `🎬 ${film.title}\n\n` +
-                `⬇️ Ga film ɗinka.`,
-            }
-          );
-        }
+        return await sendTelegramMovie(ctx, film);
       }
 
-      // =================================
-      // BUNNY STREAM FILM
-      // =================================
-
-      if (film.bunnyVideoId && film.webVideoUrl) {
-        await ctx.reply(
-          `⬇️ Ana shirya "${film.title}"...\n\n` +
-            `⏳ Telegram na ƙoƙarin ɗauko film ɗin daga server.`
-        );
-
-        /*
-         * IMPORTANT:
-         * We use our protected download endpoint.
-         * The endpoint verifies the user/purchase
-         * before serving the movie.
-         */
-        const downloadUrl =
-          `${PUBLIC_BASE_URL}/api/telegram/movies/${film.id}/download` +
-          `?telegramId=${encodeURIComponent(telegramId)}`;
-
-        try {
-          return await bot.telegram.sendDocument(
-            ctx.chat.id,
-            {
-              url: downloadUrl,
-              filename: `${safeFilename(film.title)}.mp4`,
-            },
-            {
-              caption:
-                `🎬 ${film.title}\n\n` +
-                `✅ Ga film ɗinka.\n` +
-                `⬇️ Za ka iya sauke shi kai tsaye a Telegram.`,
-            }
-          );
-        } catch (documentError) {
-          console.error(
-            "BUNNY → TELEGRAM DOCUMENT ERROR:",
-            documentError
-          );
-
-          // =================================
-          // TRY AS VIDEO
-          // =================================
-
-          try {
-            return await bot.telegram.sendVideo(
-              ctx.chat.id,
-              {
-                url: downloadUrl,
-              },
-              {
-                caption:
-                  `🎬 ${film.title}\n\n` +
-                  `✅ Ga film ɗinka.`,
-                supports_streaming: true,
-              }
-            );
-          } catch (videoError) {
-            console.error(
-              "BUNNY → TELEGRAM VIDEO ERROR:",
-              videoError
-            );
-
-            return ctx.reply(
-              `❌ Telegram bai iya ɗauko wannan film ɗin kai tsaye daga server ba.\n\n` +
-                `Film ɗin yana nan lafiya. Za mu buƙaci mu gyara Bunny direct delivery URL ɗinsa.`
-            );
-          }
-        }
-      }
-
-      // =================================
-      // NO VIDEO SOURCE
-      // =================================
-
-      return ctx.reply(
+      return await ctx.reply(
         "❌ Ba a samu video source na wannan film ba."
       );
     } catch (error) {
-      console.error(
-        "DOWNLOAD MOVIE ERROR:",
-        error
-      );
+      logError("DOWNLOAD MOVIE ERROR", error);
 
       return ctx.reply(
         "❌ An samu kuskure wajen sauke film."
       );
     }
   });
+}
+
+// =================================
+// BUILD MINI APP URL
+// =================================
+
+function moviePageUrl(page, filmId, telegramId) {
+  return (
+    `${PUBLIC_BASE_URL}/telegram/${page}/${filmId}` +
+    `?telegramId=${encodeURIComponent(telegramId)}`
+  );
+}
+
+// =================================
+// VERIFY FILM OWNERSHIP
+// =================================
+
+async function getPurchasedFilm(ctx, filmId) {
+  if (
+    !Number.isSafeInteger(filmId) ||
+    filmId <= 0
+  ) {
+    await ctx.reply(
+      "❌ Film ID bai dace ba."
+    );
+
+    return null;
+  }
+
+  const purchase = await prisma.purchase.findFirst({
+    where: {
+      telegramId: String(ctx.from.id),
+      filmId,
+    },
+    include: {
+      film: true,
+    },
+  });
+
+  if (!purchase) {
+    await ctx.reply(
+      "❌ Ba ka mallaki wannan film ba."
+    );
+
+    return null;
+  }
+
+  if (!purchase.film) {
+    await ctx.reply(
+      "❌ Ba a samu bayanan wannan film ba."
+    );
+
+    return null;
+  }
+
+  return purchase.film;
+}
+
+// =================================
+// SEND EXISTING TELEGRAM FILE
+// =================================
+
+async function sendTelegramMovie(ctx, film) {
+  const caption =
+    `🎬 ${shortenText(film.title, 200)}\n\n` +
+    "✅ Ga film ɗinka. Za ka iya kallonsa " +
+    "ko sauke shi a Telegram.";
+
+  try {
+    return await bot.telegram.sendVideo(
+      ctx.chat.id,
+      film.videoFileId,
+      {
+        caption,
+        supports_streaming: true,
+      }
+    );
+  } catch (error) {
+    logError(
+      "SEND TELEGRAM VIDEO ERROR",
+      error
+    );
+
+    return await bot.telegram.sendDocument(
+      ctx.chat.id,
+      film.videoFileId,
+      {
+        caption,
+      }
+    );
+  }
 }
 
 // =================================
@@ -358,40 +321,31 @@ async function showMyMovies(ctx, requestedPage = 1) {
     });
 
     if (totalMovies === 0) {
-      return replaceOrReply(
+      return await replaceOrReply(
         ctx,
-
-        "📂 *MY MOVIES*\n\n" +
+        "📂 MY MOVIES\n\n" +
           "Har yanzu ba ka sayi wani film ba.",
-
-        {
-          parse_mode: "Markdown",
-
-          ...Markup.inlineKeyboard([
-            [
-              Markup.button.callback(
-                "🎬 Browse Films",
-                "browse_films"
-              ),
-            ],
-            [
-              Markup.button.callback(
-                "🏠 Main Menu",
-                "main_menu"
-              ),
-            ],
-          ]),
-        }
+        Markup.inlineKeyboard(
+          menuButtons()
+        )
       );
     }
 
     const totalPages = Math.max(
       1,
-      Math.ceil(totalMovies / MOVIES_PER_PAGE)
+      Math.ceil(
+        totalMovies / MOVIES_PER_PAGE
+      )
     );
 
+    const normalizedPage = Number.isFinite(
+      Number(requestedPage)
+    )
+      ? Math.trunc(Number(requestedPage))
+      : 1;
+
     const page = Math.min(
-      Math.max(Number(requestedPage) || 1, 1),
+      Math.max(normalizedPage, 1),
       totalPages
     );
 
@@ -399,17 +353,13 @@ async function showMyMovies(ctx, requestedPage = 1) {
       where: {
         telegramId,
       },
-
       include: {
         film: true,
       },
-
       orderBy: {
         createdAt: "desc",
       },
-
       skip: (page - 1) * MOVIES_PER_PAGE,
-
       take: MOVIES_PER_PAGE,
     });
 
@@ -417,34 +367,11 @@ async function showMyMovies(ctx, requestedPage = 1) {
       (purchase) => purchase.film
     );
 
-    if (validPurchases.length === 0) {
-      return replaceOrReply(
-        ctx,
-
-        "❌ Ba a samu bayanan fina-finanka ba.",
-
-        {
-          ...Markup.inlineKeyboard([
-            [
-              Markup.button.callback(
-                "🏠 Main Menu",
-                "main_menu"
-              ),
-            ],
-          ]),
-        }
-      );
-    }
-
     const buttons = validPurchases.map(
-      (purchase) => [
+      ({ film }) => [
         Markup.button.callback(
-          `🎬 ${shortenText(
-            purchase.film.title,
-            40
-          )}`,
-
-          `watch_${purchase.film.id}`
+          `🎬 ${shortenText(film.title, 40)}`,
+          `watch_${film.id}`
         ),
       ]
     );
@@ -473,40 +400,26 @@ async function showMyMovies(ctx, requestedPage = 1) {
       buttons.push(navigation);
     }
 
-    buttons.push([
-      Markup.button.callback(
-        "🎬 Browse Films",
-        "browse_films"
-      ),
-    ]);
+    buttons.push(...menuButtons());
 
-    buttons.push([
-      Markup.button.callback(
-        "🏠 Main Menu",
-        "main_menu"
-      ),
-    ]);
+    const message =
+      `🎬 MY MOVIES\n\n` +
+      `📄 Page: ${page}/${totalPages}\n` +
+      `🎥 Total Movies: ${totalMovies}\n\n` +
+      (
+        validPurchases.length > 0
+          ? "Zaɓi film ɗin da kake son kallo ko saukewa:"
+          : "Ba a samu bayanan fina-finai a wannan shafin ba."
+      );
 
-    return replaceOrReply(
+    return await replaceOrReply(
       ctx,
-
-      `🎬 *MY MOVIES*
-
-📄 Page: ${page}/${totalPages}
-
-🎥 Total Movies: ${totalMovies}
-
-Zaɓi film ɗin da kake son kallo:`,
-
-      {
-        parse_mode: "Markdown",
-
-        ...Markup.inlineKeyboard(buttons),
-      }
+      message,
+      Markup.inlineKeyboard(buttons)
     );
   } catch (error) {
-    console.error(
-      "SHOW MY MOVIES ERROR:",
+    logError(
+      "SHOW MY MOVIES ERROR",
       error
     );
 
@@ -514,6 +427,27 @@ Zaɓi film ɗin da kake son kallo:`,
       "❌ An samu kuskure wajen ɗauko fina-finanka."
     );
   }
+}
+
+// =================================
+// MAIN NAVIGATION BUTTONS
+// =================================
+
+function menuButtons() {
+  return [
+    [
+      Markup.button.callback(
+        "🎬 Browse Films",
+        "browse_films"
+      ),
+    ],
+    [
+      Markup.button.callback(
+        "🏠 Main Menu",
+        "main_menu"
+      ),
+    ],
+  ];
 }
 
 // =================================
@@ -554,9 +488,10 @@ async function replaceOrReply(
           "message to edit not found"
         )
       ) {
-        await ctx.deleteMessage().catch(() => {});
-
-        return ctx.reply(message, options);
+        return ctx.reply(
+          message,
+          options
+        );
       }
 
       throw error;
@@ -567,30 +502,35 @@ async function replaceOrReply(
 }
 
 // =================================
-// SAFE FILE NAME
-// =================================
-
-function safeFilename(value) {
-  return String(value || "movie")
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 100);
-}
-
-// =================================
 // SHORTEN TEXT
 // =================================
 
 function shortenText(value, maximumLength) {
-  const text = String(value || "");
+  const characters = Array.from(
+    String(value || "Untitled movie")
+  );
 
-  if (text.length <= maximumLength) {
-    return text;
+  if (characters.length <= maximumLength) {
+    return characters.join("");
   }
 
-  return `${text.slice(
-    0,
-    maximumLength - 3
-  )}...`;
+  return (
+    characters
+      .slice(0, maximumLength - 3)
+      .join("") + "..."
+  );
+}
+
+// =================================
+// LOG ERRORS WITHOUT FULL REQUEST URLS
+// =================================
+
+function logError(label, error) {
+  console.error(
+    `${label}:`,
+    error?.response?.description ||
+      error?.code ||
+      error?.name ||
+      "Unknown error"
+  );
 }

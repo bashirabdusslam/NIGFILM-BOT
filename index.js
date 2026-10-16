@@ -7961,23 +7961,15 @@ app.get(
       status.textContent =
         "Ana shirya download...";
 
-      tg.downloadFile(
-        {
-          url: ${JSON.stringify(downloadUrl)},
-          file_name: ${JSON.stringify(
-            `${safeTitle}.mp4`
-          )},
-        },
-
-        (accepted) => {
-          status.textContent =
-            accepted
-              ? "✅ Download ya fara."
-              : "An soke download.";
-        }
+      tg.openLink(
+        ${JSON.stringify(downloadUrl)}
       );
+
+      status.textContent =
+        "An buɗe download a browser. Duba Downloads.";
     }
   );
+
 </script>
 
 </body>

@@ -1,3 +1,3 @@
-window.__NIGFILM_CONFIG__ = {
-  API_URL: "nigfilm-bot-production-423f.up.railway.app"
+window.NIGFILM_CONFIG = {
+  API_URL: "https://nigfilm-bot-production-423f.up.railway.app"
 };

@@ -412,3 +412,50 @@ model BillstackReceipt {
   payment BillstackPayment @relation(fields: [paymentId], references: [id])
   @@index([paymentId])
 }
+
+
+
+// Append once to prisma/schema.prisma. Preserve all existing models.
+model ManualPaymentSettings {
+  id            Int      @id
+  enabled       Boolean  @default(false)
+  bankName      String
+  accountName   String
+  accountNumber String
+  instructions  String   @default("")
+  updatedBy     Int
+  updatedAt     DateTime @updatedAt
+}
+
+model ManualAccessRequest {
+  id                String   @id @default(uuid())
+  requestKey        String   @unique
+  reference         String   @unique
+  webUserId         Int
+  kind              String
+  filmId            Int?
+  plan              String?
+  title             String
+  amount            Int
+  durationDays      Int?
+  status            String   @default("PENDING_PAYMENT")
+  source            String   @default("USER")
+  bankName          String?
+  accountName       String?
+  accountNumber     String?
+  instructions      String?
+  payerName         String?
+  verifiedTransferReference String? @unique
+  transferReference String?
+  userNote          String?
+  reviewNote        String?
+  createdBy         Int?
+  reviewedBy        Int?
+  createdAt         DateTime @default(now())
+  submittedAt       DateTime?
+  reviewedAt        DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([webUserId, createdAt])
+  @@index([status, createdAt])
+}

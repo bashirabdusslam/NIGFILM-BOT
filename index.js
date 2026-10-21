@@ -1,4 +1,4 @@
-﻿
+﻿import { registerManualPayments } from "./handlers/manualPayments.js";
 import { registerBillstack } from "./handlers/billstack.js";
 import express from "express";
 import crypto from "crypto";
@@ -1592,6 +1592,11 @@ app.post(
     }
   }
 );
+registerManualPayments({
+  app, prisma, requireWebUser, requireAdmin,
+  plans: () => PREMIUM_PLANS,
+});
+
 // Billstack intercepts checkout only when BILLSTACK_ENABLED=true.
 registerBillstack({
   app, prisma, requireWebUser,
@@ -8720,14 +8725,14 @@ async function processPremiumPayment({
 
     // Idan user yana da active premium,
     // sabon plan zai fara daga lokacin da tsohon zai kare.
-    const startsAt =
+    let startsAt =
       existingSubscription
         ? new Date(
             existingSubscription.expiresAt
           )
         : now;
 
-    const expiresAt =
+    let expiresAt =
       getPremiumExpiryDate(
         order.plan,
         startsAt
@@ -8743,6 +8748,7 @@ async function processPremiumPayment({
 
     await prisma.$transaction(
       async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "WebUser" WHERE "id" = ${order.webUserId} FOR UPDATE`;
         const currentOrder =
           await tx.premiumOrder.findUnique({
             where: {
@@ -8757,6 +8763,14 @@ async function processPremiumPayment({
         ) {
           return;
         }
+
+        const activeNow = await tx.premiumSubscription.findFirst({
+          where: { webUserId: order.webUserId, status: "ACTIVE", expiresAt: { gt: new Date() } },
+          orderBy: { expiresAt: "desc" },
+        });
+        startsAt = activeNow ? new Date(activeNow.expiresAt) : new Date();
+        expiresAt = getPremiumExpiryDate(order.plan, startsAt);
+        if (!expiresAt) throw new Error("Invalid Premium expiry");
 
         await tx.premiumSubscription.create({
           data: {

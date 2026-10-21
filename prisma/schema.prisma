@@ -381,3 +381,34 @@ model PushDevice {
   @@index([webUserId])
   @@index([enabled])
 }
+
+// Append to prisma/schema.prisma. Existing models remain unchanged.
+model BillstackPayment {
+  id               Int      @id @default(autoincrement())
+  orderReference   String   @unique
+  kind             String
+  webUserId        Int
+  expectedKobo     Int
+  tokenHash        String   @unique
+  accountReference String?  @unique
+  accountNumber    String?
+  accountName      String?
+  bankName         String?
+  status           String   @default("CREATING")
+  returnTo         String   @default("web")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  receipts         BillstackReceipt[]
+  @@index([webUserId])
+}
+
+model BillstackReceipt {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @unique
+  paymentId   Int
+  amountKobo  Int
+  status      String
+  createdAt   DateTime @default(now())
+  payment BillstackPayment @relation(fields: [paymentId], references: [id])
+  @@index([paymentId])
+}

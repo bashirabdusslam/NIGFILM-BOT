@@ -55,14 +55,12 @@ function RequestCard({request,apiUrl,token,onUpdate,onAccess}){
     </>}<Notice error={error}/></article>
 }
 export function ManualPaymentButton({apiUrl,token,kind,filmId,plan,onAccess}){
-  const [enabled,setEnabled]=useState(false),[open,setOpen]=useState(false),[request,setRequest]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
+  const [open,setOpen]=useState(false),[request,setRequest]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   const requestKey=useRef(null),lock=useRef(false);
-  useEffect(()=>{let stop=false;if(token)call(apiUrl,token,'/api/manual-payment/settings').then(d=>{if(!stop)setEnabled(d.settings.enabled)}).catch(()=>{});return()=>{stop=true}},[apiUrl,token]);
   useEffect(()=>{requestKey.current=null;setRequest(null);setOpen(false)},[kind,filmId,plan,token]);
   async function begin(){if(lock.current)return;setOpen(true);if(request)return;lock.current=true;setBusy(true);setError('');requestKey.current||=newKey();
-    try{const d=await call(apiUrl,token,'/api/manual-payment/requests',{kind,filmId,plan,requestKey:requestKey.current});setRequest(d.request)}catch(e){setError(e.message)}finally{lock.current=false;setBusy(false)}}
-  if(!enabled||!token)return null;
-  return <><button type="button" className="secondary-button" onClick={begin}>🏦 Biya ta transfer zuwa admin</button>
+    try{if(!token)throw Error('Ka shiga account domin biyan transfer.');const settings=await call(apiUrl,token,'/api/manual-payment/settings');if(!settings.settings.enabled)throw Error('Admin bai kunna biyan transfer ba tukuna.');const d=await call(apiUrl,token,'/api/manual-payment/requests',{kind,filmId,plan,requestKey:requestKey.current});setRequest(d.request)}catch(e){setError(e.message)}finally{lock.current=false;setBusy(false)}}
+  return <><button type="button" className="secondary-button" style={{width:"100%",minHeight:48,border:"2px solid #d4af37",marginTop:10}} onClick={begin}>{kind==='PREMIUM'?'Biya Premium ta bank transfer':'Saya film ta bank transfer'}</button>
     {open&&<Modal title="Biyan transfer" onClose={()=>setOpen(false)}>{busy&&<p>Ana shirya buƙata…</p>}<Notice error={error}/>{!request&&!busy&&<button type="button" onClick={begin}>Sake gwadawa</button>}
       {request&&<RequestCard request={request} apiUrl={apiUrl} token={token} onUpdate={setRequest} onAccess={onAccess}/>}</Modal>}</>;
 }

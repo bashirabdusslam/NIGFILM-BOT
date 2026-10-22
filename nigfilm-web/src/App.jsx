@@ -1,4 +1,5 @@
-﻿import { ManualPaymentButton, ManualPaymentAdmin, ManualPaymentHistory } from "./ManualPayments";
+﻿import AdminTransactions from "./AdminTransactions";
+import { ManualPaymentButton, ManualPaymentAdmin, ManualPaymentHistory } from "./ManualPayments";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import * as tus from "tus-js-client";
@@ -5380,6 +5381,9 @@ function requireAuth(mode = "login") {
               </button>
             </div>
 
+            {!purchased && !hasPremium && <ManualPaymentButton apiUrl={API_URL} token={getSessionToken()}
+              kind="FILM" filmId={movie.id} onAccess={() => { loadMyMovies(false); loadPremiumStatus(); }} />}
+
             <div
               style={{
                 padding: "13px 14px",
@@ -5952,6 +5956,11 @@ if (
     </div>
   );
 }
+  if (page === "adminTransactions") {
+    return <div className="app">{header}{user?.role === "ADMIN"
+      ? <AdminTransactions apiUrl={API_URL} token={getSessionToken()} onBack={openProfile} />
+      : <main>Admin access required.</main>}</div>;
+  }
   if (page === "manualPaymentAdmin") {
     return <div className="app">{header}{user?.role === "ADMIN"
       ? <ManualPaymentAdmin apiUrl={API_URL} token={getSessionToken()} films={films} onBack={openProfile} />
@@ -8073,6 +8082,7 @@ if (page === "adminPasswordResets") {
   </button>
 )}
 
+{user?.role === "ADMIN" && <button type="button" className="secondary-button" onClick={() => navigateTo("adminTransactions")}>Dukkan Transactions</button>}
 <button type="button" className="secondary-button" onClick={() => navigateTo("manualPaymentHistory")}>
   🏦 Buƙatun transfer / access
 </button>

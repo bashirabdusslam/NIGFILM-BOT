@@ -1,3 +1,3 @@
 ﻿ window.__NIGFILM_CONFIG__ = {
-  API_URL: "https://nigfilm-bot-wata.onrender.com"
+  API_URL: "https://nigfilm-bot-i2ph.onrender.com"
 };

@@ -1,3 +1,3 @@
-﻿ window.__NIGFILM_CONFIG__ = {
-  API_URL: "https://nigfilm-bot-i2ph.onrender.com"
+window.__NIGFILM_CONFIG__ = {
+  API_URL: "nigfilm-bot-production-5bf7.up.railway.app"
 };

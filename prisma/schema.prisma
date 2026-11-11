@@ -61,7 +61,6 @@ enum AdUnlockStatus {
 }
 
 model WebUser {
-  comments FilmComment[]
   id           Int         @id @default(autoincrement())
   fullName     String
   phone        String      @unique
@@ -204,8 +203,6 @@ model Studio {
 }
 
 model Film {
-  deletedAt DateTime?
-  comments FilmComment[]
   id          Int     @id @default(autoincrement())
   title       String
   description String
@@ -461,74 +458,4 @@ model ManualAccessRequest {
 
   @@index([webUserId, createdAt])
   @@index([status, createdAt])
-}
-
-model AppSettings {
- id Int @id
- whatsappNumber String @default("")
- paymentGateway String @default("PAYSTACK")
- updatedAt DateTime @updatedAt
-}
-model AdminAudit {
- id Int @id @default(autoincrement())
- adminId Int
- action String
- target String
- details Json
- createdAt DateTime @default(now())
- @@index([createdAt])
-}
-model FilmComment {
- id Int @id @default(autoincrement())
- filmId Int
- webUserId Int
- body String
- createdAt DateTime @default(now())
- film Film @relation(fields:[filmId],references:[id])
- user WebUser @relation(fields:[webUserId],references:[id],onDelete:Cascade)
- @@index([filmId,id])
- @@index([webUserId,createdAt])
-}
-model CheckoutPayment {
- reference String @id
- gateway String
- kind String
- webUserId Int
- amount Int
- returnTo String @default("web")
- createdAt DateTime @default(now())
- @@index([webUserId])
-}
-
-model PushCampaign {
-  id               String    @id
-  adminId          Int
-  targetUserId     Int?
-  imageId          String?
-  imageUrl         String?
-  title            String
-  body             String
-  estimatedDevices Int
-  lastDeviceId     Int
-  cursor           Int       @default(0)
-  accepted         Int       @default(0)
-  failed           Int       @default(0)
-  status           String    @default("QUEUED")
-  leaseUntil       DateTime?
-  leaseId          String?
-  errorCode        String?
-  createdAt        DateTime  @default(now())
-  finishedAt       DateTime?
-
-  @@index([status, createdAt])
-}
-
-model PushImage {
-  id        String   @id
-  adminId   Int
-  mime      String
-  bytes     Bytes
-  expiresAt DateTime
-
-  @@index([expiresAt])
 }

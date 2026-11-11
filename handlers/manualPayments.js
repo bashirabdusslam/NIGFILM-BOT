@@ -37,11 +37,11 @@ async function productFor(prisma, plans, body) {
   if (kind === 'FILM') {
     const filmId=positiveId(body.filmId);
     const film=await prisma.film.findUnique({where:{id:filmId}});
-    if (!film || film.deletedAt) fail('Ba a samu film ba.',404);
+    if (!film) fail('Ba a samu film ba.',404);
     if (!Number.isSafeInteger(film.price) || film.price<0 || film.price>21474836) fail('Farashin film bai dace ba.');
     return {kind,filmId,plan:null,title:film.title,amount:film.price,durationDays:null};
   }
-  if (kind !== 'PREMIUM') fail('Zaɓi FILM ko PREMIUM.');
+  if (kind !== 'PREMIUM') fail('ZaÉ“i FILM ko PREMIUM.');
   const plan=text(body.plan,20).toUpperCase();
   if (!Object.hasOwn(plans,plan)) fail('Premium plan bai dace ba.');
   const p=plans[plan];
@@ -56,9 +56,9 @@ async function lockUser(tx, userId) {
 
 export async function applyManualAccess(tx, r) {
   if (r.kind==='FILM') {
-    if (!await tx.film.findUnique({where:{id:r.filmId,deletedAt:null}})) fail('Film bai samu ba.',404);
+    if (!await tx.film.findUnique({where:{id:r.filmId}})) fail('Film bai samu ba.',404);
     const owned=await tx.webPurchase.findUnique({where:{webUserId_filmId:{webUserId:r.webUserId,filmId:r.filmId}}});
-    if (owned) fail('User ya riga ya mallaki film. Duba payment kafin mayar da kuɗi.',409);
+    if (owned) fail('User ya riga ya mallaki film. Duba payment kafin mayar da kuÉ—i.',409);
     const order=await tx.webOrder.create({data:{webUserId:r.webUserId,filmId:r.filmId,amount:r.amount,status:'paid',paymentReference:r.reference}});
     await tx.webPurchase.create({data:{webUserId:r.webUserId,filmId:r.filmId,orderId:order.id}});
   } else if (r.kind==='PREMIUM') {
@@ -77,10 +77,10 @@ export async function reviewManualRequest(prisma,id,adminId,action,note,confirme
   const request=await prisma.manualAccessRequest.findUnique({where:{id}});
   if (!request) fail('Request bai samu ba.',404);
   if (!['approve','reject'].includes(action)) fail('Action bai dace ba.');
-  if (action==='approve' && confirmed!==true) fail('Sai ka tabbatar kuɗi sun shiga account.');
+  if (action==='approve' && confirmed!==true) fail('Sai ka tabbatar kuÉ—i sun shiga account.');
   const verifiedBankRef=text(verifiedReference,150);
   if (action==='approve' && verifiedBankRef.length<3) fail('Saka ainihin bank transaction reference da ka tabbatar.');
-  if (action==='reject' && text(note,1000).length<3) fail('Rubuta dalilin ƙin amincewa.');
+  if (action==='reject' && text(note,1000).length<3) fail('Rubuta dalilin Æ™in amincewa.');
   return prisma.$transaction(async tx=>{
     await lockUser(tx,request.webUserId);
     await tx.$queryRaw`SELECT "id" FROM "ManualAccessRequest" WHERE "id" = ${id} FOR UPDATE`;
@@ -134,7 +134,7 @@ export function registerManualPayments({app,prisma,requireWebUser,requireAdmin,p
       // Reopen one pending request for the same product instead of creating extra payment instructions.
       const pending=await tx.manualAccessRequest.findFirst({where:{webUserId:userId,kind:p.kind,filmId:p.filmId,plan:p.plan,source:'USER',status:{in:['PENDING_PAYMENT','SUBMITTED']}},orderBy:{createdAt:'desc'}});
       if(pending)return pending;
-      if(await tx.manualAccessRequest.count({where:{webUserId:userId,status:{in:['PENDING_PAYMENT','SUBMITTED']}}})>=10)fail('Kana da buƙatu da yawa da ba a gama ba.',429);
+      if(await tx.manualAccessRequest.count({where:{webUserId:userId,status:{in:['PENDING_PAYMENT','SUBMITTED']}}})>=10)fail('Kana da buÆ™atu da yawa da ba a gama ba.',429);
       return tx.manualAccessRequest.create({data:{id:crypto.randomUUID(),requestKey,reference:`MAN_${crypto.randomBytes(20).toString('hex')}`,webUserId:userId,...p,
         bankName:settings.bankName,accountName:settings.accountName,accountNumber:settings.accountNumber,instructions:settings.instructions}});
     },{timeout:10000});
@@ -146,7 +146,7 @@ export function registerManualPayments({app,prisma,requireWebUser,requireAdmin,p
   }));
   app.post('/api/manual-payment/requests/:id/submit',requireWebUser,handler(async(req,res)=>{
     const payerName=text(req.body?.payerName,150), transferReference=text(req.body?.transferReference,150), userNote=text(req.body?.userNote,1000);
-    if(payerName.length<2 || transferReference.length<3)fail('Saka sunan mai tura kuɗi da transfer reference.');
+    if(payerName.length<2 || transferReference.length<3)fail('Saka sunan mai tura kuÉ—i da transfer reference.');
     const count=await prisma.manualAccessRequest.updateMany({where:{id:req.params.id,webUserId:req.webUser.id,status:'PENDING_PAYMENT',source:'USER'},
       data:{payerName,transferReference,userNote,status:'SUBMITTED',submittedAt:new Date()}});
     const r=await prisma.manualAccessRequest.findFirst({where:{id:req.params.id,webUserId:req.webUser.id}});
@@ -168,14 +168,14 @@ export function registerManualPayments({app,prisma,requireWebUser,requireAdmin,p
     res.json({success:true,request:publicRequest(r)});
   }));
   app.get('/api/admin/manual-payment/users',requireAdmin,handler(async(req,res)=>{
-    const q=text(req.query.q,100);if(q.length<2 && !/^[1-9]\d*$/.test(q))fail('Saka aƙalla haruffa biyu ko lambar waya.');
+    const q=text(req.query.q,100);if(q.length<2 && !/^[1-9]\d*$/.test(q))fail('Saka aÆ™alla haruffa biyu ko lambar waya.');
     const numeric=Number(q);
     const users=await prisma.webUser.findMany({where:{OR:[{fullName:{contains:q,mode:'insensitive'}},{phone:{contains:q}},...(Number.isSafeInteger(numeric)&&numeric>0?[{id:numeric}]:[])]},select:{id:true,fullName:true,phone:true},take:20,orderBy:{id:'desc'}});
     res.json({success:true,users});
   }));
   app.post('/api/admin/manual-payment/grants',requireAdmin,handler(async(req,res)=>{
     const userId=positiveId(req.body?.webUserId),requestKey=keyOf(req.body?.requestKey),note=text(req.body?.note,1000);
-    if(note.length<5 || req.body?.confirmed!==true)fail('Rubuta dalili sannan ka tabbatar da user da zaɓinsa.');
+    if(note.length<5 || req.body?.confirmed!==true)fail('Rubuta dalili sannan ka tabbatar da user da zaÉ“insa.');
     const p=await productFor(prisma,plans(),req.body||{});
     const r=await prisma.$transaction(async tx=>{
       await lockUser(tx,userId);

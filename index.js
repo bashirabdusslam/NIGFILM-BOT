@@ -1,6 +1,4 @@
-﻿import { registerPushNotifications } from "./handlers/pushNotifications.js";
-import { registerAppUpgrade, downloadAccess } from "./handlers/appUpgrade.js";
-import { registerAdminTransactions } from "./handlers/adminTransactions.js";
+﻿import { registerAdminTransactions } from "./handlers/adminTransactions.js";
 import { registerManualPayments } from "./handlers/manualPayments.js";
 import { registerBillstack } from "./handlers/billstack.js";
 import express from "express";
@@ -83,44 +81,6 @@ app.use((req, res, next) => {
   next();
 });
 
-registerPushNotifications({
-  app, prisma, requireAdmin, requireWebUser, baseUrl: PUBLIC_BASE_URL,
-  parseImage: express.raw({type:["image/jpeg","image/png"],limit:900 * 1024}),
-});
-
-registerAppUpgrade({ app, prisma, requireAdmin, requireWebUser,
-  plans: () => PREMIUM_PLANS, processWebPayment: processWebFilmPayment, processPremiumPayment,
-  buildWebPaymentPage, baseUrl: PUBLIC_BASE_URL, webUrl: WEB_APP_URL });
-
-app.use((req, res, next) => {
-  // Enable after customers have upgraded; old Android builds use catalogue URLs.
-  if (process.env.NIGFILM_SECURE_CATALOG !== 'true' || req.path.startsWith('/api/admin/')) return next();
-  const json=res.json.bind(res);
-  res.json=(body)=>{
-    const clean=(film)=>{if(!film||typeof film!=='object')return film;const {bunnyVideoId,webVideoUrl,playerUrl,...rest}=film;return rest;};
-    if(body && typeof body==='object'){
-      if(Array.isArray(body.films))body.films=body.films.map(clean);
-      if(Array.isArray(body.movies))body.movies=body.movies.map(clean);
-      if(body.film)body.film=clean(body.film);
-      if(Array.isArray(body.studio?.films))body.studio.films=body.studio.films.map(clean);
-    }
-    return json(body);
-  };next();
-});
-
-// Block removed films on every customer route before legacy handlers run.
-app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api/admin/')) return next();
-  const match = req.path.match(/^\/api\/(?:films|web\/movies|telegram\/movies|web\/ads\/unlock-status)\/(\d+)(?:\/|$)/);
-  const candidate = match?.[1] || (req.method === 'POST' ? req.body?.filmId : null);
-  if (!candidate) return next();
-  try {
-    const film = await prisma.film.findUnique({where:{id:Number(candidate)},select:{deletedAt:true}});
-    if (film?.deletedAt) return res.status(404).json({success:false,message:'An cire wannan fim.'});
-    next();
-  } catch (error) { next(error); }
-});
-
 // ======================================================
 // ADMIN MENU
 // ======================================================
@@ -179,7 +139,6 @@ registerBunnyFilmHandler();
 app.get("/api/films", async (req, res) => {
   try {
     const films = await prisma.film.findMany({
-      where: { deletedAt: null },
       orderBy: {
         createdAt: "desc",
       },
@@ -338,7 +297,6 @@ app.get(
     try {
       const films =
         await prisma.film.findMany({
-          where: { deletedAt: null },
           select: {
             category: true,
           },
@@ -398,7 +356,6 @@ app.get(
       const films =
         await prisma.film.findMany({
           where: {
-            deletedAt: null,
             OR: [
               {
                 title: {
@@ -2241,7 +2198,6 @@ app.get(
       const purchases =
         await prisma.webPurchase.findMany({
           where: {
-            film: { deletedAt: null },
             webUserId,
           },
 
@@ -2306,11 +2262,10 @@ app.get(
 
 app.get(
   "/api/web/movies/:filmId/video",
-  requireWebUser,
   async (req, res) => {
     try {
       const filmId = Number(req.params.filmId);
-      const webUserId = req.webUser.id;
+      const webUserId = Number(req.query.webUserId);
 
       if (
         !Number.isInteger(filmId) ||
@@ -2740,7 +2695,6 @@ app.get(
 
           include: {
             films: {
-              where: { deletedAt: null },
               orderBy: {
                 createdAt: "desc",
               },
@@ -2964,7 +2918,6 @@ app.get(
       const purchases =
         await prisma.webPurchase.findMany({
           where: {
-            film: { deletedAt: null },
             webUserId,
           },
 
@@ -3035,14 +2988,15 @@ app.get(
 
 app.get(
   "/api/web/movies/:filmId/download",
-  downloadAccess(requireWebUser),
   async (req, res) => {
     try {
       const filmId = Number(
         req.params.filmId
       );
 
-      const webUserId = req.webUser.id;
+      const webUserId = Number(
+        req.query.webUserId
+      );
 
       // =================================
       // VALIDATION
@@ -4069,19 +4023,19 @@ async function requireWebUser(
 const PREMIUM_PLANS = {
   WEEKLY: {
     name: "Weekly",
-    amount: 800,
+    amount: 1000,
     durationDays: 7,
   },
 
   MONTHLY: {
     name: "Monthly",
-    amount: 1500,
+    amount: 2500,
     durationDays: 30,
   },
 
   YEARLY: {
     name: "Yearly",
-    amount: 15000,
+    amount: 25000,
     durationDays: 365,
   },
 };
@@ -4932,7 +4886,7 @@ app.post(
         .trim()
         .toLowerCase();
 
-      if (!token || token.length < 20 || token.length > 4096) {
+      if (!token || token.length < 20) {
         return res.status(400).json({
           success: false,
           message: "FCM token bai dace ba.",
@@ -8295,7 +8249,6 @@ app.post(
         return res.sendStatus(200);
       }
 
-      if (event?.data?.currency !== 'NGN') return res.sendStatus(400);
       const reference =
         String(
           event?.data?.reference ||
@@ -8588,7 +8541,6 @@ async function processWebFilmPayment({
 
     await prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT "id" FROM "WebUser" WHERE "id" = ${order.webUserId} FOR UPDATE`;
         const currentOrder =
           await tx.webOrder.findUnique({
             where: {
@@ -8934,7 +8886,6 @@ async function verifyPaystackTransaction(
 
     if (
       !response.ok ||
-      data?.data?.currency !== "NGN" ||
       !data?.status ||
       data?.data?.status !==
         "success"

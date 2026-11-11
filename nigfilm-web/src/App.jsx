@@ -1,6 +1,4 @@
-﻿import { useAndroidPush, PushPreference, PushBanner, stopAndroidPush } from "./PushNotifications";
-import {WhatsAppSupport, FilmComments, AuthorizedPlayer, AdminSettings} from "./AppUpgrade";
-import AdminTransactions from "./AdminTransactions";
+﻿import AdminTransactions from "./AdminTransactions";
 import { ManualPaymentButton, ManualPaymentAdmin, ManualPaymentHistory } from "./ManualPayments";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -210,8 +208,6 @@ function App() {
       return null;
     }
   });
-
-  const push = useAndroidPush(API_URL, user?.id ? getSessionToken() : "");
 
   const [authMode, setAuthMode] =
     useState("login");
@@ -2280,7 +2276,6 @@ async function approveAdminPasswordReset(
   // ===================================================
 
   function logout() {
-    void stopAndroidPush(API_URL, getSessionToken())?.catch(() => {});
     localStorage.removeItem(
       "nigfilm_user"
     );
@@ -2565,7 +2560,7 @@ console.log(
 
       if (!data?.authorizationUrl) {
         throw new Error(
-          "Payment URL bai samu ba."
+          "Paystack Premium payment URL bai samu ba."
         );
       }
 
@@ -3190,7 +3185,7 @@ async function buyMovie(
         !data.authorizationUrl
       ) {
         throw new Error(
-          "Payment URL bai samu ba."
+          "Paystack payment URL bai samu ba."
         );
       }
 
@@ -3204,7 +3199,7 @@ async function buyMovie(
 
       setPaymentError(
         error?.message ||
-          "An samu matsala wajen buɗe payment."
+          "An samu matsala wajen buɗe Paystack."
       );
     } finally {
       setPaymentLoading(false);
@@ -3215,21 +3210,41 @@ async function buyMovie(
   // DIRECT MOVIE DOWNLOAD
   // ===================================================
 
-  async function downloadMovie(film) {
-    if (!user?.id) return;
+  function downloadMovie(
+    film
+  ) {
+    if (!user?.id) {
+      return;
+    }
+
+    if (
+  !isPurchased(film.id) &&
+  !hasPremium
+) {
+  setVideoError(
+    "Sai ka sayi film ko ka kunna Premium kafin download."
+  );
+
+  return;
+}
     setVideoError("");
-    try {
-      const response = await fetch(`${API_URL}/api/web/films/${film.id}/download-ticket`, {
-        method: "POST", headers: { Authorization: `Bearer ${getSessionToken()}` },
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) throw new Error(data.message || "An kasa fara download.");
-      const iframe = document.createElement("iframe");
-      iframe.style.display = "none";
-      iframe.src = data.downloadUrl;
-      document.body.appendChild(iframe);
-      setTimeout(() => iframe.remove(), 60 * 60 * 1000);
-    } catch (error) { setVideoError(error.message); }
+
+    const downloadUrl =
+      `${API_URL}/api/web/movies/` +
+      `${film.id}/download` +
+      `?webUserId=${user.id}`;
+
+   const iframe =
+  document.createElement("iframe");
+
+iframe.style.display = "none";
+iframe.src = downloadUrl;
+
+document.body.appendChild(iframe);
+
+setTimeout(() => {
+  iframe.remove();
+}, 60 * 60 * 1000);
   }
 
   // ===================================================
@@ -4867,9 +4882,6 @@ function requireAuth(mode = "login") {
   // ===================================================
 
   const header = (
-    <>
-    <WhatsAppSupport apiUrl={API_URL} />
-      <PushBanner push={push} language={language} />
     <header className="header">
       <div>
         <p className="welcome">
@@ -4926,7 +4938,6 @@ function requireAuth(mode = "login") {
         </button>
       </div>
     </header>
-    </>
   );
 
   // ===================================================
@@ -5009,17 +5020,11 @@ function requireAuth(mode = "login") {
         {header}
 
         <main className="movie-details" style={{ paddingTop: "10px" }}>
-          {canWatchMovie && <div id="nigfilm-player-section">
-            <AuthorizedPlayer key={movie.id} apiUrl={API_URL} token={getSessionToken()} filmId={movie.id}>
-              {url => <BunnyMoviePlayer src={url} title={movie.title} filmId={movie.id} userId={user?.id} language={language} onProgressChange={handleWatchProgressChange} />}
-            </AuthorizedPlayer>
-          </div>}
-
-          <section className="nf-film-hero"
+          <section
             style={{
               position: "relative",
               width: "100%",
-              minHeight: "260px",
+              minHeight: "420px",
               borderRadius: "24px",
               overflow: "hidden",
               background: "linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.92))",
@@ -5112,11 +5117,11 @@ function requireAuth(mode = "login") {
               style={{
                 position: "relative",
                 zIndex: 1,
-                minHeight: "260px",
+                minHeight: "420px",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-end",
-                padding: "68px 18px 20px",
+                padding: "120px 18px 20px",
                 color: "#fff",
               }}
             >
@@ -5291,6 +5296,30 @@ function requireAuth(mode = "login") {
               </div>
             )}
 
+            <div
+              id="nigfilm-player-section"
+              style={{
+                scrollMarginTop: "90px",
+              }}
+            >
+              {canWatchMovie && playerUrl && (
+                <BunnyMoviePlayer
+                  src={playerUrl}
+                  title={movie.title}
+                  filmId={movie.id}
+                  userId={user?.id}
+                  language={language}
+                  onProgressChange={handleWatchProgressChange}
+                />
+              )}
+
+              {canWatchMovie && !playerUrl && (
+                <div className="movie-security-note">
+                  ⏳ Video ɗin wannan film bai shirya a Bunny Stream ba tukuna.
+                </div>
+              )}
+            </div>
+
             {(videoError || paymentError || adUnlockError) && (
               <div className="auth-error">
                 {videoError || paymentError || adUnlockError}
@@ -5386,7 +5415,6 @@ function requireAuth(mode = "login") {
             </div>
           </section>
 
-          <FilmComments key={movie.id} apiUrl={API_URL} token={getSessionToken()} filmId={movie.id} user={user} language={language} />
           {relatedMovies.length > 0 && (
             <section
               style={{
@@ -5467,7 +5495,7 @@ function requireAuth(mode = "login") {
               <div className="watch-options-list">
                 {canWatchMovie ? (
                   <>
-                    {canWatchMovie && (
+                    {playerUrl && (
                       <button
                         type="button"
                         className="watch-option-card premium-option"
@@ -5716,7 +5744,7 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Buy This Movie</strong>
                       <p>
-                        Watch Options → Buy This Movie → Payment → My Movies.
+                        Watch Options → Buy This Movie → Paystack → My Movies.
                       </p>
                     </div>
                   </div>
@@ -5726,7 +5754,7 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Activate Premium</strong>
                       <p>
-                        Watch Options → Activate Premium → Choose Plan → Payment.
+                        Watch Options → Activate Premium → Choose Plan → Paystack.
                       </p>
                     </div>
                   </div>
@@ -5928,11 +5956,6 @@ if (
     </div>
   );
 }
-  if (page === "adminSettings") {
-    return <div className="app">{header}{user?.role === "ADMIN"
-      ? <AdminSettings apiUrl={API_URL} token={getSessionToken()} adminUserId={user.id} onBack={openProfile} onChanged={() => { loadPremiumStatus(); loadMyMovies(false); loadFilms(); }} />
-      : <main>Admin access required.</main>}</div>;
-  }
   if (page === "adminTransactions") {
     return <div className="app">{header}{user?.role === "ADMIN"
       ? <AdminTransactions apiUrl={API_URL} token={getSessionToken()} onBack={openProfile} />
@@ -7717,8 +7740,8 @@ if (page === "adminPasswordResets") {
 
               <p className="details-description">
                 {language === "HAUSA"
-                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan an tabbatar da payment, Premium zai kunna a account ɗinka."
-                  : "Choose the Premium plan that works for you. Your membership activates after payment is confirmed."}
+                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account ɗinka."
+                  : "Choose the Premium plan that works for you. Your membership activates after Paystack confirms payment."}
               </p>
 
               {hasPremium && (
@@ -7760,7 +7783,7 @@ if (page === "adminPasswordResets") {
                     (plan) => (
                       <article
                         key={plan.id}
-                        className="preference-card nf-premium-card"
+                        className="preference-card"
                         style={{
                           padding: "20px",
                           display: "flex",
@@ -7824,8 +7847,8 @@ if (page === "adminPasswordResets") {
                           plan.id
                             ? "Opening payment..."
                             : hasPremium
-                              ? (language === "HAUSA" ? "Tsawaita Premium" : "Extend Premium")
-                              : (language === "HAUSA" ? "Biya yanzu" : "Pay now")}
+                              ? "👑 Extend Premium"
+                              : "👑 Go Premium"}
                         </button>
                         <ManualPaymentButton apiUrl={API_URL} token={getSessionToken()}
                           kind="PREMIUM" plan={plan.id}
@@ -8059,8 +8082,6 @@ if (page === "adminPasswordResets") {
   </button>
 )}
 
-<PushPreference push={push} language={language} />
-{user?.role === "ADMIN" && <button type="button" className="secondary-button" onClick={() => navigateTo("adminSettings")}>Admin Settings</button>}
 {user?.role === "ADMIN" && <button type="button" className="secondary-button" onClick={() => navigateTo("adminTransactions")}>Dukkan Transactions</button>}
 <button type="button" className="secondary-button" onClick={() => navigateTo("manualPaymentHistory")}>
   🏦 Buƙatun transfer / access

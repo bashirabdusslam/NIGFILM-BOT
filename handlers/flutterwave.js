@@ -30,7 +30,8 @@ function verifyHandoff(secret, value, filmId, webUserId) {
   if (Number(id) !== filmId || Number(expiry) <= Date.now()) return null;
   const data = `${id}.${expiry}.${nonce}.${tag}`;
   if (!timingSafeEqual(Buffer.from(signature), Buffer.from(hmac(secret, `checkout:${data}`)))) return null;
-  return timingSafeEqual(Buffer.from(tag), Buffer.from(accountTag(secret, nonce, webUserId))) ? nonce : null;
+  const matchesAccount = timingSafeEqual(Buffer.from(tag), Buffer.from(accountTag(secret, nonce, webUserId)));
+  return { nonce, matchesAccount };
 }
 
 function gatewayKey(env) {
@@ -81,10 +82,15 @@ export function registerFlutterwave({
           if (native || env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT !== 'true') {
             return sendError(409, 'Wannan hanyar biyan kuɗi ba ta aiki yanzu.');
           }
-          handoffNonce = verifyHandoff(env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET, req.body.browserHandoff, filmId, webUserId);
-          if (!handoffNonce) {
-            return sendError(403, 'Ka shiga da asusun NIGFILM da ke cikin app, sannan ka sake danna Buy a app.');
+          const handoff = verifyHandoff(env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET, req.body.browserHandoff, filmId, webUserId);
+          if (!handoff) {
+            return sendError(403, 'Link ɗin ya ƙare ko bai dace ba. Koma app ka sake danna Buy.');
           }
+          if (!handoff.matchesAccount) {
+            return res.status(403).json({ success: false, code: 'HANDOFF_ACCOUNT_MISMATCH',
+              message: 'Shiga da asusun NIGFILM da ka yi amfani da shi a app.' });
+          }
+          handoffNonce = handoff.nonce;
         }
         const film = await prisma.film.findUnique({ where: { id: filmId } });
         if (!film) return sendError(404, 'Ba a samu fim ba.');

@@ -155,8 +155,12 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   const attempt = { body: { returnTo: 'web', filmId: 1, browserHandoff: trialIntent } };
   const before = saved.size;
   assert.equal((await call('post', path, attempt)).code, 401);
-  assert.equal((await call('post', path, { ...attempt, webUser: { ...webUser, id: 8 } })).code, 403);
-  assert.equal((await call('post', path, { ...attempt, body: { ...attempt.body, browserHandoff: trialIntent + 'x' }, webUser })).code, 403);
+  const mismatch = await call('post', path, { ...attempt, webUser: { ...webUser, id: 8 } });
+  assert.equal(mismatch.code, 403);
+  assert.equal(mismatch.data.code, 'HANDOFF_ACCOUNT_MISMATCH');
+  const invalid = await call('post', path, { ...attempt, body: { ...attempt.body, browserHandoff: trialIntent + 'x' }, webUser });
+  assert.equal(invalid.code, 403);
+  assert.equal(invalid.data.code, undefined, 'An invalid link is not treated as a browser account mismatch');
   assert.equal(saved.size, before);
   const handedOff = await call('post', path, { ...attempt, webUser });
   assert.equal(handedOff.code, 200);

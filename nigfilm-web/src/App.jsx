@@ -621,6 +621,7 @@ async function createAdminFilm() {
     return Number.isSafeInteger(filmId) ? { filmId, intent } : null;
   });
   const browserBuyStarted = useRef(false);
+  const browserBuyRecovery = useRef(new Set());
 
   const [publicPage, setPublicPage] =
     useState(() => browserBuy && (!user || !getSessionToken()) ? "auth" : "landing");
@@ -3186,6 +3187,20 @@ async function buyMovie(
         await readJson(response);
 
       if (!response.ok) {
+        const recovery = response.status === 401
+          ? "session"
+          : data?.code === "HANDOFF_ACCOUNT_MISMATCH" ? "account" : null;
+        if (browserHandoff && recovery && !browserBuyRecovery.current.has(recovery)) {
+          browserBuyRecovery.current.add(recovery);
+          logout();
+          browserBuyStarted.current = false;
+          setBrowserBuy({ filmId: Number(film.id), intent: browserHandoff });
+          setPublicPage("auth");
+          setAuthError(language === "HAUSA"
+            ? "Shiga da asusun NIGFILM ɗin da ke cikin app. Za mu ci gaba da fim ɗin da ka zaɓa."
+            : "Sign in with the NIGFILM account used in the app. We'll continue with the movie you selected.");
+          return;
+        }
         throw new Error(
           data?.message ||
             "An kasa fara payment."

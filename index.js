@@ -1,3 +1,5 @@
+import { isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
+import { validPaystackWebhook } from "./handlers/paymentWebhookSignatures.js";
 ﻿import { registerAdminTransactions } from "./handlers/adminTransactions.js";
 import { registerManualPayments } from "./handlers/manualPayments.js";
 import { registerBillstack } from "./handlers/billstack.js";
@@ -1598,6 +1600,13 @@ registerAdminTransactions({ app, prisma, requireAdmin });
 registerManualPayments({
   app, prisma, requireWebUser, requireAdmin,
   plans: () => PREMIUM_PLANS,
+});
+
+// Flutterwave takes priority for the enabled checkout channels.
+registerFlutterwave({
+  app, prisma, requireWebUser, plans: () => PREMIUM_PLANS,
+  processWebPayment: processWebFilmPayment, processPremiumPayment,
+  buildWebPaymentPage, baseUrl: PUBLIC_BASE_URL, webUrl: WEB_APP_URL,
 });
 
 // Billstack intercepts checkout only when BILLSTACK_ENABLED=true.
@@ -8197,45 +8206,8 @@ app.post(
   "/paystack/webhook",
   async (req, res) => {
     try {
-      const signature =
-        req.headers[
-          "x-paystack-signature"
-        ];
-
-      if (
-        typeof signature !==
-          "string" ||
-        !req.rawBody ||
-        !process.env
-          .PAYSTACK_SECRET_KEY
-      ) {
-        console.log(
-          "❌ Missing Paystack signature, raw body or secret key"
-        );
-
-        return res.sendStatus(400);
-      }
-
-      const calculatedHash =
-        crypto
-          .createHmac(
-            "sha512",
-            process.env
-              .PAYSTACK_SECRET_KEY
-          )
-          .update(req.rawBody)
-          .digest("hex");
-
-      if (
-        !securelyCompareHashes(
-          calculatedHash,
-          signature
-        )
-      ) {
-        console.log(
-          "❌ Invalid Paystack signature"
-        );
-
+      if (!validPaystackWebhook(req.rawBody, req.headers, process.env)) {
+        console.warn("Paystack webhook signature not accepted");
         return res.sendStatus(401);
       }
 
@@ -8258,6 +8230,8 @@ app.post(
       const metadata =
         event?.data?.metadata ||
         {};
+
+      if (isFlutterwaveReference(reference)) return res.sendStatus(200);
 
       if (!reference) {
         console.log(
@@ -8541,6 +8515,8 @@ async function processWebFilmPayment({
 
     await prisma.$transaction(
       async (tx) => {
+        // Serialize concurrent deliveries and other purchases for the same customer.
+        await tx.$queryRaw`SELECT "id" FROM "WebUser" WHERE "id" = ${order.webUserId} FOR UPDATE`;
         const currentOrder =
           await tx.webOrder.findUnique({
             where: {
@@ -9478,43 +9454,6 @@ async function processCartPayment({
 // ======================================================
 // WEB SESSION HELPERS
 // ======================================================
-
-// ======================================================
-// PAYSTACK HASH COMPARISON
-// ======================================================
-
-function securelyCompareHashes(
-  firstHash,
-  secondHash
-) {
-  try {
-    const firstBuffer =
-      Buffer.from(
-        firstHash,
-        "hex"
-      );
-
-    const secondBuffer =
-      Buffer.from(
-        secondHash,
-        "hex"
-      );
-
-    if (
-      firstBuffer.length !==
-      secondBuffer.length
-    ) {
-      return false;
-    }
-
-    return crypto.timingSafeEqual(
-      firstBuffer,
-      secondBuffer
-    );
-  } catch {
-    return false;
-  }
-}
 
 // ======================================================
 // WEB PAYMENT HTML

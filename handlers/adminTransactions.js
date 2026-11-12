@@ -3,14 +3,14 @@ export const transactionSql = `
 WITH entries AS (
  SELECT 'web-'||o.id AS id, o."createdAt" AS date, u."fullName" AS customer,
  u.phone AS contact, f.title AS item, o.amount, o.status AS raw_status,
- o."paymentReference" AS reference, CASE WHEN b.id IS NULL THEN 'PAYSTACK' ELSE 'BILLSTACK' END AS method,
+ o."paymentReference" AS reference, CASE WHEN b.id IS NOT NULL THEN 'BILLSTACK' WHEN o."paymentReference" ~ '^FLW_(FILM|PREMIUM)_(APP_)?[a-f0-9]{32}$' THEN 'FLUTTERWAVE' ELSE 'PAYSTACK' END AS method,
  'WEB_FILM' AS kind
  FROM "WebOrder" o JOIN "WebUser" u ON u.id=o."webUserId" JOIN "Film" f ON f.id=o."filmId"
  LEFT JOIN "BillstackPayment" b ON b."orderReference"=o."paymentReference"
  WHERE NOT EXISTS (SELECT 1 FROM "ManualAccessRequest" m WHERE m.reference=o."paymentReference")
  UNION ALL
  SELECT 'premium-'||o.id,o."createdAt",u."fullName",u.phone,'Premium: '||o.plan::text,o.amount,o.status,o."paymentReference",
- CASE WHEN b.id IS NULL THEN 'PAYSTACK' ELSE 'BILLSTACK' END,'PREMIUM'
+ CASE WHEN b.id IS NOT NULL THEN 'BILLSTACK' WHEN o."paymentReference" ~ '^FLW_(FILM|PREMIUM)_(APP_)?[a-f0-9]{32}$' THEN 'FLUTTERWAVE' ELSE 'PAYSTACK' END,'PREMIUM'
  FROM "PremiumOrder" o JOIN "WebUser" u ON u.id=o."webUserId"
  LEFT JOIN "BillstackPayment" b ON b."orderReference"=o."paymentReference"
  WHERE NOT EXISTS (SELECT 1 FROM "ManualAccessRequest" m WHERE m.reference=o."paymentReference")
@@ -44,7 +44,7 @@ SELECT (SELECT count(*)::int FROM filtered) AS total,
 
 export function parseTransactionFilters(q) {
  const search=String(q.search||'').trim().slice(0,150), method=String(q.method||''),status=String(q.status||'');
- if(!['','PAYSTACK','BILLSTACK','BANK_TRANSFER','MANUAL_TRANSFER','ADMIN_GRANT'].includes(method)||!['','PAID','PENDING','FAILED','GRANTED','OTHER'].includes(status))throw Error('Invalid filter.');
+ if(!['','PAYSTACK','FLUTTERWAVE','BILLSTACK','BANK_TRANSFER','MANUAL_TRANSFER','ADMIN_GRANT'].includes(method)||!['','PAID','PENDING','FAILED','GRANTED','OTHER'].includes(status))throw Error('Invalid filter.');
  function date(value,end=false){
   if(!value)return null;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))throw Error('Invalid date.');

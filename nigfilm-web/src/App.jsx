@@ -612,8 +612,18 @@ async function createAdminFilm() {
   const [page, setPage] =
     useState("home");
 
+  const [browserBuy, setBrowserBuy] = useState(() => {
+    if (window.Capacitor?.isNativePlatform?.()) return null;
+    const raw = new URLSearchParams(window.location.search).get("buyFilm");
+    const intent = new URLSearchParams(window.location.hash.slice(1)).get("buyIntent");
+    if (!raw || !/^[1-9]\d*$/.test(raw) || !intent || intent.length > 220) return null;
+    const filmId = Number(raw);
+    return Number.isSafeInteger(filmId) ? { filmId, intent } : null;
+  });
+  const browserBuyStarted = useRef(false);
+
   const [publicPage, setPublicPage] =
-    useState("landing");
+    useState(() => browserBuy && (!user || !getSessionToken()) ? "auth" : "landing");
 useEffect(() => {
   if (user) return;
 
@@ -3124,7 +3134,7 @@ console.log(
   // BUY MOVIE
   // ===================================================
 async function buyMovie(
-  film
+  film, browserHandoff
 ) {
   if (!requireAuth("login")) {
     return;
@@ -3164,6 +3174,7 @@ async function buyMovie(
           body: JSON.stringify({
   webUserId: user.id,
   filmId: film.id,
+  ...(browserHandoff ? { browserHandoff } : {}),
   returnTo: window.Capacitor?.isNativePlatform?.()
     ? "app"
     : "web",
@@ -4416,11 +4427,26 @@ function requireAuth(mode = "login") {
 
   return false;
 }
+  useEffect(() => {
+    if (!browserBuy || browserBuyStarted.current || !user || !getSessionToken()) return;
+    const movie = films.find((film) => Number(film.id) === browserBuy.filmId);
+    if (!movie) return;
+
+    browserBuyStarted.current = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("buyFilm");
+    url.hash = "";
+    window.history.replaceState(window.history.state, "", url.href);
+    setBrowserBuy(null);
+    openFilm(movie);
+    void buyMovie(movie, browserBuy.intent);
+  }, [browserBuy, films, user]);
+
   // ===================================================
   // AUTH PAGE
   // ===================================================
 
-  if (!user && publicPage === "auth") {
+  if ((!user || (browserBuy && !getSessionToken())) && publicPage === "auth") {
     return (
       <div className="auth-page">
         <div className="auth-card">

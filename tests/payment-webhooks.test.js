@@ -24,7 +24,7 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   const saved = new Map();
   const grants = [];
   const model = {
-    async create({ data }) { const row = { ...data, id: saved.size + 1 }; saved.set(data.paymentReference, row); return row; },
+    async create({ data }) { if (saved.has(data.paymentReference)) throw Object.assign(Error('Duplicate order'), { code: 'P2002' }); const row = { ...data, id: saved.size + 1 }; saved.set(data.paymentReference, row); return row; },
     async findUnique({ where }) { return saved.get(where.paymentReference); },
   };
   const env = { WEB_PAYMENT_PROVIDER: 'flutterwave', FLUTTERWAVE_SECRET_KEY: 'FLWSECK-example', FLUTTERWAVE_WEBHOOK_SECRET: 'test-signing-key' };
@@ -58,6 +58,28 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   const webUser = { id: 7, fullName: 'Customer', phone: '08000000000' };
   const path = '/api/web/payments/initialize';
   assert.equal((await call('post', path, { body: { returnTo: 'app' }, webUser })).passed, true);
+  const legacyRequest = { body: { webUserId: 7, filmId: 1 } };
+  let trialIntent;
+  assert.equal((await call('post', path, legacyRequest)).passed, true);
+  env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'true';
+  assert.equal((await call('post', path, legacyRequest)).passed, true, 'Trial requires a film ID');
+  env.FLUTTERWAVE_LEGACY_BROWSER_TEST_FILM_ID = '1';
+  env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET = 'local-test-handoff-secret-at-least-32-chars';
+  for (const returnTo of [undefined, 'app']) {
+    const handoff = await call('post', path, { body: { ...legacyRequest.body, returnTo } });
+    assert.equal(handoff.code, 200);
+    const handoffUrl = new URL(handoff.data.authorizationUrl);
+    assert.equal(handoffUrl.origin + handoffUrl.pathname + handoffUrl.search, 'https://app.example.test/?buyFilm=1');
+    trialIntent = new URLSearchParams(handoffUrl.hash.slice(1)).get('buyIntent');
+    assert.ok(trialIntent);
+    assert.equal(handoff.data.requiresBrowserSignIn, true);
+  }
+  assert.equal(saved.size, 0);
+  assert.equal(checkout, undefined);
+  assert.equal((await call('post', path, { body: { ...legacyRequest.body, filmId: 2 } })).passed, true);
+  assert.equal((await call('post', path, { body: { ...legacyRequest.body, returnTo: 'web' } })).code, 401);
+  assert.equal((await call('post', '/api/web/premium/initialize', legacyRequest)).passed, true);
+  env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'false';
   env.WEB_PAYMENT_PROVIDER = 'paystack';
   assert.equal((await call('post', path, { body: { returnTo: 'web' }, webUser })).passed, true);
   env.WEB_PAYMENT_PROVIDER = 'flutterwave';
@@ -125,4 +147,20 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   assert.equal(nativeCallback.code, 200);
   assert.equal(nativeCallback.data.returnUrl, 'com.nigfilm.app://payment-success');
   assert.deepEqual(grants[2], ['premium', { reference: nativePremium.data.reference, paidAmount: 100000 }]);
+
+  env.WEB_PAYMENT_PROVIDER = 'flutterwave';
+  env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'true';
+  const attempt = { body: { returnTo: 'web', filmId: 1, browserHandoff: trialIntent } };
+  const before = saved.size;
+  assert.equal((await call('post', path, attempt)).code, 401);
+  assert.equal((await call('post', path, { ...attempt, webUser: { ...webUser, id: 8 } })).code, 403);
+  assert.equal((await call('post', path, { ...attempt, body: { ...attempt.body, browserHandoff: trialIntent + 'x' }, webUser })).code, 403);
+  assert.equal(saved.size, before);
+  const handedOff = await call('post', path, { ...attempt, webUser });
+  assert.equal(handedOff.code, 200);
+  assert.match(handedOff.data.reference, /^FLW_FILM_APP_[a-f0-9]{32}$/);
+  assert.equal(saved.get(handedOff.data.reference).webUserId, 7);
+  assert.equal((await call('post', path, { ...attempt, webUser })).code, 409);
+  assert.equal(saved.size, before + 1);
+
 });

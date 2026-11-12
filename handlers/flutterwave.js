@@ -78,9 +78,8 @@ export function registerFlutterwave({
         const filmId = Number(req.body?.filmId);
         if (!Number.isSafeInteger(filmId) || filmId <= 0) return sendError(400, 'Film ID bai dace ba.');
         if (req.body?.browserHandoff !== undefined) {
-          if (native || env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT !== 'true' ||
-              String(filmId) !== env.FLUTTERWAVE_LEGACY_BROWSER_TEST_FILM_ID) {
-            return sendError(409, 'Wannan hanyar gwajin ba ta aiki yanzu.');
+          if (native || env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT !== 'true') {
+            return sendError(409, 'Wannan hanyar biyan kuɗi ba ta aiki yanzu.');
           }
           handoffNonce = verifyHandoff(env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET, req.body.browserHandoff, filmId, webUserId);
           if (!handoffNonce) {
@@ -146,21 +145,22 @@ export function registerFlutterwave({
       if (env.WEB_PAYMENT_PROVIDER !== 'flutterwave') return next();
       const native = req.body?.returnTo === 'app';
       const legacy = native || req.body?.returnTo == null;
-      // The trial applies only to the selected film. No order is created here.
-      const trialFilmId = /^[1-9]\d*$/.test(env.FLUTTERWAVE_LEGACY_BROWSER_TEST_FILM_ID || '')
-        ? Number(env.FLUTTERWAVE_LEGACY_BROWSER_TEST_FILM_ID) : null;
+      // The unauthenticated legacy APK gets a signed handoff; no order is created here.
       if (kind === 'FILM' && legacy && env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT === 'true' &&
-          !req.headers?.authorization && returnUrl && Number.isSafeInteger(trialFilmId) &&
-          Number(req.body?.filmId) === trialFilmId) {
+          !req.headers?.authorization && returnUrl) {
         const secret = env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET;
+        const filmId = Number(req.body?.filmId);
         const appUserId = Number(req.body?.webUserId);
         if (!secret || secret.length < 32) {
           return res.status(503).json({ success: false, message: 'Ba a gama saitin shafin biyan kuɗi ba.' });
         }
-        if (!Number.isSafeInteger(appUserId) || appUserId <= 0) return res.sendStatus(400);
+        if (!Number.isSafeInteger(filmId) || filmId <= 0 ||
+            !Number.isSafeInteger(appUserId) || appUserId <= 0) {
+          return res.status(400).json({ success: false, message: 'Film ko asusun bai dace ba.' });
+        }
         const link = new URL(returnUrl);
-        link.searchParams.set('buyFilm', String(trialFilmId));
-        link.hash = new URLSearchParams({ buyIntent: makeHandoff(secret, trialFilmId, appUserId) }).toString();
+        link.searchParams.set('buyFilm', String(filmId));
+        link.hash = new URLSearchParams({ buyIntent: makeHandoff(secret, filmId, appUserId) }).toString();
         return res.set('Cache-Control', 'no-store').json({
           success: true, authorizationUrl: link.href, requiresBrowserSignIn: true,
         });

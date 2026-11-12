@@ -59,24 +59,25 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   const path = '/api/web/payments/initialize';
   assert.equal((await call('post', path, { body: { returnTo: 'app' }, webUser })).passed, true);
   const legacyRequest = { body: { webUserId: 7, filmId: 1 } };
-  let trialIntent;
+  const handoffIntents = new Map();
   assert.equal((await call('post', path, legacyRequest)).passed, true);
   env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'true';
-  assert.equal((await call('post', path, legacyRequest)).passed, true, 'Trial requires a film ID');
-  env.FLUTTERWAVE_LEGACY_BROWSER_TEST_FILM_ID = '1';
+  assert.equal((await call('post', path, legacyRequest)).code, 503, 'Handoff requires a signing secret');
   env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET = 'local-test-handoff-secret-at-least-32-chars';
-  for (const returnTo of [undefined, 'app']) {
-    const handoff = await call('post', path, { body: { ...legacyRequest.body, returnTo } });
+  for (const [filmId, returnTo] of [[1, undefined], [2, 'app']]) {
+    const handoff = await call('post', path, { body: { ...legacyRequest.body, filmId, returnTo } });
     assert.equal(handoff.code, 200);
     const handoffUrl = new URL(handoff.data.authorizationUrl);
-    assert.equal(handoffUrl.origin + handoffUrl.pathname + handoffUrl.search, 'https://app.example.test/?buyFilm=1');
-    trialIntent = new URLSearchParams(handoffUrl.hash.slice(1)).get('buyIntent');
-    assert.ok(trialIntent);
+    assert.equal(handoffUrl.origin + handoffUrl.pathname + handoffUrl.search, `https://app.example.test/?buyFilm=${filmId}`);
+    const intent = new URLSearchParams(handoffUrl.hash.slice(1)).get('buyIntent');
+    assert.ok(intent);
+    handoffIntents.set(filmId, intent);
     assert.equal(handoff.data.requiresBrowserSignIn, true);
   }
   assert.equal(saved.size, 0);
   assert.equal(checkout, undefined);
-  assert.equal((await call('post', path, { body: { ...legacyRequest.body, filmId: 2 } })).passed, true);
+  assert.equal((await call('post', path, { body: { ...legacyRequest.body, filmId: 0 } })).code, 400);
+  assert.equal((await call('post', path, { body: { ...legacyRequest.body, webUserId: null } })).code, 400);
   assert.equal((await call('post', path, { body: { ...legacyRequest.body, returnTo: 'web' } })).code, 401);
   assert.equal((await call('post', '/api/web/premium/initialize', legacyRequest)).passed, true);
   env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'false';
@@ -150,6 +151,7 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
 
   env.WEB_PAYMENT_PROVIDER = 'flutterwave';
   env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT = 'true';
+  const trialIntent = handoffIntents.get(1);
   const attempt = { body: { returnTo: 'web', filmId: 1, browserHandoff: trialIntent } };
   const before = saved.size;
   assert.equal((await call('post', path, attempt)).code, 401);

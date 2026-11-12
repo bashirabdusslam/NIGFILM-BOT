@@ -11,7 +11,7 @@ export default function AdminTransactions({apiUrl,token,onBack}){
  <p>Orders da aka adana: film, Premium, Telegram da manual transfer. Access na kyauta baya cikin kudin shiga.</p>
  <form onSubmit={e=>{e.preventDefault();setQuery({...form,page:1});setReload(n=>n+1);}} className="transactions-filters">
  <label>Bincike<input value={form.search} placeholder="Suna, waya, film ko reference" onChange={e=>field('search',e.target.value)}/></label>
- <label>Hanyar biya<select value={form.method} onChange={e=>field('method',e.target.value)}>{['','PAYSTACK','BILLSTACK','BANK_TRANSFER','MANUAL_TRANSFER','ADMIN_GRANT'].map(v=><option key={v} value={v}>{v||'Duka'}</option>)}</select></label>
+ <label>Hanyar biya<select value={form.method} onChange={e=>field('method',e.target.value)}>{['','PAYSTACK','FLUTTERWAVE','BILLSTACK','BANK_TRANSFER','MANUAL_TRANSFER','ADMIN_GRANT'].map(v=><option key={v} value={v}>{v||'Duka'}</option>)}</select></label>
  <label>Status<select value={form.status} onChange={e=>field('status',e.target.value)}>{['','PAID','PENDING','FAILED','GRANTED','OTHER'].map(v=><option key={v} value={v}>{v||'Duka'}</option>)}</select></label>
  <label>Daga<input type="date" value={form.from} onChange={e=>field('from',e.target.value)}/></label><label>Zuwa<input type="date" value={form.to} onChange={e=>field('to',e.target.value)}/></label><button disabled={busy}>Duba / Sake dubawa</button></form>
  <p>Kwanan wata: lokacin Najeriya. Jimilla tana bin tacewar da ka zaba.</p>

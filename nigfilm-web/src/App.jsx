@@ -779,7 +779,7 @@ useEffect(() => {
           replace: true,
         });
 
-        // Refresh app state bayan dawowa daga Paystack.
+        // Refresh app state bayan dawowa daga checkout.
         window.location.reload();
       }
     );
@@ -2560,7 +2560,7 @@ console.log(
 
       if (!data?.authorizationUrl) {
         throw new Error(
-          "Paystack Premium payment URL bai samu ba."
+          "Ba a samu hanyar biyan Premium ba."
         );
       }
 
@@ -3185,21 +3185,16 @@ async function buyMovie(
         !data.authorizationUrl
       ) {
         throw new Error(
-          "Paystack payment URL bai samu ba."
+          "Ba a samu hanyar biyan kuɗi ba."
         );
       }
 
       window.location.href =
         data.authorizationUrl;
     } catch (error) {
-      console.error(
-        "PAYMENT ERROR:",
-        error
-      );
-
       setPaymentError(
         error?.message ||
-          "An samu matsala wajen buɗe Paystack."
+          "An samu matsala wajen buɗe shafin biyan kuɗi."
       );
     } finally {
       setPaymentLoading(false);
@@ -5744,7 +5739,7 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Buy This Movie</strong>
                       <p>
-                        Watch Options → Buy This Movie → Paystack → My Movies.
+                        Watch Options → Buy This Movie → Checkout → My Movies.
                       </p>
                     </div>
                   </div>
@@ -5754,7 +5749,7 @@ function requireAuth(mode = "login") {
                     <div>
                       <strong>Activate Premium</strong>
                       <p>
-                        Watch Options → Activate Premium → Choose Plan → Paystack.
+                        Watch Options → Activate Premium → Choose Plan → Checkout.
                       </p>
                     </div>
                   </div>
@@ -7740,8 +7735,8 @@ if (page === "adminPasswordResets") {
 
               <p className="details-description">
                 {language === "HAUSA"
-                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan Paystack ya tabbatar da payment, Premium zai kunna a account ɗinka."
-                  : "Choose the Premium plan that works for you. Your membership activates after Paystack confirms payment."}
+                  ? "Zaɓi tsarin Premium da ya dace da kai. Bayan an tabbatar da biyan kuɗi, Premium zai kunna a account ɗinka."
+                  : "Choose the Premium plan that works for you. Your membership activates after payment is confirmed."}
               </p>
 
               {hasPremium && (

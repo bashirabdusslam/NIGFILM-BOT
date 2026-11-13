@@ -1637,7 +1637,7 @@ app.post(
     // initializes a payable order; it does not authenticate the recipient.
     if (req.checkoutProvider === "paystack" &&
         req.headers.authorization === undefined &&
-        req.body?.returnTo === undefined &&
+        (req.body?.returnTo === undefined || req.body?.returnTo === "app") &&
         req.body?.browserHandoff === undefined) {
       return next();
     }

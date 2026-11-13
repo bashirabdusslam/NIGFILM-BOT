@@ -1632,7 +1632,7 @@ registerBillstack({
 
 app.post(
   "/api/web/payments/initialize",
-  (req, res, next) => req.webUser ? next() : requireWebUser(req, res, next),
+  requireWebUser,
   async (req, res) => {
     try {
       const webUserId = req.webUser.id;
@@ -1728,9 +1728,7 @@ app.post(
       // =================================
 
       const reference =
-        req.checkoutHandoffNonce
-          ? `WEB_APP_${req.checkoutHandoffNonce}`
-          : `WEB_${user.id}_${film.id}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+        `WEB_${user.id}_${film.id}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
       // =================================
       // CREATE WEB ORDER
@@ -1757,7 +1755,7 @@ app.post(
         });
 
 
-      const returnTo = (req.checkoutHandoffNonce || req.body?.returnTo === "app") ? "app" : "web";
+      const returnTo = req.body?.returnTo === "app" ? "app" : "web";
 
 
       // =================================
@@ -1868,9 +1866,6 @@ app.post(
         },
       });
     } catch (error) {
-      if (req.checkoutHandoffNonce && error?.code === "P2002") {
-        return res.status(409).json({ success: false, message: "An riga an yi amfani da wannan link. Koma app ka sake danna Buy." });
-      }
       console.error(
         "❌ WEB PAYMENT INITIALIZE ERROR:",
         error

@@ -204,18 +204,13 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
     assert.equal((await call('post', checkoutPath, req)).passed, true);
     assert.equal(req.checkoutProvider, 'paystack');
   }
-  const paystackHandoff = await call('post', path, legacyRequest);
-  const paystackIntent = new URLSearchParams(new URL(paystackHandoff.data.authorizationUrl).hash.slice(1)).get('buyIntent');
-  const paystackResume = { body: { returnTo: 'web', filmId: 1, browserHandoff: paystackIntent }, webUser };
-  assert.equal((await call('post', path, { ...paystackResume, webUser: undefined })).code, 401);
-  assert.equal((await call('post', path, { ...paystackResume, webUser: { ...webUser, id: 8 } })).code, 403);
-  assert.equal((await call('post', path, paystackResume)).passed, true);
-  assert.match(paystackResume.checkoutHandoffNonce, /^[a-f0-9]{32}$/);
-  assert.equal((await call('post', path, { ...attempt, webUser })).code, 403);
+  const legacyPaystack = await call('post', path, legacyRequest);
+  assert.equal(legacyPaystack.passed, true, 'Let Paystack enforce its own session requirement');
+  assert.equal(legacyPaystack.data?.authorizationUrl, undefined, 'Never issue a NIGFILM browser link for Paystack');
+  assert.equal((await call('post', path, { ...attempt, webUser })).code, 409);
 
   assert.equal((await select('flutterwave')).data.provider, 'flutterwave');
   env.WEB_PAYMENT_PROVIDER = 'paystack';
-  assert.equal((await call('post', path, { ...paystackResume })).code, 403);
   assert.match((await call('post', path, filmReq())).data.authorizationUrl, /^https:\/\/checkout\.flutterwave\.com/);
   assert.match((await call('post', premiumPath, premiumReq())).data.authorizationUrl, /^https:\/\/checkout\.flutterwave\.com/);
   settingsOffline = true;

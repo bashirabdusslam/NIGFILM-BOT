@@ -1632,10 +1632,28 @@ registerBillstack({
 
 app.post(
   "/api/web/payments/initialize",
-  requireWebUser,
+  (req, res, next) => {
+    // The old app sends just the purchase recipient and film. This only
+    // initializes a payable order; it does not authenticate the recipient.
+    if (req.checkoutProvider === "paystack" &&
+        req.headers.authorization === undefined &&
+        req.body?.returnTo === undefined &&
+        req.body?.browserHandoff === undefined) {
+      return next();
+    }
+    return requireWebUser(req, res, next);
+  },
   async (req, res) => {
     try {
-      const webUserId = req.webUser.id;
+      const legacyCheckout = !req.webUser;
+      const webUserId = req.webUser?.id ?? Number(req.body?.webUserId);
+      const unavailable = () => res.status(400).json({
+        success: false,
+        message: "An kasa fara biyan wannan fim. Ka duba My Movies ko ka sake gwadawa.",
+      });
+      if (!Number.isSafeInteger(webUserId) || webUserId <= 0) {
+        return unavailable();
+      }
       const filmId = Number(req.body?.filmId);
 
       if (
@@ -1671,9 +1689,11 @@ app.post(
           where: {
             id: webUserId,
           },
+          select: { id: true },
         });
 
       if (!user) {
+        if (legacyCheckout) return unavailable();
         return res.status(404).json({
           success: false,
           message:
@@ -1714,6 +1734,7 @@ app.post(
         });
 
       if (existingPurchase) {
+        if (legacyCheckout) return unavailable();
         return res.status(409).json({
           success: false,
           alreadyPurchased: true,

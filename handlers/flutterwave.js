@@ -17,19 +17,21 @@ const handoffLifetime = 10 * 60 * 1000;
 const hmac = (secret, value) => createHmac('sha256', secret).update(value).digest('hex');
 const accountTag = (secret, nonce, userId) => hmac(secret, `account:${nonce}:${userId}`);
 
-function makeHandoff(secret, filmId, appUserId) {
+function makeHandoff(secret, filmId, appUserId, provider) {
   const nonce = randomBytes(16).toString('hex');
   const data = `${filmId}.${Date.now() + handoffLifetime}.${nonce}.${accountTag(secret, nonce, appUserId)}`;
-  return `${data}.${hmac(secret, `checkout:${data}`)}`;
+  return `${data}.${hmac(secret, `checkout:${provider}:${data}`)}`;
 }
 
-function verifyHandoff(secret, value, filmId, webUserId) {
+function verifyHandoff(secret, value, filmId, webUserId, provider) {
   if (!secret || typeof value !== 'string' || value.length > 220 ||
       !/^[1-9]\d{0,15}\.\d{13}\.[a-f0-9]{32}\.[a-f0-9]{64}\.[a-f0-9]{64}$/.test(value)) return null;
   const [id, expiry, nonce, tag, signature] = value.split('.');
   if (Number(id) !== filmId || Number(expiry) <= Date.now()) return null;
   const data = `${id}.${expiry}.${nonce}.${tag}`;
-  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(hmac(secret, `checkout:${data}`)))) return null;
+  const signatureMatches = scope => timingSafeEqual(Buffer.from(signature), Buffer.from(hmac(secret, scope)));
+  if (!signatureMatches(`checkout:${provider}:${data}`) &&
+      !(provider === 'flutterwave' && signatureMatches(`checkout:${data}`))) return null;
   const matchesAccount = timingSafeEqual(Buffer.from(tag), Buffer.from(accountTag(secret, nonce, webUserId)));
   return { nonce, matchesAccount };
 }
@@ -54,9 +56,15 @@ function secureUrl(value) {
   }
 }
 
+export function flutterwaveReady({ baseUrl, webUrl, env = process.env }) {
+  return Boolean(gatewayKey(env) && env.FLUTTERWAVE_WEBHOOK_SECRET?.trim() &&
+    secureUrl(baseUrl) && secureUrl(webUrl));
+}
+
 export function registerFlutterwave({
   app, prisma, requireWebUser, plans, processWebPayment, processPremiumPayment,
   buildWebPaymentPage, baseUrl, webUrl, env = process.env, fetchImpl = fetch,
+  getSavedProvider = async () => null,
 }) {
   const publicOrigin = secureUrl(baseUrl)?.origin;
   const returnUrl = secureUrl(webUrl)?.href;
@@ -74,24 +82,11 @@ export function registerFlutterwave({
 
     try {
       const webUserId = req.webUser.id;
-      let amount, description, orderData, model, handoffNonce;
+      const handoffNonce = req.checkoutHandoffNonce;
+      let amount, description, orderData, model;
       if (kind === 'FILM') {
         const filmId = Number(req.body?.filmId);
         if (!Number.isSafeInteger(filmId) || filmId <= 0) return sendError(400, 'Film ID bai dace ba.');
-        if (req.body?.browserHandoff !== undefined) {
-          if (native || env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT !== 'true') {
-            return sendError(409, 'Wannan hanyar biyan kuɗi ba ta aiki yanzu.');
-          }
-          const handoff = verifyHandoff(env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET, req.body.browserHandoff, filmId, webUserId);
-          if (!handoff) {
-            return sendError(403, 'Link ɗin ya ƙare ko bai dace ba. Koma app ka sake danna Buy.');
-          }
-          if (!handoff.matchesAccount) {
-            return res.status(403).json({ success: false, code: 'HANDOFF_ACCOUNT_MISMATCH',
-              message: 'Shiga da asusun NIGFILM da ka yi amfani da shi a app.' });
-          }
-          handoffNonce = handoff.nonce;
-        }
         const film = await prisma.film.findUnique({ where: { id: filmId } });
         if (!film) return sendError(404, 'Ba a samu fim ba.');
         if (await prisma.webPurchase.findUnique({ where: { webUserId_filmId: { webUserId, filmId } } })) {
@@ -147,13 +142,20 @@ export function registerFlutterwave({
   }
 
   for (const [path, kind] of paths) {
-    app.post(path, (req, res, next) => {
-      if (env.WEB_PAYMENT_PROVIDER !== 'flutterwave') return next();
+    app.post(path, async (req, res, next) => {
+      res.set('Cache-Control', 'no-store');
+      try {
+        req.checkoutProvider = await getSavedProvider();
+      } catch {
+        return res.status(503).json({ success: false, message: 'An kasa samun saitin biyan kuɗi. Sake gwadawa.' });
+      }
+      const flutterwave = (req.checkoutProvider ?? env.WEB_PAYMENT_PROVIDER) === 'flutterwave';
+      const checkoutProvider = flutterwave ? 'flutterwave' : 'paystack';
       const native = req.body?.returnTo === 'app';
       const legacy = native || req.body?.returnTo == null;
       // The unauthenticated legacy APK gets a signed handoff; no order is created here.
-      if (kind === 'FILM' && legacy && env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT === 'true' &&
-          !req.headers?.authorization && returnUrl) {
+      if ((flutterwave || req.checkoutProvider === 'paystack') && kind === 'FILM' && legacy &&
+          env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT === 'true' && !req.headers?.authorization && returnUrl) {
         const secret = env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET;
         const filmId = Number(req.body?.filmId);
         const appUserId = Number(req.body?.webUserId);
@@ -166,12 +168,32 @@ export function registerFlutterwave({
         }
         const link = new URL(returnUrl);
         link.searchParams.set('buyFilm', String(filmId));
-        link.hash = new URLSearchParams({ buyIntent: makeHandoff(secret, filmId, appUserId) }).toString();
+        link.hash = new URLSearchParams({ buyIntent: makeHandoff(secret, filmId, appUserId, checkoutProvider) }).toString();
         return res.set('Cache-Control', 'no-store').json({
           success: true, authorizationUrl: link.href, requiresBrowserSignIn: true,
         });
       }
-      if (native ? env.FLUTTERWAVE_NATIVE_CHECKOUT !== 'true' : req.body?.returnTo !== 'web') return next();
+      const useFlutterwave = flutterwave && (req.checkoutProvider === 'flutterwave' ||
+        (native ? env.FLUTTERWAVE_NATIVE_CHECKOUT === 'true' : req.body?.returnTo === 'web'));
+      if (kind === 'FILM' && req.body?.browserHandoff !== undefined) {
+        return requireWebUser(req, res, () => {
+          if (native || env.FLUTTERWAVE_LEGACY_BROWSER_CHECKOUT !== 'true' ||
+              (!useFlutterwave && req.checkoutProvider !== 'paystack')) {
+            return res.status(409).json({ success: false, message: 'Wannan hanyar biyan kuɗi ba ta aiki yanzu.' });
+          }
+          const handoff = verifyHandoff(env.FLUTTERWAVE_LEGACY_HANDOFF_SECRET, req.body.browserHandoff, Number(req.body.filmId), req.webUser.id, checkoutProvider);
+          if (!handoff) {
+            return res.status(403).json({ success: false, message: 'Link ɗin ya ƙare ko bai dace ba. Koma app ka sake danna Buy.' });
+          }
+          if (!handoff.matchesAccount) {
+            return res.status(403).json({ success: false, code: 'HANDOFF_ACCOUNT_MISMATCH',
+              message: 'Shiga da asusun NIGFILM da ka yi amfani da shi a app.' });
+          }
+          req.checkoutHandoffNonce = handoff.nonce;
+          return useFlutterwave ? initialize(req, res, kind, native) : next();
+        });
+      }
+      if (!useFlutterwave) return next();
       return requireWebUser(req, res, () => initialize(req, res, kind, native));
     });
   }

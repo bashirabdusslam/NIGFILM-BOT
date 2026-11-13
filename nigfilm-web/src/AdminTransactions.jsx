@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './AdminTransactions.css';
+import AdminPaymentProvider from './AdminPaymentProvider';
 const money=n=>`NGN ${Number(n||0).toLocaleString('en-NG')}`;
 export default function AdminTransactions({apiUrl,token,onBack}){
  const [form,setForm]=useState({search:'',method:'',status:'',from:'',to:''});
@@ -8,6 +9,7 @@ export default function AdminTransactions({apiUrl,token,onBack}){
  (async()=>{try{const r=await fetch(`${apiUrl}/api/admin/transactions?${new URLSearchParams(query)}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store',signal:controller.signal});const d=await r.json().catch(()=>null);if(!r.ok||!d?.success)throw Error(d?.message||`An kasa loda bayanai (${r.status}).`);if(!controller.signal.aborted)setReport(d);}catch(e){if(!controller.signal.aborted)setError(e.message);}finally{if(!controller.signal.aborted)setBusy(false);}})();return()=>controller.abort();},[apiUrl,token,query,reload]);
  const field=(name,value)=>setForm(v=>({...v,[name]:value}));
  return <main className="transactions-page"><button onClick={onBack}>Komawa profile</button><h1>Dukkan Transactions</h1>
+ <AdminPaymentProvider apiUrl={apiUrl} token={token} />
  <p>Orders da aka adana: film, Premium, Telegram da manual transfer. Access na kyauta baya cikin kudin shiga.</p>
  <form onSubmit={e=>{e.preventDefault();setQuery({...form,page:1});setReload(n=>n+1);}} className="transactions-filters">
  <label>Bincike<input value={form.search} placeholder="Suna, waya, film ko reference" onChange={e=>field('search',e.target.value)}/></label>

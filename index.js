@@ -1,4 +1,5 @@
-import { isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
+import { registerPaymentSettings } from "./handlers/paymentSettings.js";
+import { flutterwaveReady, isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
 import { validPaystackWebhook } from "./handlers/paymentWebhookSignatures.js";
 ﻿import { registerAdminTransactions } from "./handlers/adminTransactions.js";
 import { registerManualPayments } from "./handlers/manualPayments.js";
@@ -1602,11 +1603,18 @@ registerManualPayments({
   plans: () => PREMIUM_PLANS,
 });
 
-// Flutterwave takes priority for the enabled checkout channels.
+const getSavedProvider = registerPaymentSettings({
+  app, prisma, requireAdmin,
+  isReady: provider => provider === "flutterwave"
+    ? flutterwaveReady({ baseUrl: PUBLIC_BASE_URL, webUrl: WEB_APP_URL })
+    : Boolean(process.env.PAYSTACK_SECRET_KEY?.trim()),
+});
+
+// A saved admin choice controls new Film and Premium checkouts.
 registerFlutterwave({
   app, prisma, requireWebUser, plans: () => PREMIUM_PLANS,
   processWebPayment: processWebFilmPayment, processPremiumPayment,
-  buildWebPaymentPage, baseUrl: PUBLIC_BASE_URL, webUrl: WEB_APP_URL,
+  buildWebPaymentPage, baseUrl: PUBLIC_BASE_URL, webUrl: WEB_APP_URL, getSavedProvider,
 });
 
 // Billstack intercepts checkout only when BILLSTACK_ENABLED=true.
@@ -1624,30 +1632,11 @@ registerBillstack({
 
 app.post(
   "/api/web/payments/initialize",
+  (req, res, next) => req.webUser ? next() : requireWebUser(req, res, next),
   async (req, res) => {
     try {
-      const webUserId =
-        Number(
-          req.body?.webUserId
-        );
-
-      const filmId =
-        Number(
-          req.body?.filmId
-        );
-
-      if (
-        !Number.isInteger(
-          webUserId
-        ) ||
-        webUserId <= 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Web User ID bai dace ba.",
-        });
-      }
+      const webUserId = req.webUser.id;
+      const filmId = Number(req.body?.filmId);
 
       if (
         !Number.isInteger(
@@ -1739,9 +1728,9 @@ app.post(
       // =================================
 
       const reference =
-        `WEB_${user.id}_${film.id}_${Date.now()}_${crypto
-          .randomBytes(4)
-          .toString("hex")}`;
+        req.checkoutHandoffNonce
+          ? `WEB_APP_${req.checkoutHandoffNonce}`
+          : `WEB_${user.id}_${film.id}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
       // =================================
       // CREATE WEB ORDER
@@ -1768,10 +1757,7 @@ app.post(
         });
 
 
-       const returnTo =
-  req.body?.returnTo === "app"
-    ? "app"
-    : "web";
+      const returnTo = (req.checkoutHandoffNonce || req.body?.returnTo === "app") ? "app" : "web";
 
 
       // =================================
@@ -1882,6 +1868,9 @@ app.post(
         },
       });
     } catch (error) {
+      if (req.checkoutHandoffNonce && error?.code === "P2002") {
+        return res.status(409).json({ success: false, message: "An riga an yi amfani da wannan link. Koma app ka sake danna Buy." });
+      }
       console.error(
         "❌ WEB PAYMENT INITIALIZE ERROR:",
         error

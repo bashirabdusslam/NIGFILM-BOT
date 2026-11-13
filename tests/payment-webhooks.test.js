@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
+import { registerPaymentSettings } from '../handlers/paymentSettings.js';
 import { registerFlutterwave } from '../handlers/flutterwave.js';
 import { validPaystackWebhook } from '../handlers/paymentWebhookSignatures.js';
 
@@ -20,7 +21,7 @@ test('Paystack accepts signed raw bytes in both formats and rejects stale or tam
 
 test('Flutterwave selects web checkout, trusts server prices and fulfills only provider-verified payments', async () => {
   const routes = new Map();
-  const app = Object.fromEntries(['get','post'].map(method => [method, (path, fn) => routes.set(method + path, fn)]));
+  const app = Object.fromEntries(['get','post','put'].map(method => [method, (path, ...handlers) => routes.set(method + path, handlers)]));
   const saved = new Map();
   const grants = [];
   const model = {
@@ -28,9 +29,20 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
     async findUnique({ where }) { return saved.get(where.paymentReference); },
   };
   const env = { WEB_PAYMENT_PROVIDER: 'flutterwave', FLUTTERWAVE_SECRET_KEY: 'FLWSECK-example', FLUTTERWAVE_WEBHOOK_SECRET: 'test-signing-key' };
-  let verification, checkout;
+  let verification, checkout, savedSettings, paystackReady = false, settingsOffline = false;
+  const getSavedProvider = registerPaymentSettings({
+    app, env, isReady: provider => provider === 'flutterwave' || paystackReady,
+    requireAdmin: (req, res, next) => req.webUser?.role === 'ADMIN' ? next() : res.sendStatus(req.webUser ? 403 : 401),
+    prisma: { checkoutPaymentSettings: {
+      async findUnique() {
+        if (settingsOffline) throw Error('Database offline');
+        return savedSettings;
+      },
+      async upsert({ create, update }) { savedSettings = savedSettings ? { ...savedSettings, ...update } : create; },
+    } },
+  });
   registerFlutterwave({
-    app, env, baseUrl: 'https://api.example.test', webUrl: 'https://app.example.test',
+    app, env, getSavedProvider, baseUrl: 'https://api.example.test', webUrl: 'https://app.example.test',
     prisma: { webOrder: model, premiumOrder: model, film: { findUnique: async () => ({ title: 'Film', price: 200 }) },
       webPurchase: { findUnique: async () => null } },
     requireWebUser: (req, res, next) => req.webUser ? next() : res.sendStatus(401),
@@ -52,7 +64,10 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
     const response = { code: 200, status(code) { this.code = code; return this; }, set() { return this; },
       sendStatus(code) { this.code = code; return this; }, json(data) { this.data = data; return this; },
       send(data) { this.data = data; return this; } };
-    await routes.get(method + path)(req, response, () => { response.passed = true; });
+    const handlers = routes.get(method + path);
+    let i = 0;
+    const next = () => i < handlers.length ? handlers[i++](req, response, next) : (response.passed = true);
+    await next();
     return response;
   }
   const webUser = { id: 7, fullName: 'Customer', phone: '08000000000' };
@@ -168,5 +183,42 @@ test('Flutterwave selects web checkout, trusts server prices and fulfills only p
   assert.equal(saved.get(handedOff.data.reference).webUserId, 7);
   assert.equal((await call('post', path, { ...attempt, webUser })).code, 409);
   assert.equal(saved.size, before + 1);
+
+  const settingsPath = '/api/admin/payment-provider';
+  const admin = { ...webUser, role: 'ADMIN' };
+  const select = (provider, user = admin) => call('put', settingsPath, { body: { provider }, webUser: user });
+  const premiumPath = '/api/web/premium/initialize';
+  const filmReq = () => ({ body: { returnTo: 'app', filmId: 1 }, webUser, headers: { authorization: 'Bearer session' } });
+  const premiumReq = () => ({ body: { returnTo: 'web', plan: 'weekly' }, webUser });
+  assert.equal((await call('get', settingsPath, {})).code, 401);
+  assert.equal((await select('paystack', webUser)).code, 403);
+  assert.equal((await select('billstack')).code, 400);
+  assert.equal((await select('paystack')).code, 409);
+  assert.equal((await call('get', settingsPath, { webUser: admin })).data.source, 'environment');
+  paystackReady = true;
+  env.BILLSTACK_ENABLED = 'true';
+  assert.equal((await select('paystack')).data.provider, 'paystack');
+  assert.equal(savedSettings.updatedBy, admin.id);
+
+  for (const [checkoutPath, req] of [[path, filmReq()], [premiumPath, premiumReq()]]) {
+    assert.equal((await call('post', checkoutPath, req)).passed, true);
+    assert.equal(req.checkoutProvider, 'paystack');
+  }
+  const paystackHandoff = await call('post', path, legacyRequest);
+  const paystackIntent = new URLSearchParams(new URL(paystackHandoff.data.authorizationUrl).hash.slice(1)).get('buyIntent');
+  const paystackResume = { body: { returnTo: 'web', filmId: 1, browserHandoff: paystackIntent }, webUser };
+  assert.equal((await call('post', path, { ...paystackResume, webUser: undefined })).code, 401);
+  assert.equal((await call('post', path, { ...paystackResume, webUser: { ...webUser, id: 8 } })).code, 403);
+  assert.equal((await call('post', path, paystackResume)).passed, true);
+  assert.match(paystackResume.checkoutHandoffNonce, /^[a-f0-9]{32}$/);
+  assert.equal((await call('post', path, { ...attempt, webUser })).code, 403);
+
+  assert.equal((await select('flutterwave')).data.provider, 'flutterwave');
+  env.WEB_PAYMENT_PROVIDER = 'paystack';
+  assert.equal((await call('post', path, { ...paystackResume })).code, 403);
+  assert.match((await call('post', path, filmReq())).data.authorizationUrl, /^https:\/\/checkout\.flutterwave\.com/);
+  assert.match((await call('post', premiumPath, premiumReq())).data.authorizationUrl, /^https:\/\/checkout\.flutterwave\.com/);
+  settingsOffline = true;
+  assert.equal((await call('post', path, filmReq())).code, 503);
 
 });

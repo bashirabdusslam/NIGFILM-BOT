@@ -90,7 +90,7 @@ export function registerBillstack({app, prisma, requireWebUser, plans, expiry, b
   // Registered before the existing Paystack handlers. Disabled by default.
   for (const [path,kind] of [['/api/web/payments/initialize','FILM'],['/api/web/premium/initialize','PREMIUM']]) {
     app.post(path, (req,res,next) => {
-      if (!enabled()) return next();
+      if (req.checkoutProvider || !enabled()) return next();
       return requireWebUser(req,res,()=>initialize(req,res,kind));
     });
   }

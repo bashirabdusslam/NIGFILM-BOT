@@ -1,3 +1,4 @@
+import { createTelegramPosterLoader, telegramErrorCode } from "./handlers/telegramPoster.js";
 import { registerPushNotifications } from "./handlers/pushNotifications.js";
 import { isTelegramPaystackReference, recheckFilmOrder, registerFilmPaymentRecheck } from "./handlers/filmPaymentRecheck.js";
 import { makeFilmMediaTicket, publicTrailer, validFilmMediaTicket } from "./handlers/filmVisibility.js";
@@ -451,6 +452,8 @@ webVideoUrl: true,
 // FILM POSTER PROXY
 // ======================================================
 
+const getTelegramPoster = createTelegramPosterLoader({botToken:process.env.BOT_TOKEN});
+
 app.get(
   "/api/films/:id/poster",
   async (req, res) => {
@@ -483,51 +486,16 @@ app.get(
         return res.sendStatus(404);
       }
 
-      const fileLink =
-        await bot.telegram.getFileLink(
-          film.posterFileId
-        );
-
-      const response =
-        await fetch(fileLink.href);
-
-      if (!response.ok) {
-        console.error(
-          "❌ TELEGRAM POSTER FETCH FAILED:",
-          response.status
-        );
-
-        return res.sendStatus(502);
-      }
-
-      const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "image/jpeg";
-
-      res.setHeader(
-        "Content-Type",
-        contentType
-      );
-
-      res.setHeader(
-        "Cache-Control",
-        "public, max-age=3600"
-      );
-
-      const imageBuffer =
-        Buffer.from(
-          await response.arrayBuffer()
-        );
-
-      return res.send(imageBuffer);
+      const {bytes,mime,stale} = await getTelegramPoster(film.posterFileId);
+      res.set({
+        "Content-Type":mime,
+        "X-Content-Type-Options":"nosniff",
+        "Cache-Control":stale ? "public, max-age=60" : "public, max-age=3600",
+      });
+      return res.send(bytes);
     } catch (error) {
-      console.error(
-        "❌ POSTER API ERROR:",
-        error
-      );
-
-      return res.sendStatus(500);
+      console.error("❌ POSTER API ERROR:", telegramErrorCode(error));
+      return res.sendStatus(502);
     }
   }
 );
@@ -8103,7 +8071,7 @@ app.post(
     } catch (error) {
       console.error(
         "❌ TELEGRAM WEBHOOK ERROR:",
-        error
+        telegramErrorCode(error)
       );
 
       return res.sendStatus(500);
@@ -9519,7 +9487,7 @@ const server = app.listen(
         if (url.protocol !== "https:" || url.username || url.password ||
             url.pathname !== "/telegram-webhook" || url.search || url.hash ||
             !/^[A-Za-z0-9_-]{16,256}$/.test(TELEGRAM_WEBHOOK_SECRET)) {
-          throw new Error("Invalid Telegram webhook configuration");
+          throw Object.assign(new Error("Invalid Telegram webhook configuration"), {code:"TELEGRAM_CONFIG_INVALID"});
         }
         bot.botInfo = await bot.telegram.getMe();
         await bot.telegram.setWebhook(url.href, {
@@ -9529,7 +9497,7 @@ const server = app.listen(
         });
         console.log("Telegram webhook enabled.");
       } catch (error) {
-        console.error("START TELEGRAM WEBHOOK ERROR:", error.response?.description || error.name);
+        console.error("START TELEGRAM WEBHOOK ERROR:", telegramErrorCode(error));
       }
       return;
     }
@@ -9546,7 +9514,7 @@ const server = app.listen(
 
       await bot.launch();
     } catch (error) {
-      console.error("START TELEGRAM POLLING ERROR:", error);
+      console.error("START TELEGRAM POLLING ERROR:", telegramErrorCode(error));
     }
   }
 );

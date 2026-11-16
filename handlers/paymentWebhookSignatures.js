@@ -22,8 +22,9 @@ export function validPaystackWebhook(rawBody, headers, env, now = Math.floor(Dat
       return sameBytes(expected, signature);
     });
   }
-  if (!env.PAYSTACK_SECRET_KEY) return false;
-  const expected = Buffer.from(createHmac('sha512', env.PAYSTACK_SECRET_KEY).update(rawBody).digest('hex'));
+  const secret = env.PAYSTACK_SECRET_KEY?.trim();
+  if (!secret) return false;
+  const expected = Buffer.from(createHmac('sha512', secret).update(rawBody).digest('hex'));
   return sameBytes(expected, headers['x-paystack-signature']);
 }
 

@@ -1,4 +1,4 @@
-import { registerFilmPaymentRecheck } from "./handlers/filmPaymentRecheck.js";
+import { isTelegramPaystackReference, recheckFilmOrder, registerFilmPaymentRecheck } from "./handlers/filmPaymentRecheck.js";
 import { makeFilmMediaTicket, publicTrailer, validFilmMediaTicket } from "./handlers/filmVisibility.js";
 import { findPasswordResetUser, requestPasswordReset } from "./handlers/passwordResetRequests.js";
 import { registerPaymentSettings } from "./handlers/paymentSettings.js";
@@ -142,7 +142,7 @@ registerBroadcastHandlers();
 registerTextHandlers();
 registerPhotoHandlers();
 registerVideoHandlers();
-registerPaymentsHandlers();
+registerPaymentsHandlers({ baseUrl: PUBLIC_BASE_URL });
 registerBunnyFilmHandler();
 // ======================================================
 // NIGFILM WEB API
@@ -1572,18 +1572,10 @@ app.post(
 registerAdminTransactions({ app, prisma, requireAdmin });
 registerFilmPaymentRecheck({
   app, prisma, requireAdmin,
-  verifyPaystack: async reference => {
-    const result = await verifyPaystackTransaction(reference);
-    const payment = result.data;
-    return payment ? {
-      reference: payment.reference,
-      paid: result.success,
-      amountKobo: Number(payment.amount),
-      currency: payment.currency,
-    } : null;
-  },
+  verifyPaystack: readPaystackPayment,
   verifyFlutterwave: verifyFlutterwaveFilmByReference,
   fulfill: processWebFilmPayment,
+  fulfillTelegram: fulfillTelegramPaystackOrder,
 });
 
 
@@ -1780,7 +1772,7 @@ app.post(
 
             headers: {
               Authorization:
-                `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                `Bearer ${process.env.PAYSTACK_SECRET_KEY.trim()}`,
 
               "Content-Type":
                 "application/json",
@@ -5244,7 +5236,7 @@ const returnTo =
 
             headers: {
               Authorization:
-                `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+                `Bearer ${process.env.PAYSTACK_SECRET_KEY.trim()}`,
 
               "Content-Type":
                 "application/json",
@@ -8148,124 +8140,33 @@ app.get(
 // TELEGRAM PAYMENT SUCCESS PAGE
 // ======================================================
 
-app.get(
-  "/payment-success",
-  (req, res) => {
-    return res.status(200).send(`
-<!DOCTYPE html>
-
-<html lang="en">
-
-<head>
-
-<meta charset="UTF-8" />
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
-/>
-
-<title>
-Payment Successful
-</title>
-
-<style>
-
-body {
-  margin: 0;
-  min-height: 100vh;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: #0b0b0d;
-  color: white;
-
-  font-family:
-    Arial,
-    sans-serif;
-}
-
-.card {
-  width: 90%;
-  max-width: 450px;
-
-  padding: 32px;
-
-  border-radius: 20px;
-
-  background: #18181b;
-
-  text-align: center;
-
-  box-shadow:
-    0 20px 50px
-    rgba(0, 0, 0, 0.35);
-}
-
-.icon {
-  font-size: 58px;
-}
-
-h1 {
-  color: #22c55e;
-}
-
-p {
-  color: #d4d4d8;
-  line-height: 1.7;
-}
-
-a {
-  display: inline-block;
-
-  margin-top: 16px;
-
-  padding: 13px 24px;
-
-  border-radius: 12px;
-
-  background: #d4af37;
-
-  color: #080808;
-
-  text-decoration: none;
-
-  font-weight: bold;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="icon">
-✅
-</div>
-
-<h1>
-Payment Successful
-</h1>
-
-<p>
-An karɓi biyan kuɗinka cikin nasara.
-Ka koma Telegram domin karɓar film ɗinka.
-</p>
-
-<a href="https://t.me/Nigfilm_bot">
-Buɗe NIGFILM BOT
-</a>
-
-</div>
-
-</body>
-
-</html>
-    `);
+app.get("/payment-success", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const reference = req.query.reference;
+  const returnUrl = "https://t.me/Nigfilm_bot";
+  if (!isTelegramPaystackReference(reference)) {
+    return res.status(400).send(buildWebPaymentPage({
+      success: false, title: "Ba a samu reference na Telegram ba", message: "Ka koma NIGFILM Bot don duba odar.", returnUrl,
+    }));
   }
-);
+  try {
+    const result = await recheckFilmOrder({
+      reference, model: prisma.order, verify: readPaystackPayment,
+      fulfill: fulfillTelegramPaystackOrder, telegram: true,
+    });
+    const success = result.status === "paid";
+    return res.status(result.code === 200 && !success ? 409 : result.code).send(buildWebPaymentPage({
+      success, title: success ? "An tabbatar an biya" : "Ba a tabbatar da biyan kuɗi ba tukuna",
+      message: success ? "Ka koma Telegram → My Movies." : result.message + " Kada ka sake biya idan an cire kuɗi.",
+      returnUrl,
+    }));
+  } catch (error) {
+    console.error("TELEGRAM PAYMENT CALLBACK ERROR:", error.code || error.name);
+    return res.status(503).send(buildWebPaymentPage({
+      success: false, title: "An kasa duba biyan kuɗi", message: "Idan an cire kuɗi, kada ka sake biya. Duba My Movies ko ka tuntuɓi admin.", returnUrl,
+    }));
+  }
+});
 
 // ======================================================
 // PAYSTACK WEBHOOK
@@ -8419,81 +8320,14 @@ if (
         return res.sendStatus(200);
       }
 
-      const paidAmount =
-        Number(
-          event?.data?.amount
-        );
-
-      const expectedAmount =
-        Number(
-          order.amount
-        ) * 100;
-
-      if (
-        !Number.isFinite(
-          paidAmount
-        ) ||
-        paidAmount !==
-          expectedAmount
-      ) {
-        console.log(
-          "❌ Payment amount mismatch:",
-          {
-            reference,
-            paidAmount,
-            expectedAmount,
-          }
-        );
-
+      if (!isTelegramPaystackReference(reference) || order.virtualAccountReference) return res.sendStatus(200);
+      const paidAmount = Number(event.data.amount);
+      if (event.data.currency !== "NGN" || !Number.isSafeInteger(paidAmount) ||
+          paidAmount <= 0 || paidAmount !== order.amount * 100) {
         return res.sendStatus(400);
       }
-
-      if (
-        order.status ===
-        "paid"
-      ) {
-        console.log(
-          "ℹ️ Order already processed:",
-          reference
-        );
-
-        return res.sendStatus(200);
-      }
-
-      if (
-        metadata.type ===
-        "cart_checkout"
-      ) {
-        await processCartPayment({
-          order,
-          metadata,
-        });
-      } else {
-        await processSingleFilmPayment({
-          order,
-        });
-      }
-
-      try {
-        await bot.telegram.sendMessage(
-          order.telegramId,
-
-          "An tabbatar da biyan kudinka cikin nasara.\n\nNa gode da amfani da NIGFILM BOT ❤️"
-        );
-      } catch (
-        messageError
-      ) {
-        console.error(
-          "PAYMENT CONFIRMATION MESSAGE ERROR:",
-          messageError
-        );
-      }
-
-      console.log(
-        " TELEGRAM PAYMENT PROCESSED:",
-        reference
-      );
-
+      const result = await fulfillTelegramPaystackOrder({ order, reference, paidAmount });
+      if (!result.success) return res.sendStatus(503);
       return res.sendStatus(200);
     } catch (error) {
       console.error(
@@ -8922,7 +8756,7 @@ async function verifyPaystackTransaction(
 
           headers: {
             Authorization:
-              `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+              `Bearer ${process.env.PAYSTACK_SECRET_KEY.trim()}`,
           },
         }
       );
@@ -8993,6 +8827,32 @@ async function verifyPaystackTransaction(
 // PROCESS SINGLE TELEGRAM FILM PAYMENT
 // ======================================================
 
+async function readPaystackPayment(reference) {
+  const result = await verifyPaystackTransaction(reference);
+  const payment = result.data;
+  return payment ? {
+    reference: payment.reference,
+    paid: result.success,
+    amountKobo: Number(payment.amount),
+    currency: payment.currency,
+  } : null;
+}
+
+async function fulfillTelegramPaystackOrder({ order, reference, paidAmount }) {
+  if (!isTelegramPaystackReference(reference) || order.paymentReference !== reference ||
+      order.virtualAccountReference || !Number.isSafeInteger(paidAmount) ||
+      paidAmount <= 0 || paidAmount !== order.amount * 100) return { success: false };
+  if (order.status === "paid") return { success: true };
+  if (order.status !== "pending") return { success: false };
+
+  if (reference.startsWith("CART_")) {
+    await processCartPayment({ order });
+  } else {
+    await processSingleFilmPayment({ order });
+  }
+  return { success: true };
+}
+
 async function processSingleFilmPayment({
   order,
 }) {
@@ -9009,8 +8869,9 @@ async function processSingleFilmPayment({
     );
   }
 
-  await prisma.$transaction(
+  const delivered = await prisma.$transaction(
     async (tx) => {
+      await tx.$queryRaw`SELECT "telegramId" FROM "User" WHERE "telegramId" = ${order.telegramId} FOR UPDATE`;
       const currentOrder =
         await tx.order.findUnique({
           where: {
@@ -9018,12 +8879,8 @@ async function processSingleFilmPayment({
           },
         });
 
-      if (
-        !currentOrder ||
-        currentOrder.status === "paid"
-      ) {
-        return;
-      }
+      if (currentOrder?.status === "paid") return false;
+      if (currentOrder?.status !== "pending") throw new Error("Telegram order is not pending");
 
       const existingPurchase =
         await tx.purchase.findFirst({
@@ -9056,8 +8913,10 @@ async function processSingleFilmPayment({
           status: "paid",
         },
       });
+      return true;
     }
   );
+  if (!delivered) return;
 
   try {
     // =================================
@@ -9069,8 +8928,7 @@ async function processSingleFilmPayment({
       film.webVideoUrl
     ) {
       const baseUrl =
-        process.env.PUBLIC_BASE_URL ||
-        "https://nigfilm-bot.onrender.com";
+        PUBLIC_BASE_URL;
 
       const watchUrl =
         `${baseUrl}/telegram/watch/${film.id}` +
@@ -9173,10 +9031,7 @@ async function processSingleFilmPayment({
 // PROCESS TELEGRAM CART PAYMENT
 // ======================================================
 
-async function processCartPayment({
-  order,
-  metadata,
-}) {
+async function processCartPayment({ order }) {
   let filmIds = [];
 
   // =================================
@@ -9211,62 +9066,6 @@ async function processCartPayment({
   }
 
   // =================================
-  // FALLBACK: METADATA ARRAY
-  // =================================
-
-  if (
-    filmIds.length === 0 &&
-    Array.isArray(
-      metadata?.filmIds
-    )
-  ) {
-    filmIds =
-      metadata.filmIds
-        .map(Number)
-        .filter(
-          Number.isInteger
-        );
-  }
-
-  // =================================
-  // FALLBACK: METADATA STRING
-  // =================================
-
-  if (
-    filmIds.length === 0 &&
-    typeof metadata?.filmIds ===
-      "string"
-  ) {
-    try {
-      const parsedMetadataIds =
-        JSON.parse(
-          metadata.filmIds
-        );
-
-      if (
-        Array.isArray(
-          parsedMetadataIds
-        )
-      ) {
-        filmIds =
-          parsedMetadataIds
-            .map(Number)
-            .filter(
-              Number.isInteger
-            );
-      }
-    } catch {
-      filmIds =
-        metadata.filmIds
-          .split(",")
-          .map(Number)
-          .filter(
-            Number.isInteger
-          );
-    }
-  }
-
-  // =================================
   // REMOVE DUPLICATES
   // =================================
 
@@ -9296,7 +9095,7 @@ async function processCartPayment({
     });
 
   if (
-    films.length === 0
+    films.length !== filmIds.length
   ) {
     throw new Error(
       `Ba a samu films na cart order ${order.id} ba.`
@@ -9307,8 +9106,9 @@ async function processCartPayment({
   // SAVE PURCHASES
   // =================================
 
-  await prisma.$transaction(
+  const delivered = await prisma.$transaction(
     async (tx) => {
+      await tx.$queryRaw`SELECT "telegramId" FROM "User" WHERE "telegramId" = ${order.telegramId} FOR UPDATE`;
       const currentOrder =
         await tx.order.findUnique({
           where: {
@@ -9380,8 +9180,10 @@ async function processCartPayment({
           status: "paid",
         },
       });
+      return true;
     }
   );
+  if (!delivered) return;
 
   // =================================
   // DELIVER FILMS
@@ -9400,8 +9202,7 @@ async function processCartPayment({
         film.webVideoUrl
       ) {
         const baseUrl =
-          process.env.PUBLIC_BASE_URL ||
-          "https://nigfilm-bot.onrender.com";
+          PUBLIC_BASE_URL;
 
         const watchUrl =
           `${baseUrl}/telegram/watch/${film.id}` +

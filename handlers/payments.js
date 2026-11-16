@@ -4,10 +4,8 @@ import { Markup } from "telegraf";
 const PAYSTACK_INITIALIZE_URL =
   "https://api.paystack.co/transaction/initialize";
 
-const PAYMENT_CALLBACK_URL =
-  "https://nigfilm-bot.onrender.com/payment-success";
-
-export default function registerPaymentsHandlers() {
+export default function registerPaymentsHandlers({ baseUrl }) {
+  const initialize = params => initializePaystackPayment({ ...params, baseUrl });
   // ===============================
   // BUY NOW
   // ===============================
@@ -23,7 +21,7 @@ export default function registerPaymentsHandlers() {
         return ctx.reply("❌ Film ID bai dace ba.");
       }
 
-      if (!process.env.PAYSTACK_SECRET_KEY) {
+      if (!process.env.PAYSTACK_SECRET_KEY?.trim()) {
         console.error(
           "PAYSTACK_SECRET_KEY is missing."
         );
@@ -105,7 +103,7 @@ export default function registerPaymentsHandlers() {
       const orderReference =
         `NIGFILM_${telegramId}_${filmId}_${Date.now()}`;
 
-      const order = await prisma.order.create({
+      await prisma.order.create({
         data: {
           telegramId,
           filmId,
@@ -119,7 +117,7 @@ export default function registerPaymentsHandlers() {
         `${telegramId}@telegram.nigfilm.com`;
 
       const paymentResult =
-        await initializePaystackPayment({
+        await initialize({
           email,
           amount: price,
           reference: orderReference,
@@ -135,13 +133,6 @@ export default function registerPaymentsHandlers() {
           "PAYSTACK INITIALIZE FAILED:",
           paymentResult
         );
-
-        await prisma.order.deleteMany({
-          where: {
-            id: order.id,
-            status: "pending",
-          },
-        });
 
         return ctx.reply(
           "❌ An kasa ƙirƙirar Payment Link. Ka sake gwadawa."
@@ -202,7 +193,7 @@ export default function registerPaymentsHandlers() {
 
       const telegramId = String(ctx.from.id).trim();
 
-      if (!process.env.PAYSTACK_SECRET_KEY) {
+      if (!process.env.PAYSTACK_SECRET_KEY?.trim()) {
         console.error(
           "PAYSTACK_SECRET_KEY is missing."
         );
@@ -341,7 +332,7 @@ export default function registerPaymentsHandlers() {
   (item) => item.filmId
 );
 
-const order = await prisma.order.create({
+await prisma.order.create({
   data: {
     telegramId,
     filmId: representativeFilmId,
@@ -356,7 +347,7 @@ const order = await prisma.order.create({
 
 
       const paymentResult =
-        await initializePaystackPayment({
+        await initialize({
           email,
           amount: total,
           reference,
@@ -372,13 +363,6 @@ const order = await prisma.order.create({
           "CART PAYSTACK INITIALIZE FAILED:",
           paymentResult
         );
-
-        await prisma.order.deleteMany({
-          where: {
-            id: order.id,
-            status: "pending",
-          },
-        });
 
         return ctx.reply(
           "❌ An kasa ƙirƙirar Payment Link. Ka sake gwadawa."
@@ -444,22 +428,29 @@ async function initializePaystackPayment({
   amount,
   reference,
   metadata,
+  baseUrl,
 }) {
   try {
+    const base = new URL(baseUrl);
+    if (base.protocol !== "https:" || base.username || base.password) {
+      return { status: false, message: "PUBLIC_BASE_URL must be a public HTTPS URL" };
+    }
+    const callbackUrl = new URL("/payment-success", base).href;
     const response = await fetch(
       PAYSTACK_INITIALIZE_URL,
       {
         method: "POST",
+        signal: AbortSignal.timeout(15000),
         headers: {
           Authorization:
-            `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+            `Bearer ${process.env.PAYSTACK_SECRET_KEY.trim()}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           email,
           amount: amount * 100,
           reference,
-          callback_url: PAYMENT_CALLBACK_URL,
+          callback_url: callbackUrl,
           channels: [
             "card",
             "bank",

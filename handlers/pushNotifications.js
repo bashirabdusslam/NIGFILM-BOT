@@ -104,13 +104,24 @@ async function filmIsReadyForApp(film) {
   });
   if (!response.ok) return false;
   const video = await response.json();
-  return Number(video.status) === 3;
+  return [3, 4].includes(Number(video.status));
 }
 
-export async function queuePublishedFilmPush({prisma,film,baseUrl,isReady = filmIsReadyForApp,isConfigured = configured}) {
+const filmPushStatusSelect = {status:true,accepted:true,failed:true,estimatedDevices:true,errorCode:true};
+
+export function readPublishedFilmPush(prisma, filmId) {
+  return prisma.pushCampaign.findUnique({where:{id:filmCampaignId(filmId)},select:filmPushStatusSelect});
+}
+
+export function canRetryPublishedFilmPush(campaign) {
+  return campaign?.accepted === 0 && ["FAILED","FINISHED"].includes(campaign.status);
+}
+
+export async function queuePublishedFilmPush({prisma,film,baseUrl,retry = false,isReady = filmIsReadyForApp,isConfigured = configured}) {
   if (film.hiddenFromCatalog) return {status:"hidden"};
   const id = filmCampaignId(film.id);
-  if (await prisma.pushCampaign.findUnique({where:{id},select:{id:true}})) return {status:"alreadyQueued"};
+  const existing = await readPublishedFilmPush(prisma,film.id);
+  if (existing && (!retry || !canRetryPublishedFilmPush(existing))) return {status:"alreadyQueued",campaign:existing};
   if (!isConfigured()) return {status:"notConfigured"};
   if (!await isReady(film)) return {status:"notReady"};
 
@@ -123,14 +134,23 @@ export async function queuePublishedFilmPush({prisma,film,baseUrl,isReady = film
     const url = new URL(`/api/films/${film.id}/poster`,baseUrl);
     if (url.protocol === "https:" && film.posterFileId) imageUrl = url.href;
   } catch {}
+  const payload = {
+    imageUrl,title:"Sabon fim a NIGFILM",
+    body:`${film.title.slice(0,240)} — taɓa nan don duba fim ɗin.`,
+    estimatedDevices,lastDeviceId:newest.id,
+  };
+  if (existing) {
+    const updated = await prisma.pushCampaign.updateMany({
+      where:{id,status:existing.status,accepted:0,leaseId:null},
+      data:{...payload,status:"QUEUED",cursor:0,failed:0,errorCode:null,leaseUntil:null,finishedAt:null,createdAt:new Date()},
+    });
+    if (updated.count) return {status:"queued",estimatedDevices};
+    return {status:"alreadyQueued",campaign:await readPublishedFilmPush(prisma,film.id)};
+  }
   try {
-    await prisma.pushCampaign.create({data:{
-      id,adminId:0,targetUserId:null,imageUrl,title:"Sabon fim a NIGFILM",
-      body:`${film.title.slice(0,240)} — taɓa nan don duba fim ɗin.`,
-      estimatedDevices,lastDeviceId:newest.id,
-    }});
+    await prisma.pushCampaign.create({data:{id,adminId:0,targetUserId:null,...payload}});
   } catch (error) {
-    if (error?.code === "P2002") return {status:"alreadyQueued"};
+    if (error?.code === "P2002") return {status:"alreadyQueued",campaign:await readPublishedFilmPush(prisma,film.id)};
     throw error;
   }
   return {status:"queued",estimatedDevices};

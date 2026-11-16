@@ -6,9 +6,58 @@ import {
 } from "../bot.js";
 
 import { Markup } from "telegraf";
-import { queuePublishedFilmPush } from "./pushNotifications.js";
+import { canRetryPublishedFilmPush, queuePublishedFilmPush, readPublishedFilmPush } from "./pushNotifications.js";
+import { telegramErrorCode } from "./telegramPoster.js";
+
+function appPushStatus(campaign) {
+  if (!campaign) return "Ba a saka sanarwar fim ɗin a layin aikawa ba tukuna.";
+  const state = {
+    QUEUED:"Yana jira", SENDING:"Ana aikawa", FINISHED:"An gama ƙoƙarin aikawa", FAILED:"Aikawa ya gaza",
+  }[campaign.status] || "Ba a san halin aikawa ba";
+  return `${state}. Firebase ya karɓa: ${campaign.accepted}. Sun gaza: ${campaign.failed}.` +
+    (campaign.errorCode ? ` Lambar kuskure: ${campaign.errorCode}.` : "");
+}
+
+function appPushResult(push) {
+  if (push.status === "alreadyQueued") return appPushStatus(push.campaign);
+  return {
+    queued:`An saka sanarwar Android a layin aikawa (${push.estimatedDevices} na’ura).`,
+    notConfigured:"Ba a saita Firebase a backend ba tukuna.",
+    notReady:"Fim bai shirya don kallo a app ba tukuna. A tabbatar video yana Playable ko Ready.",
+    noDevices:"Babu na’urar Android da ta yi rajistar sanarwa tukuna.",
+    hidden:"Fim yana ɓoye a catalog; ba a tura sanarwa ba.",
+  }[push.status] || "Ba a san halin aikawa ba.";
+}
+
+function appPushButton(filmId, action = "status") {
+  return Markup.button.callback(action === "status" ? "📱 Duba sanarwar app" : "📱 Aika zuwa app kawai", `admin_film_app_${action}_${filmId}`);
+}
 
 export default function registerFilmHandlers() {
+  bot.action(/^admin_film_app_(status|send)_(\d+)$/, async (ctx) => {
+    if (String(ctx.from.id) !== String(ADMIN_ID)) return ctx.answerCbQuery("⛔ Ba ka da izini.");
+    await ctx.answerCbQuery().catch(() => {});
+    const [, action, id] = ctx.match;
+    const filmId = Number(id);
+    if (!Number.isSafeInteger(filmId) || filmId < 1 || filmId > 2147483647) return;
+    try {
+      if (action === "status") {
+        const campaign = await readPublishedFilmPush(prisma,filmId);
+        const canSend = !campaign || canRetryPublishedFilmPush(campaign);
+        return ctx.reply(`📱 NIGFILM App — Fim #${filmId}\n${appPushStatus(campaign)}`,
+          Markup.inlineKeyboard([[appPushButton(filmId)], ...(canSend ? [[appPushButton(filmId,"send")]] : [])]));
+      }
+      const film = await prisma.film.findUnique({where:{id:filmId}});
+      if (!film) return ctx.reply("❌ Ba a samu wannan fim ba.");
+      const push = await queuePublishedFilmPush({prisma,film,baseUrl:process.env.PUBLIC_BASE_URL?.trim(),retry:true});
+      return ctx.reply(`📱 NIGFILM App — Fim #${filmId}\n${appPushResult(push)}`,
+        Markup.inlineKeyboard([[appPushButton(filmId)]]));
+    } catch (error) {
+      console.error("APP FILM PUSH FAILED:",telegramErrorCode(error));
+      return ctx.reply("❌ An samu matsala wajen duba ko aika sanarwar app.");
+    }
+  });
+
   // =================================
   // ADD FILM
   // =================================
@@ -228,6 +277,7 @@ export default function registerFilmHandlers() {
                 `admin_publish_film_${film.id}`
               ),
             ],
+            [appPushButton(film.id), appPushButton(film.id,"send")],
             [
               Markup.button.callback(
                 "🗑 Delete Film",
@@ -660,6 +710,17 @@ bot.action(
         );
       }
 
+      let appStatus;
+      try {
+        const push = await queuePublishedFilmPush({prisma,film,baseUrl:process.env.PUBLIC_BASE_URL?.trim()});
+        appStatus = appPushResult(push);
+      } catch (error) {
+        console.error("APP FILM PUSH FAILED:", telegramErrorCode(error));
+        appStatus = "An kasa saka sanarwar app a layin aikawa.";
+      }
+      await ctx.reply(`📱 NIGFILM App — Fim #${filmId}\n${appStatus}`,
+        Markup.inlineKeyboard([[appPushButton(filmId)]])).catch(() => {});
+
       const botUsername =
         process.env.BOT_USERNAME ||
         "Nigfilm_bot";
@@ -710,22 +771,6 @@ bot.action(
         channelStatus = "An kasa tura zuwa Channel.";
       }
 
-      let appStatus;
-      try {
-        const push = await queuePublishedFilmPush({prisma,film,baseUrl:process.env.PUBLIC_BASE_URL?.trim()});
-        appStatus = {
-          queued:`An sa sanarwa a layin aikawa zuwa Android (${push.estimatedDevices} na’ura).`,
-          alreadyQueued:"An riga an sa sanarwar wannan fim a layin aikawa.",
-          notConfigured:"Ba a saita Firebase a backend ba tukuna.",
-          notReady:"Fim bai shirya don kallo a app ba tukuna. Ka sake danna Push Public idan ya shirya.",
-          noDevices:"Babu wayar Android da ta yi rajistar sanarwa tukuna.",
-          hidden:"Fim yana ɓoye a catalog; ba a tura sanarwar app ba.",
-        }[push.status];
-      } catch (error) {
-        console.error("APP FILM PUSH FAILED:", error?.code || error?.name);
-        appStatus = "An kasa saka sanarwar app a layin aikawa.";
-      }
-
       // =================================
       // SEND TO ALL BOT USERS
       // =================================
@@ -774,7 +819,7 @@ bot.action(
 
           console.error(
             `PUBLISH USER FAILED ${user.telegramId}:`,
-            error?.message || error
+            telegramErrorCode(error)
           );
         }
 
@@ -804,6 +849,7 @@ ${failed}`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard([
+            [appPushButton(film.id)],
             [
               Markup.button.callback(
                 "🎞️ Manage Films",
@@ -822,7 +868,7 @@ ${failed}`,
     } catch (error) {
       console.error(
         "PUBLISH FILM ERROR:",
-        error
+        telegramErrorCode(error)
       );
 
       return ctx.reply(

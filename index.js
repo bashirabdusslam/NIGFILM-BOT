@@ -1,7 +1,8 @@
+import { registerFilmPaymentRecheck } from "./handlers/filmPaymentRecheck.js";
 import { makeFilmMediaTicket, publicTrailer, validFilmMediaTicket } from "./handlers/filmVisibility.js";
 import { findPasswordResetUser, requestPasswordReset } from "./handlers/passwordResetRequests.js";
 import { registerPaymentSettings } from "./handlers/paymentSettings.js";
-import { flutterwaveReady, isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
+import { flutterwaveReady, isFlutterwaveReference, registerFlutterwave, verifyFlutterwaveFilmByReference } from "./handlers/flutterwave.js";
 import { validPaystackWebhook } from "./handlers/paymentWebhookSignatures.js";
 ﻿import { registerAdminTransactions } from "./handlers/adminTransactions.js";
 import { registerManualPayments } from "./handlers/manualPayments.js";
@@ -1569,6 +1570,22 @@ app.post(
   }
 );
 registerAdminTransactions({ app, prisma, requireAdmin });
+registerFilmPaymentRecheck({
+  app, prisma, requireAdmin,
+  verifyPaystack: async reference => {
+    const result = await verifyPaystackTransaction(reference);
+    const payment = result.data;
+    return payment ? {
+      reference: payment.reference,
+      paid: result.success,
+      amountKobo: Number(payment.amount),
+      currency: payment.currency,
+    } : null;
+  },
+  verifyFlutterwave: verifyFlutterwaveFilmByReference,
+  fulfill: processWebFilmPayment,
+});
+
 
 registerManualPayments({
   app, prisma, requireWebUser, requireAdmin,
@@ -8901,6 +8918,7 @@ async function verifyPaystackTransaction(
         )}`,
         {
           method: "GET",
+          signal: AbortSignal.timeout(15000),
 
           headers: {
             Authorization:
@@ -8920,11 +8938,12 @@ async function verifyPaystackTransaction(
     ) {
       console.error(
         "❌ PAYSTACK VERIFY FAILED:",
-        data
+        response.status
       );
 
       return {
         success: false,
+        data: response.ok && data?.status === true ? data.data : null,
 
         message:
           data?.message ||

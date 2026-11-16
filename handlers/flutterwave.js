@@ -61,6 +61,26 @@ export function flutterwaveReady({ baseUrl, webUrl, env = process.env }) {
     secureUrl(baseUrl) && secureUrl(webUrl));
 }
 
+export async function verifyFlutterwaveFilmByReference(reference, env = process.env, fetchImpl = fetch) {
+  const key = gatewayKey(env);
+  if (!key) return null;
+  const url = new URL("https://api.flutterwave.com/v3/transactions/verify_by_reference");
+  url.searchParams.set("tx_ref", reference);
+  const response = await fetchImpl(url.href, {
+    headers: { Authorization: `Bearer ${key}` },
+    signal: AbortSignal.timeout(15000),
+  });
+  const result = await response.json();
+  const payment = result?.data;
+  if (!response.ok || result?.status !== "success" || !payment) return null;
+  return {
+    reference: payment.tx_ref,
+    paid: payment.status === "successful",
+    amountKobo: Number(payment.amount) * 100,
+    currency: payment.currency,
+  };
+}
+
 export function registerFlutterwave({
   app, prisma, requireWebUser, plans, processWebPayment, processPremiumPayment,
   buildWebPaymentPage, baseUrl, webUrl, env = process.env, fetchImpl = fetch,

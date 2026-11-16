@@ -1790,6 +1790,7 @@ async function loadAdminPasswordResetRequests() {
     const response = await fetch(
       `${API_URL}/api/admin/password-reset-requests`,
       {
+        cache: "no-store",
         headers: {
           Authorization: `Bearer ${token}`,
         },

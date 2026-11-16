@@ -1,3 +1,4 @@
+import { findPasswordResetUser, requestPasswordReset } from "./handlers/passwordResetRequests.js";
 import { registerPaymentSettings } from "./handlers/paymentSettings.js";
 import { flutterwaveReady, isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
 import { validPaystackWebhook } from "./handlers/paymentWebhookSignatures.js";
@@ -8,7 +9,7 @@ import express from "express";
 import crypto from "crypto";
 import { Markup } from "telegraf";
 import { Readable } from "node:stream";
-import { bot, prisma } from "./bot.js";
+import { ADMIN_ID, bot, prisma } from "./bot.js";
 
 import registerAdminHandlers from "./handlers/admin.js";
 import registerSalesHandlers from "./handlers/sales.js";
@@ -44,6 +45,15 @@ const TELEGRAM_WEBHOOK_URL = (
   process.env.TELEGRAM_WEBHOOK_URL ||
   `${PUBLIC_BASE_URL}/telegram-webhook`
 ).trim();
+
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+
+function isTelegramWebhookTrusted(req) {
+  if (!TELEGRAM_WEBHOOK_SECRET) return false;
+  const supplied = Buffer.from(req.get("X-Telegram-Bot-Api-Secret-Token") || "");
+  const expected = Buffer.from(TELEGRAM_WEBHOOK_SECRET);
+  return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+}
 
 // ======================================================
 // EXPRESS JSON + RAW BODY
@@ -933,58 +943,18 @@ app.post(
           "An karɓi request ɗinka. Idan wannan phone number yana da account, admin zai duba request ɗin.",
       };
 
-      const user =
-        await prisma.webUser.findUnique({
-          where: {
-            phone,
-          },
-        });
+      const user = await findPasswordResetUser(prisma, phone);
 
-      // Kar mu bayyana ko account yana nan ko babu
-      if (!user) {
-        return res.status(200).json(
-          genericResponse
-        );
+      // Always return the same response, whether or not the account exists.
+      if (user && await requestPasswordReset(prisma, user.id)) {
+        console.log("PASSWORD RESET REQUEST CREATED");
+        if (/^[1-9]\d*$/.test(String(ADMIN_ID || "").trim())) {
+          void bot.telegram.sendMessage(
+            String(ADMIN_ID).trim(),
+            "Akwai sabuwar buƙatar Forgot Password. Je NIGFILM → Profile → Password Reset Requests don duba ta."
+          ).catch(() => console.warn("PASSWORD RESET ADMIN NOTIFICATION FAILED"));
+        }
       }
-
-      // Rufe tsoffin requests da ba a yi amfani da su ba
-      await prisma.passwordReset.updateMany({
-        where: {
-          webUserId: user.id,
-          usedAt: null,
-        },
-        data: {
-          usedAt: new Date(),
-        },
-      });
-
-      const requestToken =
-        crypto.randomBytes(32).toString("hex");
-
-      const requestTokenHash =
-        crypto
-          .createHash("sha256")
-          .update(requestToken)
-          .digest("hex");
-
-      const expiresAt =
-        new Date(
-          Date.now() +
-            24 * 60 * 60 * 1000
-        );
-
-      await prisma.passwordReset.create({
-        data: {
-          webUserId: user.id,
-          requestTokenHash,
-          expiresAt,
-        },
-      });
-
-      console.log(
-        "PASSWORD RESET REQUEST:",
-        user.id
-      );
 
       return res.status(200).json(
         genericResponse
@@ -1011,6 +981,7 @@ app.get(
   "/api/admin/password-reset-requests",
   requireAdmin,
   async (req, res) => {
+    res.set("Cache-Control", "no-store");
     try {
       const requests =
         await prisma.passwordReset.findMany({
@@ -1072,6 +1043,7 @@ app.post(
   "/api/admin/password-reset-requests/:requestId/approve",
   requireAdmin,
   async (req, res) => {
+    res.set("Cache-Control", "no-store");
     try {
       const requestId =
         Number(req.params.requestId);
@@ -1153,16 +1125,16 @@ app.post(
             30 * 60 * 1000
         );
 
-      await prisma.passwordReset.update({
-        where: {
-          id: requestId,
-        },
-
-        data: {
-          codeHash,
-          expiresAt,
-        },
+      const approved = await prisma.passwordReset.updateMany({
+        where: { id: requestId, usedAt: null, codeHash: null, expiresAt: { gt: new Date() } },
+        data: { codeHash, expiresAt },
       });
+      if (!approved.count) {
+        return res.status(409).json({
+          success: false,
+          message: "An riga an amince da wannan request ko kuma ya ƙare. Ka refresh jerin.",
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -1254,12 +1226,7 @@ app.post(
         });
       }
 
-      const user =
-        await prisma.webUser.findUnique({
-          where: {
-            phone,
-          },
-        });
+      const user = await findPasswordResetUser(prisma, phone);
 
       if (!user) {
         return res.status(400).json({
@@ -8032,6 +7999,7 @@ app.get(
 app.post(
   "/telegram-webhook",
   async (req, res) => {
+    if (!isTelegramWebhookTrusted(req)) return res.sendStatus(403);
     try {
       await bot.handleUpdate(
         req.body
@@ -9640,8 +9608,29 @@ const server = app.listen(
   async () => {
     console.log(`NIGFILM API listening on port ${PORT}`);
 
+    if (TELEGRAM_WEBHOOK_SECRET) {
+      try {
+        const url = new URL(TELEGRAM_WEBHOOK_URL);
+        if (url.protocol !== "https:" || url.username || url.password ||
+            url.pathname !== "/telegram-webhook" || url.search || url.hash ||
+            !/^[A-Za-z0-9_-]{16,256}$/.test(TELEGRAM_WEBHOOK_SECRET)) {
+          throw new Error("Invalid Telegram webhook configuration");
+        }
+        bot.botInfo = await bot.telegram.getMe();
+        await bot.telegram.setWebhook(url.href, {
+          secret_token: TELEGRAM_WEBHOOK_SECRET,
+          allowed_updates: ["message", "callback_query"],
+          drop_pending_updates: false,
+        });
+        console.log("Telegram webhook enabled.");
+      } catch (error) {
+        console.error("START TELEGRAM WEBHOOK ERROR:", error.response?.description || error.name);
+      }
+      return;
+    }
+
     if (process.env.ENABLE_TELEGRAM_BOT === "false") {
-      console.log("Telegram polling disabled.");
+      console.log("Telegram polling disabled. Set TELEGRAM_WEBHOOK_SECRET to receive webhook updates.");
       return;
     }
 

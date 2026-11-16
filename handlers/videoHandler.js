@@ -30,6 +30,7 @@ export default function registerVideoHandlers() {
       // Sai idan muna jiran video
       if (
         session.step !== "video" &&
+        session.step !== "ready_for_bunny" &&
         session.step !== "change_video"
       ) {
         return;

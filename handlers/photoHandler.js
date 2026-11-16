@@ -202,7 +202,7 @@ export default function registerPhotoHandlers() {
       return ctx.reply(
         "✅ An karɓi poster ɗin film.\n\n" +
           "Bayanan film sun cika.\n\n" +
-          "🎬 Mataki na gaba: ƙirƙiri Film record sannan mu haɗa shi da Bunny Stream.",
+          "🎬 Ka aika bidiyon a matsayin Video ko File a nan, ko ka danna Create Film don amfani da Bunny Stream.",
         {
           ...Markup.inlineKeyboard([
             [

@@ -1,3 +1,4 @@
+import { makeFilmMediaTicket, publicTrailer, validFilmMediaTicket } from "./handlers/filmVisibility.js";
 import { findPasswordResetUser, requestPasswordReset } from "./handlers/passwordResetRequests.js";
 import { registerPaymentSettings } from "./handlers/paymentSettings.js";
 import { flutterwaveReady, isFlutterwaveReference, registerFlutterwave } from "./handlers/flutterwave.js";
@@ -152,6 +153,7 @@ registerBunnyFilmHandler();
 app.get("/api/films", async (req, res) => {
   try {
     const films = await prisma.film.findMany({
+      where: { hiddenFromCatalog: false },
       orderBy: {
         createdAt: "desc",
       },
@@ -190,7 +192,7 @@ posterFileId: true,
     });
 
     const result = films.map((film) => ({
-      ...film,
+      ...publicTrailer(film),
 
       posterUrl:
         film.posterUrl ||
@@ -242,6 +244,7 @@ app.get(
         await prisma.film.findUnique({
           where: {
             id: filmId,
+            hiddenFromCatalog: false,
           },
 
           select: {
@@ -279,7 +282,7 @@ app.get(
         success: true,
 
         film: {
-          ...film,
+          ...publicTrailer(film),
 
           posterUrl:
             film.posterUrl ||
@@ -310,6 +313,7 @@ app.get(
     try {
       const films =
         await prisma.film.findMany({
+          where: { hiddenFromCatalog: false },
           select: {
             category: true,
           },
@@ -369,6 +373,7 @@ app.get(
       const films =
         await prisma.film.findMany({
           where: {
+            hiddenFromCatalog: false,
             OR: [
               {
                 title: {
@@ -1675,7 +1680,7 @@ app.post(
           },
         });
 
-      if (!film) {
+      if (!film || film.hiddenFromCatalog) {
         return res.status(404).json({
           success: false,
           message:
@@ -2154,9 +2159,15 @@ app.get(
 // WEB MY MOVIES API
 // ======================================================
 
+function optionalMovieSession(req, res, next) {
+  return req.headers.authorization ? requireWebUser(req, res, next) : next();
+}
+
 app.get(
   "/api/web/users/:webUserId/movies",
+  optionalMovieSession,
   async (req, res) => {
+    res.set("Cache-Control", "private, no-store");
     try {
       const webUserId =
         Number(
@@ -2180,6 +2191,7 @@ app.get(
         await prisma.webPurchase.findMany({
           where: {
             webUserId,
+            ...(req.webUser?.id === webUserId ? {} : { film: { hiddenFromCatalog: false } }),
           },
 
           orderBy: {
@@ -2243,6 +2255,7 @@ app.get(
 
 app.get(
   "/api/web/movies/:filmId/video",
+  optionalMovieSession,
   async (req, res) => {
     try {
       const filmId = Number(req.params.filmId);
@@ -2308,6 +2321,13 @@ if (!film) {
 // =================================
 // BUNNY VIDEO - BYPASS RENDER
 // =================================
+
+      if (film.hiddenFromCatalog) {
+        res.set("Cache-Control", "private, no-store");
+        const allowed = req.webUser?.id === webUserId ||
+          validFilmMediaTicket(process.env.BUNNY_STREAM_TOKEN_KEY, req.query.ticket, webUserId, filmId);
+        if (!purchase || !allowed) return res.status(404).json({ success: false, message: "Ba a samu wannan fim ba." });
+      }
 
 if (film?.bunnyVideoId) {
   const libraryId =
@@ -2630,7 +2650,7 @@ app.get(
           include: {
             _count: {
               select: {
-                films: true,
+                films: { where: { hiddenFromCatalog: false } },
               },
             },
           },
@@ -2676,6 +2696,7 @@ app.get(
 
           include: {
             films: {
+              where: { hiddenFromCatalog: false },
               orderBy: {
                 createdAt: "desc",
               },
@@ -2696,7 +2717,7 @@ app.get(
 
       return res.status(200).json({
         success: true,
-        studio,
+        studio: { ...studio, films: studio.films.map(publicTrailer) },
       });
     } catch (error) {
       console.error(
@@ -2861,7 +2882,9 @@ app.post(
 
 app.get(
   "/api/web/my-movies",
+  optionalMovieSession,
   async (req, res) => {
+    res.set("Cache-Control", "private, no-store");
     try {
       const webUserId = Number(
         req.query.webUserId
@@ -2900,6 +2923,7 @@ app.get(
         await prisma.webPurchase.findMany({
           where: {
             webUserId,
+            ...(req.webUser?.id === webUserId ? {} : { film: { hiddenFromCatalog: false } }),
           },
 
           orderBy: {
@@ -2922,6 +2946,7 @@ app.get(
   webVideoUrl: true,
 
   featured: true,
+  hiddenFromCatalog: true,
 
   trailerEnabled: true,
   trailerUrl: true,
@@ -2936,7 +2961,7 @@ app.get(
       const movies =
         purchases.map(
           (purchase) => ({
-            ...purchase.film,
+            ...publicTrailer(purchase.film),
 
             posterUrl:
   purchase.film.posterUrl ||
@@ -2967,8 +2992,30 @@ app.get(
 // WEB - DIRECT SECURE MOVIE DOWNLOAD
 // ======================================================
 
+app.post("/api/web/movies/:filmId/download-ticket", requireWebUser, async (req, res) => {
+  res.set("Cache-Control", "private, no-store");
+  const filmId = Number(req.params.filmId);
+  if (!Number.isSafeInteger(filmId) || filmId <= 0) {
+    return res.status(400).json({ success: false, message: "Film ID bai dace ba." });
+  }
+  try {
+    const webUserId = req.webUser.id;
+    const purchase = await prisma.webPurchase.findUnique({
+      where: { webUserId_filmId: { webUserId, filmId } },
+    });
+    if (!purchase) return res.status(404).json({ success: false, message: "Ba a samu wannan fim ba." });
+    const ticket = makeFilmMediaTicket(process.env.BUNNY_STREAM_TOKEN_KEY, webUserId, filmId);
+    if (!ticket) return res.status(503).json({ success: false, message: "Download bai shirya ba." });
+    return res.json({ success: true, ticket });
+  } catch (error) {
+    console.error("FILM DOWNLOAD TICKET ERROR:", error.code || error.name);
+    return res.status(500).json({ success: false, message: "An kasa shirya download." });
+  }
+});
+
 app.get(
   "/api/web/movies/:filmId/download",
+  optionalMovieSession,
   async (req, res) => {
     try {
       const filmId = Number(
@@ -3034,6 +3081,7 @@ if (!purchase && !activePremium) {
             id: true,
             title: true,
             bunnyVideoId: true,
+            hiddenFromCatalog: true,
           },
         });
 
@@ -3043,6 +3091,13 @@ if (!purchase && !activePremium) {
           message:
             "Ba a samu wannan film ba.",
         });
+      }
+
+      if (film.hiddenFromCatalog) {
+        res.set("Cache-Control", "private, no-store");
+        const allowed = req.webUser?.id === webUserId ||
+          validFilmMediaTicket(process.env.BUNNY_STREAM_TOKEN_KEY, req.query.ticket, webUserId, filmId);
+        if (!purchase || !allowed) return res.status(404).json({ success: false, message: "Ba a samu wannan fim ba." });
       }
 
       if (!film.bunnyVideoId) {
@@ -3256,6 +3311,7 @@ app.get(
             webVideoUrl: true,
 
             featured: true,
+            hiddenFromCatalog: true,
 
             trailerEnabled: true,
             trailerUrl: true,
@@ -3541,6 +3597,7 @@ app.patch(
             webVideoUrl: true,
 
             featured: true,
+            hiddenFromCatalog: true,
 
             trailerEnabled: true,
             trailerUrl: true,
@@ -4335,6 +4392,7 @@ app.get(
         await prisma.film.findUnique({
           where: {
             id: filmId,
+            hiddenFromCatalog: false,
           },
           select: {
             id: true,
@@ -4453,6 +4511,7 @@ app.post(
         await prisma.film.findUnique({
           where: {
             id: filmId,
+            hiddenFromCatalog: false,
           },
           select: {
             id: true,
@@ -6641,6 +6700,26 @@ app.get(
 // ======================================================
 // ADMIN - ENABLE / DISABLE TRAILER
 // ======================================================
+
+app.patch("/api/admin/films/:filmId/visibility", requireAdmin, async (req, res) => {
+  const id = Number(req.params.filmId);
+  const hiddenFromCatalog = req.body?.hiddenFromCatalog;
+  if (!Number.isSafeInteger(id) || id <= 0 || typeof hiddenFromCatalog !== "boolean") {
+    return res.status(400).json({ success: false, message: "Film ID ko zaɓin ɓoye fim bai dace ba." });
+  }
+  try {
+    const film = await prisma.film.update({
+      where: { id },
+      data: { hiddenFromCatalog },
+      select: { id: true, hiddenFromCatalog: true },
+    });
+    return res.json({ success: true, film });
+  } catch (error) {
+    if (error.code === "P2025") return res.status(404).json({ success: false, message: "Ba a samu wannan fim ba." });
+    console.error("FILM VISIBILITY UPDATE ERROR:", error.code || error.name);
+    return res.status(500).json({ success: false, message: "An kasa sauya bayyanar fim." });
+  }
+});
 
 app.patch(
   "/api/admin/films/:filmId/trailer-enabled",

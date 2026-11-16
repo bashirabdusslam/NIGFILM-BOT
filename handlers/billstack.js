@@ -56,7 +56,7 @@ export function registerBillstack({app, prisma, requireWebUser, plans, expiry, b
         filmId = Number(req.body?.filmId);
         if (!Number.isSafeInteger(filmId) || filmId <= 0) return res.status(400).json({success:false,message:'Film ID bai dace ba.'});
         const film = await prisma.film.findUnique({where:{id:filmId}});
-        if (!film) return res.status(404).json({success:false,message:'Ba a samu film ba.'});
+        if (!film || film.hiddenFromCatalog) return res.status(404).json({success:false,message:'Ba a samu film ba.'});
         const owned = await prisma.webPurchase.findUnique({where:{webUserId_filmId:{webUserId:user.id,filmId}}});
         if (owned) return res.status(409).json({success:false,alreadyPurchased:true,message:'Ka riga ka sayi film.'});
         amount = film.price;

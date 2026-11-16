@@ -88,7 +88,7 @@ export function registerFlutterwave({
         const filmId = Number(req.body?.filmId);
         if (!Number.isSafeInteger(filmId) || filmId <= 0) return sendError(400, 'Film ID bai dace ba.');
         const film = await prisma.film.findUnique({ where: { id: filmId } });
-        if (!film) return sendError(404, 'Ba a samu fim ba.');
+        if (!film || film.hiddenFromCatalog) return sendError(404, 'Ba a samu fim ba.');
         if (await prisma.webPurchase.findUnique({ where: { webUserId_filmId: { webUserId, filmId } } })) {
           return res.status(409).json({ success: false, alreadyPurchased: true, message: 'Ka riga ka sayi fim.' });
         }

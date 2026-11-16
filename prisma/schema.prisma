@@ -224,6 +224,7 @@ model Film {
   trailerEnabled      Boolean @default(false)
 
   featured Boolean @default(false)
+  hiddenFromCatalog Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt

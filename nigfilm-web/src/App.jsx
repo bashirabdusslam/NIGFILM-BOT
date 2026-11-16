@@ -590,7 +590,7 @@ async function createAdminFilm() {
     setAdminNewPrice("");
     setAdminNewFeatured(false);
 
-    await loadFilms();
+    await Promise.all([loadFilms(), loadAdminCatalog()]);
   } catch (error) {
     console.error(
       "CREATE ADMIN FILM ERROR:",
@@ -1002,6 +1002,10 @@ const [
     adminEditFeatured,
     setAdminEditFeatured,
   ] = useState(false);
+
+  const [adminCatalogFilms, setAdminCatalogFilms] = useState([]);
+  const [adminCatalogLoading, setAdminCatalogLoading] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
 
   const [
     adminFilmSearch,
@@ -1752,6 +1756,52 @@ function openAdminPasswordResets() {
 
   loadAdminPasswordResetRequests();
 }
+  async function loadAdminCatalog() {
+    setAdminCatalogLoading(true);
+    setAdminManageError("");
+    try {
+      const response = await fetch(`${API_URL}/api/admin/films`, {
+        headers: { Authorization: `Bearer ${getSessionToken()}` },
+        cache: "no-store",
+      });
+      const data = await readJson(response);
+      if (!response.ok || !data?.success) throw new Error(data?.message || "An kasa loda fina-finai.");
+      setAdminCatalogFilms((data.films || []).map(normalizeFilm).filter(Boolean));
+    } catch (error) {
+      setAdminManageError(error.message);
+    } finally {
+      setAdminCatalogLoading(false);
+    }
+  }
+
+  async function changeCatalogVisibility(film, kind) {
+    const isTrailer = kind === "trailer";
+    const path = isTrailer ? "trailer-enabled" : "visibility";
+    const body = isTrailer ? { enabled: !film.trailerEnabled } : { hiddenFromCatalog: !film.hiddenFromCatalog };
+    setVisibilitySaving(true);
+    setAdminManageError("");
+    setAdminManageSuccess("");
+    try {
+      const response = await fetch(`${API_URL}/api/admin/films/${film.id}/${path}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getSessionToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await readJson(response);
+      if (!response.ok || !data?.success) throw new Error(data?.message || "An kasa adana zaɓi.");
+      setAdminCatalogFilms(current => current.map(item => item.id === film.id ? { ...item, ...data.film } : item));
+      if (body.hiddenFromCatalog) setFilms(current => current.filter(item => item.id !== film.id));
+      setAdminManageSuccess(isTrailer
+        ? (body.enabled ? "An nuna trailer." : "An ɓoye trailer.")
+        : (body.hiddenFromCatalog ? "An ɓoye fim daga kasida. Masu sayensa suna da shi a My Movies." : "An dawo da fim cikin kasida."));
+      await Promise.all([loadFilms(), loadMyMovies(false)]);
+    } catch (error) {
+      setAdminManageError(error.message);
+    } finally {
+      setVisibilitySaving(false);
+    }
+  }
+
   function openAdminManageFilms() {
     if (user?.role !== "ADMIN") {
       return;
@@ -1763,6 +1813,7 @@ function openAdminPasswordResets() {
     setAdminManageSuccess("");
 
     navigateTo("adminManageFilms");
+    void loadAdminCatalog();
   }
 
   // ===================================================
@@ -2362,7 +2413,11 @@ async function approveAdminPasswordReset(
 
       const response =
         await fetch(
-          `${API_URL}/api/web/my-movies?webUserId=${user.id}`
+          `${API_URL}/api/web/my-movies?webUserId=${user.id}`,
+          {
+            headers: getSessionToken() ? { Authorization: `Bearer ${getSessionToken()}` } : {},
+            cache: "no-store",
+          }
         );
 
       const data =
@@ -3232,7 +3287,7 @@ async function buyMovie(
   // DIRECT MOVIE DOWNLOAD
   // ===================================================
 
-  function downloadMovie(
+  async function downloadMovie(
     film
   ) {
     if (!user?.id) {
@@ -3251,10 +3306,25 @@ async function buyMovie(
 }
     setVideoError("");
 
-    const downloadUrl =
+    let downloadUrl =
       `${API_URL}/api/web/movies/` +
       `${film.id}/download` +
       `?webUserId=${user.id}`;
+
+    if (film.hiddenFromCatalog) {
+      try {
+        const response = await fetch(`${API_URL}/api/web/movies/${film.id}/download-ticket`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${getSessionToken()}` },
+        });
+        const data = await readJson(response);
+        if (!response.ok || !data?.ticket) throw new Error(data?.message || "An kasa shirya download.");
+        downloadUrl += `&ticket=${encodeURIComponent(data.ticket)}`;
+      } catch (error) {
+        setVideoError(error.message);
+        return;
+      }
+    }
 
    const iframe =
   document.createElement("iframe");
@@ -3947,6 +4017,7 @@ if (
           )
         );
 
+        setAdminCatalogFilms(current => current.map(film => film.id === updatedFilm.id ? { ...film, ...updatedFilm } : film));
         setAdminEditingFilm(updatedFilm);
         setAdminEditTitle(updatedFilm.title || "");
         setAdminEditDescription(updatedFilm.description || "");
@@ -5003,8 +5074,7 @@ function requireAuth(mode = "login") {
 
     const canWatchMovie =
       purchased ||
-      hasPremium ||
-      hasAdUnlock;
+      (!selectedFilm.hiddenFromCatalog && (hasPremium || hasAdUnlock));
 
     const purchasedFilm =
       findPurchasedMovie(
@@ -6307,7 +6377,7 @@ if (page === "adminPasswordResets") {
   // ===================================================
 
   if (page === "adminManageFilms") {
-    const adminFilteredFilms = films.filter((film) => {
+    const adminFilteredFilms = adminCatalogFilms.filter((film) => {
       const query = adminFilmSearch.trim().toLowerCase();
 
       if (!query) {
@@ -6718,9 +6788,14 @@ if (page === "adminPasswordResets") {
               <h2>🎬 Manage Films</h2>
 
               <p className="details-description">
-                Gyara title, description, category, price da Featured status na
-                fina-finai.
+                Gyara bayanan fina-finai. Idan ka ɓoye fim, wanda ya riga ya saya zai ci gaba da ganinsa a My Movies.
               </p>
+
+              {adminManageError && <p className="auth-error" role="alert">{adminManageError}</p>}
+              {adminManageSuccess && <p className="admin-upload-success" role="status">{adminManageSuccess}</p>}
+              <button type="button" className="secondary-button" onClick={loadAdminCatalog} disabled={adminCatalogLoading}>
+                Sake loda fina-finai
+              </button>
 
               <div className="admin-upload-field">
                 <label htmlFor="admin-film-search">🔎 Search Movies</label>
@@ -6780,6 +6855,20 @@ if (page === "adminPasswordResets") {
           <p>
             🏢 {film.studio.name}
           </p>
+        )}
+      </div>
+
+      <div className="details-actions">
+        <span>{film.hiddenFromCatalog ? "A ɓoye" : "A bayyane"}</span>
+        <button type="button" className="secondary-button" disabled={visibilitySaving}
+          onClick={() => changeCatalogVisibility(film, "film")}>
+          {film.hiddenFromCatalog ? "Nuna fim" : "Ɓoye fim"}
+        </button>
+        {(film.trailerEnabled || film.trailerBunnyVideoId) && (
+          <button type="button" className="secondary-button" disabled={visibilitySaving}
+            onClick={() => changeCatalogVisibility(film, "trailer")}>
+            {film.trailerEnabled ? "Ɓoye trailer" : "Nuna trailer"}
+          </button>
         )}
       </div>
 
@@ -6923,18 +7012,6 @@ if (page === "adminPasswordResets") {
           ⭐ Show in Featured Movies
         </label>
 
-        {adminManageError && (
-          <div className="auth-error">
-            ❌ {adminManageError}
-          </div>
-        )}
-
-        {adminManageSuccess && (
-          <div className="admin-upload-success">
-            {adminManageSuccess}
-          </div>
-        )}
-
         <div className="details-actions">
           <button
             type="button"
@@ -6971,7 +7048,8 @@ if (page === "adminPasswordResets") {
 
               </div>
 
-              {adminFilteredFilms.length === 0 && (
+              {adminCatalogLoading && <p role="status">Ana loda fina-finai…</p>}
+              {!adminCatalogLoading && adminFilteredFilms.length === 0 && (
                 <div className="status">
                   <p>
                     Ba a samu film ba.

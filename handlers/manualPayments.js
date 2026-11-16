@@ -32,12 +32,12 @@ export function publicRequest(r) {
 function sameTarget(r, userId, product) {
   return r.webUserId===userId && r.kind===product.kind && r.filmId===product.filmId && r.plan===product.plan;
 }
-async function productFor(prisma, plans, body) {
+async function productFor(prisma, plans, body, allowHidden = false) {
   const kind = body.kind;
   if (kind === 'FILM') {
     const filmId=positiveId(body.filmId);
     const film=await prisma.film.findUnique({where:{id:filmId}});
-    if (!film) fail('Ba a samu film ba.',404);
+    if (!film || (film.hiddenFromCatalog && !allowHidden)) fail('Ba a samu film ba.',404);
     if (!Number.isSafeInteger(film.price) || film.price<0 || film.price>21474836) fail('Farashin film bai dace ba.');
     return {kind,filmId,plan:null,title:film.title,amount:film.price,durationDays:null};
   }
@@ -176,7 +176,7 @@ export function registerManualPayments({app,prisma,requireWebUser,requireAdmin,p
   app.post('/api/admin/manual-payment/grants',requireAdmin,handler(async(req,res)=>{
     const userId=positiveId(req.body?.webUserId),requestKey=keyOf(req.body?.requestKey),note=text(req.body?.note,1000);
     if(note.length<5 || req.body?.confirmed!==true)fail('Rubuta dalili sannan ka tabbatar da user da zaÉ“insa.');
-    const p=await productFor(prisma,plans(),req.body||{});
+    const p=await productFor(prisma,plans(),req.body||{},true);
     const r=await prisma.$transaction(async tx=>{
       await lockUser(tx,userId);
       const old=await tx.manualAccessRequest.findUnique({where:{requestKey}});

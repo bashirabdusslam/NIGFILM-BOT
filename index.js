@@ -34,7 +34,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const PUBLIC_BASE_URL =
-  process.env.PUBLIC_BASE_URL ||
+  process.env.PUBLIC_BASE_URL?.trim().replace(/\/+$/, "") ||
   "http://localhost:3000";
 
 const WEB_APP_URL =

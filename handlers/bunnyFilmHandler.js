@@ -1,6 +1,29 @@
 import { bot, prisma, ADMIN_ID } from "../bot.js";
 import { Markup } from "telegraf";
 
+function buildUploadKeyboard(filmId) {
+  const baseUrl = process.env.PUBLIC_BASE_URL?.trim();
+  const secret = process.env.ADMIN_UPLOAD_SECRET;
+  if (!baseUrl || !secret || /\s/.test(baseUrl)) return null;
+
+  let url;
+  try {
+    const base = new URL(baseUrl);
+    if (base.protocol !== "https:" || base.username || base.password ||
+        base.pathname !== "/" || base.search || base.hash) return null;
+    url = new URL(`/admin/upload-film/${filmId}`, base);
+    url.searchParams.set("token", secret);
+  } catch {
+    return null;
+  }
+
+  return Markup.inlineKeyboard([
+    [Markup.button.url("⬆️ Upload Film", url.href)],
+    [Markup.button.callback("📢 Publish zuwa Channel", `admin_publish_film_${filmId}`)],
+    [Markup.button.callback("⬅️ Admin Panel", "admin_panel")],
+  ]);
+}
+
 export default function registerBunnyFilmHandler() {
   // =================================
   // ADMIN: CREATE FILM RECORD FOR BUNNY
@@ -160,15 +183,18 @@ export default function registerBunnyFilmHandler() {
           );
         }
 
-        // Idan ya riga ya samu Bunny ID
-        if (film.bunnyVideoId) {
-          await ctx.answerCbQuery();
+        const uploadKeyboard = buildUploadKeyboard(film.id);
+        if (!uploadKeyboard) {
+          await ctx.answerCbQuery().catch(() => {});
+          return await ctx.reply("❌ Saitin upload bai cika ba. Duba PUBLIC_BASE_URL da ADMIN_UPLOAD_SECRET a Railway.");
+        }
 
-          return ctx.reply(
-            `ℹ️ Wannan film ya riga ya samu Bunny Video.\n\n` +
-              `🎬 ${film.title}\n` +
-              `🆔 Film ID: ${film.id}\n` +
-              `🐰 Bunny ID: ${film.bunnyVideoId}`
+        if (film.bunnyVideoId) {
+          await ctx.answerCbQuery().catch(() => {});
+          return await ctx.reply(
+            `🎬 ${film.title} · Film ID: ${film.id}\n\n` +
+            "Bunny Video ya riga ya samu. Danna Upload Film don ci gaba.",
+            uploadKeyboard
           );
         }
 
@@ -238,52 +264,18 @@ export default function registerBunnyFilmHandler() {
           },
         });
 
-        await ctx.answerCbQuery();
-
-        return ctx.reply(
-          `✅ BUNNY VIDEO AN ƘIRƘIRA!\n\n` +
-            `🎬 ${film.title}\n` +
-            `🆔 Film ID: ${film.id}\n` +
-            `🐰 Bunny ID: ${bunnyVideoId}\n\n` +
-            `Yanzu actual video zai iya upload zuwa Bunny Stream.`,
-          {
-            ...Markup.inlineKeyboard([
-  [
-    Markup.button.url(
-      "⬆️ Upload Film",
-      `${
-        process.env.PUBLIC_BASE_URL ||
-        "https://nigfilm-bot.onrender.com"
-      }/admin/upload-film/${film.id}?token=${encodeURIComponent(
-        process.env.ADMIN_UPLOAD_SECRET || ""
-      )}`
-    ),
-  ],
-  [
-    Markup.button.callback(
-      "📢 Publish zuwa Channel",
-      `admin_publish_film_${film.id}`
-    ),
-  ],
-  [
-    Markup.button.callback(
-      "⬅️ Admin Panel",
-      "admin_panel"
-    ),
-  ],
-]),
-          }
+        await ctx.answerCbQuery().catch(() => {});
+        return await ctx.reply(
+          `✅ BUNNY VIDEO AN ƘIRƘIRA!\n\n🎬 ${film.title}\n🆔 Film ID: ${film.id}\n\n` +
+          "Danna Upload Film don aika bidiyo zuwa Bunny Stream.",
+          uploadKeyboard
         );
       } catch (error) {
-        console.error(
-          "CREATE BUNNY VIDEO ACTION ERROR:",
-          error
-        );
-
-        return ctx.reply(
-          "❌ An samu matsala wajen ƙirƙirar Bunny video."
-        );
+        // Telegram errors can embed the private upload URL in the request and description.
+        console.error("CREATE BUNNY VIDEO ACTION ERROR:", error.response?.error_code || error.name);
+        await ctx.answerCbQuery().catch(() => {});
+        await ctx.reply("❌ An samu matsala wajen shirya upload. Sake gwadawa.").catch(() => {});
       }
     }
   );
-  }
+}

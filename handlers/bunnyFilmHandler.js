@@ -19,7 +19,7 @@ function buildUploadKeyboard(filmId) {
 
   return Markup.inlineKeyboard([
     [Markup.button.url("⬆️ Upload Film", url.href)],
-    [Markup.button.callback("📢 Publish zuwa Channel", `admin_publish_film_${filmId}`)],
+    [Markup.button.callback("📢 Push Public", `admin_publish_film_${filmId}`)],
     [Markup.button.callback("⬅️ Admin Panel", "admin_panel")],
   ]);
 }

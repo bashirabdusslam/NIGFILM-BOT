@@ -188,14 +188,14 @@ export default function registerVideoHandlers() {
           `📂 Category: ${escapeMarkdown(
             film.category
           )}\n\n` +
-          `📢 Danna ƙasa domin tura shi zuwa Channel:`,
+          `📢 Danna Push Public domin sanar da Telegram da masu NIGFILM app:`,
         {
           parse_mode: "Markdown",
 
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback(
-                "📢 Publish zuwa Channel",
+                "📢 Push Public",
                 `admin_publish_film_${film.id}`
               ),
             ],

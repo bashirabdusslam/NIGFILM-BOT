@@ -1,3 +1,4 @@
+import { AdminNotifications, PushBanner, PushPreference, stopAndroidPush, useAndroidPush } from "./PushNotifications";
 ﻿import AdminTransactions from "./AdminTransactions";
 import { ManualPaymentButton, ManualPaymentAdmin, ManualPaymentHistory } from "./ManualPayments";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -208,6 +209,8 @@ function App() {
       return null;
     }
   });
+
+  const push = useAndroidPush(API_URL, user?.id ? getSessionToken() : "");
 
   const [authMode, setAuthMode] =
     useState("login");
@@ -689,11 +692,11 @@ useEffect(() => {
     return films.find((film) => Number(film?.id) === id) || null;
   }
 
-  function applyHistoryState(state) {
+  function applyHistoryState(state, knownFilm = null) {
     const nextPage = state?.page || "home";
 
     if (nextPage === "details") {
-      const movie = findFilmById(state?.filmId);
+      const movie = knownFilm || findFilmById(state?.filmId);
 
       if (movie) {
         setSelectedFilm(movie);
@@ -721,7 +724,7 @@ useEffect(() => {
       window.history.pushState(state, "", window.location.href);
     }
 
-    applyHistoryState(state);
+    applyHistoryState(state, film);
   }
 useEffect(() => {
   let backListener;
@@ -1412,6 +1415,35 @@ const [
       window.removeEventListener("popstate", handlePopState);
     };
   }, [user?.id, films, myMovies]);
+
+  useEffect(() => {
+    const filmId = push.openFilmId;
+    if (!user?.id || !filmId) return;
+    const controller = new AbortController();
+    async function openPublishedFilm() {
+      try {
+        const response = await fetch(`${API_URL}/api/films/${filmId}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await readJson(response);
+        const movie = normalizeFilm(data?.film);
+        if (!response.ok || !data?.success || movie?.id !== filmId) throw new Error("Film unavailable");
+        if (controller.signal.aborted) return;
+        setFilms((current) => current.some((film) => film.id === filmId) ? current : [movie, ...current]);
+        openFilm(movie);
+        push.dismiss();
+      } catch {
+        if (controller.signal.aborted) return;
+        push.setFilmError(language === "HAUSA" ? "An kasa buɗe fim ɗin. Sake gwadawa." : "Could not open this movie. Please try again.");
+      } finally {
+        if (!controller.signal.aborted) push.openFilm(null);
+      }
+    }
+    void openPublishedFilm();
+    return () => controller.abort();
+  }, [push.openFilmId, user?.id]);
+
 
   // ===================================================
   // FILM NORMALIZER
@@ -2339,6 +2371,7 @@ async function approveAdminPasswordReset(
   // ===================================================
 
   function logout() {
+    stopAndroidPush(API_URL, getSessionToken());
     localStorage.removeItem(
       "nigfilm_user"
     );
@@ -4989,7 +5022,7 @@ function requireAuth(mode = "login") {
   // COMMON HEADER
   // ===================================================
 
-  const header = (
+  const appHeader = (
     <header className="header">
       <div>
         <p className="welcome">
@@ -5047,6 +5080,8 @@ function requireAuth(mode = "login") {
       </div>
     </header>
   );
+  const header = <>{appHeader}<PushBanner push={push} language={language} /></>;
+
 
   // ===================================================
   // DETAILS PAGE
@@ -6063,6 +6098,14 @@ if (
     </div>
   );
 }
+  if (page === "adminNotifications") {
+    return <div className="app">{header}<main className="transactions-page">
+      <button type="button" onClick={openProfile}>{language === "HAUSA" ? "Komawa profile" : "Back to profile"}</button>
+      {user?.role === "ADMIN"
+        ? <AdminNotifications apiUrl={API_URL} token={getSessionToken()} adminUserId={user.id} />
+        : <p>Admin access required.</p>}
+    </main></div>;
+  }
   if (page === "adminTransactions") {
     return <div className="app">{header}{user?.role === "ADMIN"
       ? <AdminTransactions apiUrl={API_URL} token={getSessionToken()} onBack={openProfile} />
@@ -8197,6 +8240,8 @@ if (page === "adminPasswordResets") {
   </button>
 )}
 
+<PushPreference push={push} language={language} />
+{user?.role === "ADMIN" && <button type="button" className="secondary-button" onClick={() => navigateTo("adminNotifications")}>{language === "HAUSA" ? "Tura sanarwa" : "Send notifications"}</button>}
 {user?.role === "ADMIN" && <button type="button" className="secondary-button" onClick={() => navigateTo("adminTransactions")}>Dukkan Transactions</button>}
 <button type="button" className="secondary-button" onClick={() => navigateTo("manualPaymentHistory")}>
   🏦 Buƙatun transfer / access

@@ -6,6 +6,7 @@ import {
 } from "../bot.js";
 
 import { Markup } from "telegraf";
+import { queuePublishedFilmPush } from "./pushNotifications.js";
 
 export default function registerFilmHandlers() {
   // =================================
@@ -96,7 +97,7 @@ export default function registerFilmHandlers() {
           ],
           [
             Markup.button.callback(
-              "📢 Publish",
+              "📢 Push Public",
               `admin_publish_film_${film.id}`
             ),
             Markup.button.callback(
@@ -223,7 +224,7 @@ export default function registerFilmHandlers() {
             ],
             [
               Markup.button.callback(
-                "📢 Publish",
+                "📢 Push Public",
                 `admin_publish_film_${film.id}`
               ),
             ],
@@ -690,26 +691,40 @@ bot.action(
       // SEND TO CHANNEL
       // =================================
 
-      await bot.telegram.sendPhoto(
-        CHANNEL_ID,
-        film.posterFileId,
-        {
-          caption,
-          parse_mode: "Markdown",
-          ...Markup.inlineKeyboard([
-  [
-    Markup.button.url(
-      "💳 BUY NOW",
-      buyLink
-    ),
-    Markup.button.callback(
-      "🛒 ADD TO CART",
-      `channel_add_cart_${film.id}`
-    ),
-  ],
-]),
-        }
-      );
+      let channelStatus = "An tura cikin nasara.";
+      try {
+        await bot.telegram.sendPhoto(
+          CHANNEL_ID,
+          film.posterFileId,
+          {
+            caption,
+            parse_mode: "Markdown",
+            ...Markup.inlineKeyboard([[
+              Markup.button.url("💳 BUY NOW", buyLink),
+              Markup.button.callback("🛒 ADD TO CART", `channel_add_cart_${film.id}`),
+            ]]),
+          }
+        );
+      } catch (error) {
+        console.error("FILM CHANNEL PUBLISH FAILED:", error?.code || error?.name);
+        channelStatus = "An kasa tura zuwa Channel.";
+      }
+
+      let appStatus;
+      try {
+        const push = await queuePublishedFilmPush({prisma,film,baseUrl:process.env.PUBLIC_BASE_URL?.trim()});
+        appStatus = {
+          queued:`An sa sanarwa a layin aikawa zuwa Android (${push.estimatedDevices} na’ura).`,
+          alreadyQueued:"An riga an sa sanarwar wannan fim a layin aikawa.",
+          notConfigured:"Ba a saita Firebase a backend ba tukuna.",
+          notReady:"Fim bai shirya don kallo a app ba tukuna. Ka sake danna Push Public idan ya shirya.",
+          noDevices:"Babu wayar Android da ta yi rajistar sanarwa tukuna.",
+          hidden:"Fim yana ɓoye a catalog; ba a tura sanarwar app ba.",
+        }[push.status];
+      } catch (error) {
+        console.error("APP FILM PUSH FAILED:", error?.code || error?.name);
+        appStatus = "An kasa saka sanarwar app a layin aikawa.";
+      }
 
       // =================================
       // SEND TO ALL BOT USERS
@@ -773,7 +788,10 @@ bot.action(
 ${escapeMarkdown(film.title)}
 
 📢 Channel:
-An tura cikin nasara.
+${channelStatus}
+
+📱 NIGFILM App:
+${appStatus}
 
 👥 Total Bot Users:
 ${users.length}

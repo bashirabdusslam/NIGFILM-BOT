@@ -1,3 +1,4 @@
+import { registerPushNotifications } from "./handlers/pushNotifications.js";
 import { isTelegramPaystackReference, recheckFilmOrder, registerFilmPaymentRecheck } from "./handlers/filmPaymentRecheck.js";
 import { makeFilmMediaTicket, publicTrailer, validFilmMediaTicket } from "./handlers/filmVisibility.js";
 import { findPasswordResetUser, requestPasswordReset } from "./handlers/passwordResetRequests.js";
@@ -1570,6 +1571,11 @@ app.post(
   }
 );
 registerAdminTransactions({ app, prisma, requireAdmin });
+registerPushNotifications({
+  app, prisma, requireAdmin, requireWebUser,
+  parseImage: express.raw({ type: ["image/png", "image/jpeg"], limit: 900 * 1024, inflate: false }),
+  baseUrl: PUBLIC_BASE_URL,
+});
 registerFilmPaymentRecheck({
   app, prisma, requireAdmin,
   verifyPaystack: readPaystackPayment,
@@ -4935,7 +4941,7 @@ app.post(
         .trim()
         .toLowerCase();
 
-      if (!token || token.length < 20) {
+      if (token.length < 20 || token.length > 4096) {
         return res.status(400).json({
           success: false,
           message: "FCM token bai dace ba.",

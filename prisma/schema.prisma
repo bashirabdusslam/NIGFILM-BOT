@@ -467,3 +467,36 @@ model CheckoutPaymentSettings {
   updatedBy Int
   updatedAt DateTime @updatedAt
 }
+
+model PushCampaign {
+  id               String    @id
+  adminId          Int
+  targetUserId     Int?
+  imageId          String?
+  imageUrl         String?
+  title            String
+  body             String
+  estimatedDevices Int
+  lastDeviceId     Int
+  cursor           Int       @default(0)
+  accepted         Int       @default(0)
+  failed           Int       @default(0)
+  status           String    @default("QUEUED")
+  leaseUntil       DateTime?
+  leaseId          String?
+  errorCode        String?
+  createdAt        DateTime  @default(now())
+  finishedAt       DateTime?
+
+  @@index([status, createdAt])
+}
+
+model PushImage {
+  id        String   @id
+  adminId   Int
+  mime      String
+  bytes     Bytes
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
